@@ -30,6 +30,7 @@ build/graphrag/cache/
 build/graphrag/output/
 build/graphrag/input/
 build/graphrag/.wrangler/
+build/graphrag/logs/
 
 # Secrets (NEVER commit real API keys)
 build/graphrag/.env
