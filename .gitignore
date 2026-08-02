@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+web/dist/
+web/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# GraphRAG runtime artifacts
+build/graphrag/cache/
+build/graphrag/output/
+build/graphrag/input/
+build/graphrag/.wrangler/
+
+# Secrets (NEVER commit real API keys)
+build/graphrag/.env
+.env
+.env.local
+.env.*.local
+
+# Temporary / logs
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+.cache/
+tmp/

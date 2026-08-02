@@ -1,0 +1,52 @@
+2026-08-02 16:06:43.0163 - INFO - graphrag.cli.index - Logging enabled at E:\workspace\siliao\build\graphrag\logs\logs.txt
+2026-08-02 16:06:51.0123 - ERROR - graphrag.language_model.providers.fnllm.utils - Error Invoking LLM
+Traceback (most recent call last):
+  File "D:\Python311\Lib\site-packages\fnllm\base\base_llm.py", line 144, in __call__
+    return await self._decorated_target(prompt, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\services\json.py", line 78, in invoke
+    return await delegate(prompt, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\services\rate_limiter.py", line 75, in invoke
+    result = await delegate(prompt, **args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\base_llm.py", line 126, in _decorator_target
+    output = await self._execute_llm(prompt, kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\openai\llm\openai_text_chat_llm.py", line 173, in _execute_llm
+    raw_response = await self._client.chat.completions.with_raw_response.create(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\openai\_legacy_response.py", line 381, in wrapped
+    return cast(LegacyAPIResponse[R], await func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\openai\resources\chat\completions\completions.py", line 2585, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\openai\_base_client.py", line 1794, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\openai\_base_client.py", line 1594, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****ummy is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+2026-08-02 16:06:51.0133 - ERROR - graphrag.index.validate_config - LLM configuration error detected. Exiting...
+Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****ummy is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+2026-08-02 19:26:18.0755 - INFO - graphrag.cli.index - Logging enabled at E:\workspace\siliao\build\graphrag\logs\logs.txt
+2026-08-02 19:26:20.0967 - ERROR - graphrag.language_model.providers.fnllm.utils - Error Invoking LLM
+Traceback (most recent call last):
+  File "D:\Python311\Lib\site-packages\fnllm\base\base_llm.py", line 144, in __call__
+    return await self._decorated_target(prompt, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\services\json.py", line 78, in invoke
+    return await delegate(prompt, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\services\rate_limiter.py", line 75, in invoke
+    result = await delegate(prompt, **args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\base\base_llm.py", line 126, in _decorator_target
+    output = await self._execute_llm(prompt, kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Python311\Lib\site-packages\fnllm\openai\llm\openai_text_chat_llm.py", line 181, in _execute_llm
+    raise OpenAINoChoicesAvailableError
+fnllm.openai.llm.openai_text_chat_llm.OpenAINoChoicesAvailableError: No choices returned from OpenAI chat completion.
+2026-08-02 19:26:20.0973 - ERROR - graphrag.index.validate_config - LLM configuration error detected. Exiting...
+No choices returned from OpenAI chat completion.

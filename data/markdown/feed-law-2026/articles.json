@@ -1,0 +1,146 @@
+[
+  {
+    "article_id": "art001",
+    "chapter_id": "ch01",
+    "number": "第一条",
+    "title": "",
+    "text": "第一条 为了加强对饲料和饲料添加剂的管理,保障饲料和饲料添加剂质量安全,促进饲料工业和养殖业健康发展,维护人体健康,根据《农业法》《农产品质量安全法》等法律,制定本条例。",
+    "start_line": 9,
+    "end_line": 10
+  },
+  {
+    "article_id": "art002",
+    "chapter_id": "ch01",
+    "number": "第二条",
+    "title": "",
+    "text": "第二条 在中华人民共和国境内从事饲料和饲料添加剂的研制、生产、经营、使用、检验、监督等活动,应当遵守本条例。",
+    "start_line": 11,
+    "end_line": 12
+  },
+  {
+    "article_id": "art003",
+    "chapter_id": "ch01",
+    "number": "第三条",
+    "title": "",
+    "text": "第三条 本条例所称饲料,是指经工业化加工、制作的供动物食用的产品,包括单一饲料、添加剂预混合饲料、浓缩饲料、配合饲料和精料补充料。",
+    "start_line": 13,
+    "end_line": 14
+  },
+  {
+    "article_id": "art004",
+    "chapter_id": "ch01",
+    "number": "第四条",
+    "title": "",
+    "text": "第四条 国务院农业农村主管部门负责全国饲料和饲料添加剂的监督管理工作。",
+    "start_line": 15,
+    "end_line": 16
+  },
+  {
+    "article_id": "art005",
+    "chapter_id": "ch02",
+    "number": "第五条",
+    "title": "",
+    "text": "第五条 国家实行饲料和饲料添加剂审定制度。从事饲料和饲料添加剂生产的企业,应当取得相应的审定证书。",
+    "start_line": 19,
+    "end_line": 20
+  },
+  {
+    "article_id": "art006",
+    "chapter_id": "ch02",
+    "number": "第六条",
+    "title": "",
+    "text": "第六条 申请饲料添加剂审定,应当向国务院农业农村主管部门提交下列材料:\n(一)申请书;\n(二)产品配方;\n(三)生产工艺;\n(四)质量标准及检验方法;\n(五)安全性评价报告。",
+    "start_line": 21,
+    "end_line": 27
+  },
+  {
+    "article_id": "art007",
+    "chapter_id": "ch02",
+    "number": "第七条",
+    "title": "",
+    "text": "第七条 国务院农业农村主管部门应当自受理申请之日起 60 日内作出决定。对符合条件的,发给饲料添加剂审定证书。",
+    "start_line": 28,
+    "end_line": 29
+  },
+  {
+    "article_id": "art008",
+    "chapter_id": "ch03",
+    "number": "第八条",
+    "title": "",
+    "text": "第八条 从事饲料生产的企业,应当具备下列条件:\n(一)有与生产规模相适应的厂房、设备和仓储设施;\n(二)有与生产规模相适应的质量检验机构、检验人员和检验设备;\n(三)有健全的质量管理制度;\n(四)法律、行政法规规定的其他条件。",
+    "start_line": 32,
+    "end_line": 37
+  },
+  {
+    "article_id": "art009",
+    "chapter_id": "ch03",
+    "number": "第九条",
+    "title": "",
+    "text": "第九条 饲料生产企业应当按照饲料质量标准组织生产,对其生产的产品质量负责。",
+    "start_line": 38,
+    "end_line": 39
+  },
+  {
+    "article_id": "art010",
+    "chapter_id": "ch03",
+    "number": "第十条",
+    "title": "",
+    "text": "第十条 经营饲料和饲料添加剂,应当取得相应的经营许可证书。",
+    "start_line": 40,
+    "end_line": 41
+  },
+  {
+    "article_id": "art011",
+    "chapter_id": "ch04",
+    "number": "第十一条",
+    "title": "",
+    "text": "第十一条 县级以上人民政府农业农村主管部门负责本行政区域内的饲料和饲料添加剂监督管理工作。",
+    "start_line": 44,
+    "end_line": 45
+  },
+  {
+    "article_id": "art012",
+    "chapter_id": "ch04",
+    "number": "第十二条",
+    "title": "",
+    "text": "第十二条 县级以上人民政府农业农村主管部门在进行监督检查时,有权采取下列措施:\n(一)进入生产经营场所实施现场检查;\n(二)对生产、经营、使用的产品进行抽样检验;\n(三)查阅、复制有关的合同、票据、账簿以及其他有关资料。",
+    "start_line": 46,
+    "end_line": 50
+  },
+  {
+    "article_id": "art013",
+    "chapter_id": "ch04",
+    "number": "第十三条",
+    "title": "",
+    "text": "第十三条 禁止生产、经营、使用未取得审定证书的饲料添加剂。",
+    "start_line": 51,
+    "end_line": 52
+  },
+  {
+    "article_id": "art014",
+    "chapter_id": "ch05",
+    "number": "第十四条",
+    "title": "",
+    "text": "第十四条 违反本条例规定,未取得审定证书生产饲料添加剂的,由县级以上地方人民政府农业农村主管部门责令停止生产,没收违法所得和违法生产的产品,并处违法生产的产品货值金额 3 倍以上 5 倍以下的罚款。",
+    "start_line": 55,
+    "end_line": 56
+  },
+  {
+    "article_id": "art015",
+    "chapter_id": "ch05",
+    "number": "第十五条",
+    "title": "",
+    "text": "第十五条 违反本条例规定,生产、经营假饲料或者假饲料添加剂的,依照《农产品质量安全法》的有关规定处罚。",
+    "start_line": 57,
+    "end_line": 58
+  },
+  {
+    "article_id": "art016",
+    "chapter_id": "ch06",
+    "number": "第十六条",
+    "title": "",
+    "text": "第十六条 本条例自 2026 年 7 月 1 日起施行。",
+    "start_line": 61,
+    "end_line": 60
+  }
+]

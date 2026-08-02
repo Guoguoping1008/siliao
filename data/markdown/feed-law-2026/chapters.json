@@ -1,0 +1,72 @@
+[
+  {
+    "chapter_id": "ch01",
+    "number": "第一章",
+    "title": "总则",
+    "article_ids": [
+      "art001",
+      "art002",
+      "art003",
+      "art004"
+    ],
+    "start_line": 7,
+    "end_line": 16
+  },
+  {
+    "chapter_id": "ch02",
+    "number": "第二章",
+    "title": "审定与登记",
+    "article_ids": [
+      "art005",
+      "art006",
+      "art007"
+    ],
+    "start_line": 17,
+    "end_line": 29
+  },
+  {
+    "chapter_id": "ch03",
+    "number": "第三章",
+    "title": "生产与经营",
+    "article_ids": [
+      "art008",
+      "art009",
+      "art010"
+    ],
+    "start_line": 30,
+    "end_line": 41
+  },
+  {
+    "chapter_id": "ch04",
+    "number": "第四章",
+    "title": "监督管理",
+    "article_ids": [
+      "art011",
+      "art012",
+      "art013"
+    ],
+    "start_line": 42,
+    "end_line": 52
+  },
+  {
+    "chapter_id": "ch05",
+    "number": "第五章",
+    "title": "法律责任",
+    "article_ids": [
+      "art014",
+      "art015"
+    ],
+    "start_line": 53,
+    "end_line": 58
+  },
+  {
+    "chapter_id": "ch06",
+    "number": "第六章",
+    "title": "附则",
+    "article_ids": [
+      "art016"
+    ],
+    "start_line": 59,
+    "end_line": 61
+  }
+]
