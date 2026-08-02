@@ -4,11 +4,9 @@ import { api } from "../lib/api"
 import type { Chapter } from "../lib/api"
 import { SearchBar } from "../components/SearchBar"
 import { DocumentCard } from "../components/DocumentCard"
+import { Layout } from "../components/Layout"
 import { isMockMode } from "../lib/api"
 
-/**
- * 文档详情页: 顶部搜索 + 文号元数据 + 左侧章节目录树 + 右侧"点击章节查看"
- */
 export function DocumentPage() {
   const { docId = "feed-law-2026" } = useParams<{ docId: string }>()
   const [chapters, setChapters] = useState<Chapter[]>([])
@@ -25,14 +23,18 @@ export function DocumentPage() {
       .finally(() => setLoading(false))
   }, [docId])
 
-  if (loading) return <div className="p-8 text-slate-500">加载中...</div>
+  if (loading) return (
+    <Layout>
+      <div className="p-8 text-slate-500 dark:text-slate-400">加载中...</div>
+    </Layout>
+  )
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-6">
+    <Layout>
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-6">
         <div className="max-w-5xl mx-auto">
-          <Link to="/" className="text-sm text-primary hover:underline">← 返回首页</Link>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{title}</h1>
+          <Link to="/" className="text-sm text-primary dark:text-primary-dark hover:underline">← 返回首页</Link>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
           <div className="mt-4">
             <SearchBar />
           </div>
@@ -46,22 +48,22 @@ export function DocumentPage() {
             <li key={c.chapter_id}>
               <Link
                 to={`/doc/${docId}/chapter/${c.chapter_id}`}
-                className="flex items-baseline gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-primary hover:shadow-sm transition"
+                className="flex items-baseline gap-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary-dark hover:shadow-sm transition"
               >
-                <span className="text-slate-400 font-mono text-sm w-20 flex-shrink-0">
+                <span className="text-slate-400 dark:text-slate-500 font-mono text-sm w-20 flex-shrink-0">
                   {c.number}
                 </span>
                 <span className="font-medium flex-1">{c.title}</span>
-                <span className="text-xs text-slate-400">{c.article_count} 条</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{c.article_count} 条</span>
               </Link>
             </li>
           ))}
         </ol>
       </main>
 
-      <footer className="text-center text-xs text-slate-400 py-4">
+      <div className="text-center text-xs text-slate-400 dark:text-slate-600 py-4">
         {isMockMode ? "Mock 模式 · 离线数据" : "生产模式 · Cloudflare Workers"}
-      </footer>
-    </div>
+      </div>
+    </Layout>
   )
 }

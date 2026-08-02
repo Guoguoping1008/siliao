@@ -4,7 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#1e40af",
+        primary: {
+          DEFAULT: "#1e40af",
+          dark: "#3b82f6",
+        },
         accent: "#16a34a",
       },
       fontFamily: {
@@ -13,4 +16,5 @@ export default {
     },
   },
   plugins: [],
+  darkMode: "class",
 };
