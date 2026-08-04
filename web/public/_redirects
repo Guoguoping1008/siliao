@@ -1,7 +1,5 @@
-/*  https://developers.cloudflare.com/pages/configuration/serving-pages/#route-not-found-behavior
- *
- * 把所有非 /assets/ 非 /api/ 的请求 fallback 到 index.html,
- * 让 react-router-dom 处理客户端路由。
- */
+# API 代理:前端 /api/* 转发到 Workers
+# 注意: 不要在这里加 SPA fallback(* → /index.html),那会覆盖所有路径
+# Pages 自动用 dist/index.html 处理根路径;React Router 的客户端路由由 JS 处理
+
 /api/*  https://siliao-api.workers.dev/api/:splat  200
-/*    /index.html                                       200

@@ -6,11 +6,11 @@
 
 models:
   default_chat_model:
-    type: openai_chat # MiniMax 通过本地代理桥接(路径 /v1/text/chatcompletion_v2 与 OpenAI 不兼容)
-    api_base: http://127.0.0.1:7891/v1
+    type: openai_chat # DeepSeek 走 OpenAI 兼容协议直连(无需本地代理)
+    api_base: https://api.deepseek.com/v1
     auth_type: api_key
     api_key: ${GRAPHRAG_API_KEY}
-    model: MiniMax-Text-01
+    model: deepseek-chat
     model_supports_json: true
     max_tokens: 8192
     temperature: 0
