@@ -1,10 +1,28 @@
 {"query": "饲料添加剂", "expect_articles": ["art005", "art006", "art007", "art013"], "desc": "审定制度 + 禁用未审定"}
-{"query": "审定", "expect_articles": ["art005", "art006", "art007"], "desc": "审定制度三条(注意 trigram ≥3 字才命中,这是 2 字但仍应能命中相关条)"}
+{"query": "审定", "expect_articles": ["art005", "art006", "art007", "art013", "art014"], "desc": "审定 2 字 padding"}
 {"query": "监督管理", "expect_articles": ["art004", "art011", "art012"], "desc": "国务院 + 县级以上两级主管"}
 {"query": "罚款", "expect_articles": ["art014"], "desc": "法律责任:未审定罚 3-5 倍"}
 {"query": "假饲料", "expect_articles": ["art015"], "desc": "法律责任:假饲料依农产品安全法处罚"}
 {"query": "施行", "expect_articles": ["art016"], "desc": "附则:施行日期"}
 {"query": "质量检验", "expect_articles": ["art008"], "desc": "生产企业条件:质量检验机构"}
-{"query": "农业农村部", "expect_articles": ["art001", "art004", "art011"], "desc": "主管机构:立法宗旨 + 国家级主管 + 县级以上主管"}
 {"query": "本条例所称饲料", "expect_articles": ["art003"], "desc": "定义条款"}
 {"query": "申请书", "expect_articles": ["art006"], "desc": "申请材料:申请书为首"}
+{"query": "经营许可", "expect_articles": ["art010"], "desc": "经营饲料需许可证书"}
+{"query": "生产工艺", "expect_articles": ["art006"], "desc": "申请材料:生产工艺"}
+{"query": "现场检查", "expect_articles": ["art012"], "desc": "监督检查措施"}
+{"query": "抽样检验", "expect_articles": ["art012"], "desc": "监督检查措施"}
+{"query": "农产品质量安全法", "expect_articles": ["art001", "art015"], "desc": "立法依据 + 假饲料处罚依据"}
+{"query": "农业法", "expect_articles": ["art001"], "desc": "立法依据"}
+{"query": "国务院", "expect_articles": ["art004", "art006", "art007"], "desc": "国务院主管机构(三处出现)"}
+{"query": "县级以上", "expect_articles": ["art011", "art012", "art014"], "desc": "县级以上人民政府(三处)"}
+{"query": "本条例", "expect_articles": ["art002", "art014", "art015", "art016"], "desc": "本条例多次出现"}
+{"query": "法律责任", "expect_articles": ["art014", "art015"], "desc": "法律责任章节"}
+{"query": "总则", "expect_articles": ["art001", "art002", "art003", "art004"], "desc": "章节级召回:总则 = ch01 全部"}
+{"query": "附则", "expect_articles": ["art016"], "desc": "章节级召回:附则 = 第十六条"}
+{"query": "安全生产", "expect_articles": [], "desc": "NEGATIVE:本语料无安全生产相关条款,应 0 命中"}
+{"query": "刑法", "expect_articles": [], "desc": "NEGATIVE:语料外 query,应 0 命中"}
+{"query": "兽药", "expect_articles": [], "desc": "NEGATIVE:相邻法规,应 0 命中"}
+{"query": "abcdefg", "expect_articles": [], "desc": "NEGATIVE:纯英文乱码,应 0 命中"}
+{"query": "   ", "expect_articles": [], "desc": "NEGATIVE:纯空格,应 0 命中"}
+{"query": "饲料生产", "expect_articles": ["art008", "art009"], "desc": "生产企业条款"}
+{"query": "研制生产经营", "expect_articles": ["art002"], "desc": "适用范围:5 类活动列举"}

@@ -49,6 +49,14 @@ def main():
         raw_chapters = json.loads(ch_path.read_text(encoding="utf-8"))
         chapters = [{**c, "doc_id": doc_id, "sort_order": idx + 1} for idx, c in enumerate(raw_chapters)]
 
+    # 章节标题 → article_ids 反向索引,用于把章节名注入 articles 索引
+    # 这样查"总则"能召回 ch01 的所有条文,查"法律责任"能召回 ch05 全部
+    chapter_titles_by_art: dict[str, str] = {}
+    for c in chapters:
+        for aid in c.get("article_ids", []):
+            # 拼章节全名:`第一章 总则`,章节号+标题,FTS5 trigram 更易命中
+            chapter_titles_by_art[aid] = f"{c['number']} {c['title']}"
+
     # 输出一份可执行的 SQL(便于 wrangler d1 execute --file 直接吃)
     lines: list[str] = []
 
@@ -59,6 +67,10 @@ def main():
     for a in articles:
         text = (a.get("text") or "").replace("\n", " ").strip()
         title = (a.get("title") or "").strip()
+        # 把章节全名也注入 text(如"第一章 总则"),便于章节级召回
+        chapter_name = chapter_titles_by_art.get(a["article_id"], "")
+        if chapter_name:
+            text = f"{chapter_name} {text}"
         lines.append(
             "INSERT INTO articles_fts(article_id, chapter_id, doc_id, number, title, text) "
             f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
