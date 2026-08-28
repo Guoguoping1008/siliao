@@ -5,7 +5,7 @@
 #   1. cp .env.example .env  并填 GRAPHRAG_API_KEY
 #   2. cp data/markdown/<doc_id>/articles/*.md input/
 #   3. ./run.sh
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")"
 
@@ -16,10 +16,11 @@ fi
 
 # 检查 input 目录是否有文件
 shopt -s nullglob
-if [ ${#input[@]} -eq 0 ]; then
+files=(input/*.md)
+if [ ${#files[@]} -eq 0 ]; then
     echo "[ERR] input/ 目录为空,先复制法规章节 md" >&2
     exit 1
 fi
 
-echo "[graphrag] 开始构建,共 ${#input[@]} 个章节..."
+echo "[graphrag] 开始构建,共 ${#files[@]} 个章节..."
 graphrag index --root . --verbose
