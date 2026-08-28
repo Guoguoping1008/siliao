@@ -68,3 +68,17 @@ CREATE TABLE IF NOT EXISTS index_meta (
   community_count INTEGER,
   updated_at      TEXT DEFAULT (datetime('now'))
 );
+
+-- 全文检索(FTS5): 用 articles 的 title + 正文做 MATCH 查询
+-- articles_search 表是 articles 的镜像 + 文本列,触发器保持同步
+-- 这样 searchArticles 可走 MATCH,不需要 LIKE
+-- tokenize=trigram: 中文 CJK 友好(unicode61 对中文不分词,2 字查询会 miss)
+CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
+  article_id UNINDEXED,
+  chapter_id UNINDEXED,
+  doc_id UNINDEXED,
+  number UNINDEXED,
+  title,
+  text,
+  tokenize = 'trigram'
+);
