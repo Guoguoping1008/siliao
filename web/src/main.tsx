@@ -8,6 +8,7 @@ import { DocumentPage } from './pages/DocumentPage'
 import { ChapterPage } from './pages/ChapterPage'
 import { SearchPage } from './pages/SearchPage'
 import { EntityPage } from './pages/EntityPage'
+import { QAPage } from './pages/QAPage'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/doc/:docId/chapter/:chapterId" element={<ChapterPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/entity/:name" element={<EntityPage />} />
+        <Route path="/qa" element={<QAPage />} />
         <Route path="*" element={
           <div className="p-8 text-center">
             <h1 className="text-2xl font-bold">404</h1>

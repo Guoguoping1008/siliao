@@ -27,6 +27,19 @@ export interface Env {
   DEEPSEEK_MODEL: string;
 }
 
+// 检索 hit 的最小类型(RAG QA 与 searchArticles 共用)
+interface SearchHit {
+  article_id: string;
+  chapter_id?: string;
+  doc_id?: string;
+  chapter_title?: string;
+  chapter_number?: string;
+  article_number?: string;
+  title?: string;
+  excerpt: string;
+  relevance?: number;
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -54,7 +67,11 @@ export default {
       const mEnt = path.match(/^\/api\/entity\/(.+)$/);
       if (mEnt) return json(await getEntity(decodeURIComponent(mEnt[1]), env), env);
       if (path === "/api/qa" && req.method === "POST") {
-        const body = await req.json<{ q: string }>();
+        const body = await req.json<{ q: string; stream?: boolean }>();
+        const wantStream = body.stream || url.searchParams.get("stream") === "true";
+        if (wantStream) {
+          return ragQAStream(body.q, env);
+        }
         return json(await ragQA(body.q, env), env);
       }
       return json({ error: "not_found", path }, env, 404);
@@ -249,18 +266,52 @@ async function getEntity(name: string, env: Env) {
 }
 
 // ---------- RAG 问答 ----------
-async function ragQA(q: string, env: Env) {
-  const hits = await searchArticles(q, env, new URLSearchParams());
 
-  const context = hits.hits
+/**
+ * 拼 RAG prompt: system + few-shot + evidence + user question
+ *
+ * 设计原则:
+ * - system 强制"未找到则明说",避免 LLM 编造
+ * - few-shot 教 LLM 用什么格式引用(`[1]` 而不是 `第一条`)
+ * - evidence 限 8 条,过长会稀释 LLM 注意
+ */
+function buildRagPrompt(q: string, hits: SearchHit[]) {
+  const context = hits
     .slice(0, 8)
     .map((h, i) => `[${i + 1}] ${h.chapter_number} ${h.chapter_title} · ${h.article_number}: ${h.excerpt}`)
     .join("\n\n");
 
-  const systemPrompt = `你是一名中国农业饲料法规领域的检索助手,只根据下方"检索证据"用中文回答,不要编造。
-引用条款时使用格式:"第X章 第Y条"。`;
+  const systemPrompt = `你是"中国农业饲料法规知识库"的检索助手,严格基于下方"检索证据"用中文回答用户问题。
 
-  const userPrompt = `检索证据:\n${context}\n\n用户问题:${q}\n\n答案:`;
+# 行为准则
+1. **必须只基于检索证据**回答,不要引用未在证据中出现的条文、法律或事实。
+2. 若证据不足以回答,直接回复:"未找到相关规定",不要编造或猜测。
+3. 引用条款时使用证据前方的编号格式 \`[N]\`,不要写"第一条"这种裸引用。
+4. 答案简洁,优先列条文要点;不要堆砌废话。
+
+# 输出格式(可选)
+- 直接答案(1-3 句话)
+- 涉及到的引用编号列表(\`[1] [3]\`)
+- 如果多条证据相关,按编号顺序引用`;
+
+  const userPrompt = `# 检索证据
+${context || "(无相关证据)"}
+
+# 用户问题
+${q}
+
+# 答案`;
+
+  return { systemPrompt, userPrompt };
+}
+
+/**
+ * 同步 RAG 问答:返回完整 JSON
+ */
+async function ragQA(q: string, env: Env) {
+  const hits = await searchArticles(q, env, new URLSearchParams());
+  const t0 = Date.now();
+  const { systemPrompt, userPrompt } = buildRagPrompt(q, hits.hits);
 
   const resp = await fetch(`${env.DEEPSEEK_API_BASE}/chat/completions`, {
     method: "POST",
@@ -276,14 +327,169 @@ async function ragQA(q: string, env: Env) {
       ],
       temperature: 0.2,
       max_tokens: 1000,
+      stream: false,
     }),
   });
 
   if (!resp.ok) return { error: "llm_error", status: resp.status, body: await resp.text() };
   const data = (await resp.json()) as { choices: { message: { content: string } }[] };
+  const answer = data.choices[0].message.content;
+  const citations = await validateCitations(answer, hits.hits, env);
+
   return {
     question: q,
-    answer: data.choices[0].message.content,
-    citations: hits.hits.slice(0, 8),
+    answer,
+    citations,
+    retrieval: hits.hits.slice(0, 8),
+    elapsed_ms: Date.now() - t0,
   };
+}
+
+/**
+ * Streaming RAG 问答:SSE 推送,事件类型:
+ *   - `event: meta\ndata: { question, retrieval }\n\n`  (开头发检索证据)
+ *   - `event: chunk\ndata: {"delta": "..."}\n\n`         (增量 token)
+ *   - `event: done\ndata: { citations }\n\n`            (结束 + 校验后引用)
+ *
+ * 出错事件:
+ *   - `event: error\ndata: { message }\n\n`
+ */
+function ragQAStream(q: string, env: Env): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        // 1. 检索
+        const hits = await searchArticles(q, env, new URLSearchParams());
+        controller.enqueue(encoder.encode(formatSSE("meta", {
+          question: q,
+          retrieval: hits.hits.slice(0, 8),
+        })));
+
+        // 2. LLM streaming
+        const { systemPrompt, userPrompt } = buildRagPrompt(q, hits.hits);
+        const resp = await fetch(`${env.DEEPSEEK_API_BASE}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(env as any).DEEPSEEK_API_KEY ?? ""}`,
+          },
+          body: JSON.stringify({
+            model: env.DEEPSEEK_MODEL,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 1000,
+            stream: true,
+          }),
+        });
+
+        if (!resp.ok || !resp.body) {
+          controller.enqueue(encoder.encode(formatSSE("error", {
+            status: resp.status,
+            body: await resp.text(),
+          })));
+          controller.close();
+          return;
+        }
+
+        // 3. 透传上游 SSE,提取 delta
+        let fullAnswer = "";
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          // DeepSeek/OpenAI SSE:每行 `data: { "choices": [{ "delta": { "content": "..." }}] }`
+          for (const line of buf.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (payload === "[DONE]") continue;
+            try {
+              const obj = JSON.parse(payload);
+              const delta = obj.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullAnswer += delta;
+                controller.enqueue(encoder.encode(formatSSE("chunk", { delta })));
+              }
+            } catch {
+              // ignore malformed line
+            }
+          }
+          buf = "";
+        }
+
+        // 4. 校验引用,推送 done
+        const citations = await validateCitations(fullAnswer, hits.hits, env);
+        controller.enqueue(encoder.encode(formatSSE("done", { citations })));
+        controller.close();
+      } catch (e) {
+        controller.enqueue(encoder.encode(formatSSE("error", {
+          message: (e as Error).message,
+        })));
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      ...CORS,
+    },
+  });
+}
+
+function formatSSE(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/**
+ * Citation 校验:从 LLM 输出里解析 `[1]` `[3]` 这种引用,与检索证据对账。
+ * 输出每个引用对应的完整元数据,前端可渲染成可点击链接。
+ * 缺失引用(LLM 编造)打 warning。
+ */
+async function validateCitations(answer: string, hits: SearchHit[], env: Env) {
+  // 提取所有 [N] 引用,N 是 1-based
+  const re = /\[(\d+)\]/g;
+  const nums = new Set<number>();
+  for (const m of answer.matchAll(re)) {
+    nums.add(parseInt(m[1], 10));
+  }
+
+  const out: Array<{
+    ref: number;
+    article_id?: string;
+    chapter_number?: string;
+    chapter_title?: string;
+    article_number?: string;
+    excerpt?: string;
+    valid: boolean;
+  }> = [];
+
+  for (const n of [...nums].sort((a, b) => a - b)) {
+    const hit = hits[n - 1];
+    if (hit) {
+      out.push({
+        ref: n,
+        article_id: hit.article_id,
+        chapter_number: hit.chapter_number,
+        chapter_title: hit.chapter_title,
+        article_number: hit.article_number,
+        excerpt: hit.excerpt,
+        valid: true,
+      });
+    } else {
+      out.push({ ref: n, valid: false });
+    }
+  }
+
+  return out;
 }

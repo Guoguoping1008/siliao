@@ -43,6 +43,9 @@ export interface Article {
 export interface SearchHit extends Article {
   excerpt: string
   relevance?: number
+  article_number?: string
+  chapter_number?: string
+  chapter_title?: string
 }
 
 export interface Entity {
@@ -60,10 +63,45 @@ export interface ArticleDetail extends Article {
   markdown: string
 }
 
+// RAG QA streaming 事件类型(对应 Worker 的 SSE)
+export interface QAMetaEvent {
+  question: string
+  retrieval: SearchHit[]
+}
+
+export interface QAChunkEvent {
+  delta: string
+}
+
+export interface CitationItem {
+  ref: number
+  article_id?: string
+  chapter_id?: string
+  doc_id?: string
+  chapter_title?: string
+  chapter_number?: string
+  article_number?: string
+  title?: string
+  excerpt?: string
+  valid: boolean
+}
+
+export interface QADoneEvent {
+  citations: CitationItem[]
+}
+
+export interface QAAnswerFull {
+  question: string
+  answer: string
+  citations: CitationItem[]
+  retrieval: SearchHit[]
+  elapsed_ms: number
+}
+
 // ---------- API ----------
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const resp = await fetch(path)
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const resp = await fetch(path, init)
   if (!resp.ok) throw new Error(`API ${resp.status}: ${path}`)
   return resp.json()
 }
@@ -130,6 +168,131 @@ export const api = {
     }
     return fetchJson<{ entity: Entity; articles: Article[] }>(`/api/entity/${encodeURIComponent(name)}`)
   },
+
+  // RAG 问答(同步):返回完整 JSON,适用于不要求 streaming 的场景
+  async qa(question: string): Promise<QAAnswerFull> {
+    if (USE_MOCK) {
+      // mock 模式无 LLM,固定模板答案
+      return {
+        question,
+        answer: `Mock 模式:未配置 LLM API Key,无法生成答案。请在生产模式下(VITE_USE_MOCK=false)提问 "${question}"`,
+        citations: [],
+        retrieval: [],
+        elapsed_ms: 0,
+      }
+    }
+    const r = await fetchJson<QAAnswerFull>("/api/qa", {
+      method: "POST",
+      body: JSON.stringify({ q: question }),
+    } as any)
+    return r
+  },
+
+  // RAG 问答(streaming):用 fetch + ReadableStream 订阅 SSE(EventSource 不支持 POST body)
+  // handlers: { onMeta, onChunk, onDone, onError }
+  // 返回 abort 函数
+  qaStream(
+    question: string,
+    handlers: {
+      onMeta?: (e: QAMetaEvent) => void
+      onChunk?: (e: QAChunkEvent) => void
+      onDone?: (e: QADoneEvent) => void
+      onError?: (e: { message?: string; status?: number }) => void
+    }
+  ): () => void {
+    if (USE_MOCK) {
+      // mock 模式下不真接 LLM,直接拼一段固定 answer 模拟 streaming
+      mockStreamFallback(question, handlers)
+      return () => undefined
+    }
+    return consumeQAStream(question, handlers)
+  },
+}
+
+// Mock 模式下的 RAG streaming 模拟:无 LLM,直接基于检索结果拼一段模板答案
+function mockStreamFallback(
+  question: string,
+  handlers: {
+    onMeta?: (e: any) => void
+    onChunk?: (e: any) => void
+    onDone?: (e: any) => void
+    onError?: (e: any) => void
+  }
+) {
+  // 异步执行,避免阻塞调用方
+  setTimeout(() => {
+    handlers.onMeta?.({ question, retrieval: [] })
+    const text = `Mock 模式:未配置 LLM API Key,无法生成答案。请在生产模式下(VITE_USE_MOCK=false)提问 "${question}"`
+    let i = 0
+    const tick = () => {
+      if (i >= text.length) {
+        handlers.onDone?.({ citations: [] })
+        return
+      }
+      handlers.onChunk?.({ delta: text[i] })
+      i++
+      setTimeout(tick, 12)
+    }
+    tick()
+  }, 0)
+}
+
+// 用 fetch + ReadableStream 订阅 SSE(EventSource 不支持 POST body)
+function consumeQAStream(
+  question: string,
+  handlers: {
+    onMeta?: (e: QAMetaEvent) => void
+    onChunk?: (e: QAChunkEvent) => void
+    onDone?: (e: QADoneEvent) => void
+    onError?: (e: { message?: string; status?: number }) => void
+  }
+): () => void {
+  const ac = new AbortController()
+  fetch("/api/qa?stream=true", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: question, stream: true }),
+    signal: ac.signal,
+  })
+    .then(async resp => {
+      if (!resp.ok || !resp.body) {
+        handlers.onError?.({ status: resp.status })
+        return
+      }
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ""
+      let currentEvent = ""
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        // SSE 帧:`event: <name>\ndata: <json>\n\n`
+        const frames = buf.split("\n\n")
+        buf = frames.pop() ?? ""
+        for (const frame of frames) {
+          let ev = ""
+          let data = ""
+          for (const line of frame.split("\n")) {
+            if (line.startsWith("event:")) ev = line.slice(6).trim()
+            else if (line.startsWith("data:")) data += line.slice(5).trim()
+          }
+          if (!ev || !data) continue
+          let payload: any
+          try { payload = JSON.parse(data) } catch { continue }
+          if (ev === "meta") handlers.onMeta?.(payload)
+          else if (ev === "chunk") handlers.onChunk?.(payload)
+          else if (ev === "done") handlers.onDone?.(payload)
+          else if (ev === "error") handlers.onError?.(payload)
+        }
+      }
+    })
+    .catch(e => {
+      if ((e as any).name !== "AbortError") {
+        handlers.onError?.({ message: (e as Error).message })
+      }
+    })
+  return () => ac.abort()
 }
 
 export const isMockMode = USE_MOCK
