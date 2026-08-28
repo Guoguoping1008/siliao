@@ -62,12 +62,39 @@ def main():
 
     # 清空 FTS5(幂等)
     lines.append("DELETE FROM articles_fts;")
+    lines.append("DELETE FROM articles;")
+    # 清空 chapters + documents(幂等,顺序:子表先)
+    lines.append("DELETE FROM chapters;")
+    lines.append("DELETE FROM documents;")
 
-    # 灌 articles
+    # 灌 document(每部法规一行) — 先于 chapters(被 FK 引用)
+    lines.append(
+        f"INSERT INTO documents(doc_id, title) VALUES('{escape_sql(doc_id)}', '{escape_sql(doc_id)}');"
+    )
+
+    # 灌 chapter 元数据
+    for c in chapters:
+        lines.append(
+            "INSERT INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) "
+            f"VALUES('{escape_sql(c['chapter_id'])}', '{escape_sql(c.get('doc_id', doc_id))}', "
+            f"'{escape_sql(c['number'])}', '{escape_sql(c['title'])}', {len(c.get('article_ids', []))}, "
+            f"{c.get('sort_order', 0)}, '{escape_sql(c['chapter_id'] + '.md')}');"
+        )
+
+    # 灌 articles 主表(FK 引用 chapters)
+    for a in articles:
+        title = (a.get("title") or "").strip()
+        lines.append(
+            "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) "
+            f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
+            f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
+            f"'{escape_sql(title)}', '{escape_sql(a['article_id'] + '.md')}');"
+        )
+
+    # 灌 articles_fts 全文索引(包含章节名前缀,便于章节级召回)
     for a in articles:
         text = (a.get("text") or "").replace("\n", " ").strip()
         title = (a.get("title") or "").strip()
-        # 把章节全名也注入 text(如"第一章 总则"),便于章节级召回
         chapter_name = chapter_titles_by_art.get(a["article_id"], "")
         if chapter_name:
             text = f"{chapter_name} {text}"
@@ -77,20 +104,6 @@ def main():
             f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
             f"'{escape_sql(title)}', '{escape_sql(text)}');"
         )
-
-    # 灌 chapter 元数据(如果给了 chapters.json)
-    for c in chapters:
-        lines.append(
-            "INSERT OR REPLACE INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) "
-            f"VALUES('{escape_sql(c['chapter_id'])}', '{escape_sql(c.get('doc_id', doc_id))}', "
-            f"'{escape_sql(c['number'])}', '{escape_sql(c['title'])}', {len(c.get('article_ids', []))}, "
-            f"{c.get('sort_order', 0)}, '{escape_sql(c['chapter_id'] + '.md')}');"
-        )
-
-    # 灌 document(每部法规一行)
-    lines.append(
-        f"INSERT OR REPLACE INTO documents(doc_id, title) VALUES('{escape_sql(doc_id)}', '{escape_sql(doc_id)}');"
-    )
 
     out_path = Path("build/export/seed.sql")
     out_path.parent.mkdir(parents=True, exist_ok=True)

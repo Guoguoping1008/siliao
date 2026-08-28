@@ -147,15 +147,13 @@ async function searchArticles(
   const metaById = new Map((meta.results as any[]).map(m => [m.article_id, m]));
 
   // 批量从 R2 拉 excerpt(避免 N+1)
-  const r2Keys = await env.DB.prepare(
-    `SELECT article_id, r2_object_key FROM articles WHERE article_id IN (${placeholders})`
-  ).bind(...ids).all();
-
+  // R2 key 约定: <doc_id>/articles/<article_id>.md(用 metaById 的 doc_id 拼)
   const excerptById = new Map<string, string>();
-  await Promise.all((r2Keys.results as any[]).map(async (r) => {
-    const obj = await env.INDEX_BUCKET.get(r.r2_object_key);
+  await Promise.all((meta.results as any[]).map(async (m) => {
+    const key = `${m.doc_id}/articles/${m.article_id}.md`;
+    const obj = await env.INDEX_BUCKET.get(key);
     const text = obj ? (await obj.text()).slice(0, 600) : "";
-    excerptById.set(r.article_id, text);
+    excerptById.set(m.article_id, text);
   }));
 
   const hits = rows.map((r, i) => {
@@ -228,7 +226,9 @@ async function getChapter(docId: string, chId: string, env: Env) {
   ).bind(docId, chId).first();
   if (!row) return { error: "chapter_not_found" };
 
-  const obj = await env.INDEX_BUCKET.get((row as any).r2_object_key);
+  // R2 key 约定: <doc_id>/chapters/<chapter_id>.md
+  const key = `${docId}/chapters/${chId}.md`;
+  const obj = await env.INDEX_BUCKET.get(key);
   const markdown = obj ? await obj.text() : "";
   return { chapter: row, markdown };
 }
@@ -236,13 +236,16 @@ async function getChapter(docId: string, chId: string, env: Env) {
 // ---------- 条文详情 ----------
 async function getArticle(artId: string, env: Env) {
   const row = await env.DB.prepare(
-    `SELECT a.*, c.title as chapter_title, c.number as chapter_number
+    `SELECT a.*, c.title as chapter_title, c.number as chapter_number, a.doc_id
      FROM articles a LEFT JOIN chapters c ON c.chapter_id = a.chapter_id
      WHERE a.article_id=?1`
   ).bind(artId).first();
   if (!row) return { error: "article_not_found" };
 
-  const obj = await env.INDEX_BUCKET.get((row as any).r2_object_key);
+  // R2 key 约定: <doc_id>/articles/<article_id>.md
+  const docId = (row as any).doc_id;
+  const key = `${docId}/articles/${artId}.md`;
+  const obj = await env.INDEX_BUCKET.get(key);
   return { article: row, markdown: obj ? await obj.text() : "" };
 }
 

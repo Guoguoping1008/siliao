@@ -3,28 +3,35 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# R2: 索引产物 (entities.json / relationships.json 等)
+# R2: 法规原文 + GraphRAG 索引产物
 [[r2_buckets]]
 binding = "INDEX_BUCKET"
 bucket_name = "siliao-index"
 remote = true
 
-# D1: 文档与章节元数据
+# D1: 文档/章节/条文元数据 + articles_fts 全文索引
+# ⚠️  deploy 前必须先 `wrangler d1 create siliao-db` 拿到 database_id 填到下面
 [[d1_databases]]
 binding = "DB"
 database_name = "siliao-db"
 database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
 remote = true
 
-# Vectorize: bge-large-zh 1024 维向量
+# Vectorize: bge-large-zh 1024 维向量(暂未启用,本期走 FTS5)
+# 留接口备扩展:ADR-001 还债触发器触发时启用
 [[vectorize]]
 binding = "VECTOR"
 index_name = "feed-law-index"
 
-# Workers AI: 用作 query-time rerank (可选)
+# Workers AI: 留接口
 [ai]
 binding = "AI"
 
+# 环境变量(非秘密)
 [vars]
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 DEEPSEEK_MODEL = "deepseek-chat"
+
+# 部署观测
+[observability]
+enabled = true
