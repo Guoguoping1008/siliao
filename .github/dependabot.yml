@@ -1,0 +1,36 @@
+# Dependabot: 每周一自动开依赖升级 PR
+# PR 自动跑 CI,如果绿了就能 merge
+
+version: 2
+updates:
+  # 前端 npm 依赖
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "deps(web)"
+
+  # Worker npm 依赖
+  - package-ecosystem: "npm"
+    directory: "/query/worker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "worker"]
+    commit-message:
+      prefix: "deps(worker)"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "deps(ci)"
