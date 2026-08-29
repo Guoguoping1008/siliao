@@ -26,7 +26,7 @@ interface Block {
 const ARTICLE_ID_RE = /article_id:\s*(art\d+)/
 const LIST_RE = /^[(\uFF08][\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341]+[)\uFF09]\s*/
 
-function parse(md: string, chapterId: string): Block[] {
+export function parse(md: string, chapterId: string): Block[] {
   const blocks: Block[] = []
   const lines = md.split("\n")
   let i = 0

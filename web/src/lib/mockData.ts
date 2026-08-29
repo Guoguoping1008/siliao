@@ -221,7 +221,8 @@ export const mockApi = {
 
   async search(q: string): Promise<SearchHit[]> {
     await new Promise(r => setTimeout(r, 80))
-    const query = q.toLowerCase()
+    const query = q.toLowerCase().trim()
+    if (!query) return []  // 空 query 短路(对齐 api.ts 的 searchArticles 行为)
     const hits: SearchHit[] = []
     for (const art of ARTICLES) {
       const mdPath = articleMdPathFor(art.doc_id, art.article_id)
