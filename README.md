@@ -57,7 +57,9 @@ siliao/
 | 检索 MRR | 0.957 | evals/eval_retrieval.py |
 | 检索 negative 精度 | 100%(5/5) | 语料外 query 0 召回 |
 | RAG faithfulness | 100%(5/5) | 引用 + 未找到兜底校验 |
-| 前端体积 | 193KB / 61KB gzip | web/build |
+| 前端单元测试 | 33/33 通过,94% line coverage | vitest,4 个测试文件 |
+| 前端 e2e 测试 | 9 个 spec(Mock 模式) | Playwright,CI 自动装 Chromium |
+| 前端体积 | 197.51KB / 62.76KB gzip | web/build |
 | 检索延迟 | D1 FTS5 ~5-15ms | 边缘节点 |
 
 ## 快速开始(本地)
