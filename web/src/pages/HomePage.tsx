@@ -5,15 +5,24 @@ import type { Document } from "../lib/api"
 import { SearchBar } from "../components/SearchBar"
 import { DocumentCard } from "../components/DocumentCard"
 import { Layout } from "../components/Layout"
+import { AsyncState } from "../components/AsyncState"
 import { isMockMode } from "../lib/api"
 
 export function HomePage() {
   const [docs, setDocs] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    api.listDocuments().finally(() => setLoading(false)).then(setDocs)
-  }, [])
+  const load = () => {
+    setLoading(true)
+    setError(null)
+    api.listDocuments()
+      .then(setDocs)
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
 
   return (
     <Layout>
@@ -31,15 +40,19 @@ export function HomePage() {
 
       <section className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
         <h2 className="text-lg font-semibold mb-4">法规库</h2>
-        {loading ? (
-          <div className="text-slate-500 dark:text-slate-400">加载中...</div>
-        ) : docs.length === 0 ? (
-          <div className="text-slate-500 dark:text-slate-400">暂无收录法规。请把法规文件放进 data/raw/ 后跑 bash build/ingest.sh。</div>
-        ) : (
+        <AsyncState
+          loading={loading}
+          error={error}
+          isEmpty={!loading && !error && docs.length === 0}
+          emptyText="暂无法规收录"
+          emptyHint="请把法规文件放进 data/raw/ 后跑 bash build/run_all.sh"
+          onRetry={load}
+          loadingText="加载法规列表..."
+        >
           <div className="grid gap-3">
             {docs.map(d => <DocumentCard key={d.doc_id} doc={d} />)}
           </div>
-        )}
+        </AsyncState>
       </section>
 
       <div className="text-center text-xs text-slate-400 dark:text-slate-600 py-4">

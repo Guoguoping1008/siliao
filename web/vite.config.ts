@@ -13,7 +13,6 @@ export default defineConfig({
       "/api": {
         target: API_TARGET,
         changeOrigin: true,
-        // SSE streaming 不能被缓存
         ws: false,
       },
     },

@@ -100,9 +100,43 @@ export interface QAAnswerFull {
 
 // ---------- API ----------
 
+/**
+ * 统一 API 错误:带 status + endpoint + 原始 body
+ * 前端组件用 instanceof ApiError 区分网络错误 / 业务错误
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly endpoint: string,
+    public readonly body?: string
+  ) {
+    super(message)
+    this.name = "ApiError"
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(path, init)
-  if (!resp.ok) throw new Error(`API ${resp.status}: ${path}`)
+  let resp: Response
+  try {
+    resp = await fetch(path, init)
+  } catch (e) {
+    // 网络层错误(offline / CORS / DNS)
+    throw new ApiError(
+      `网络错误: ${(e as Error).message}`,
+      0,
+      path
+    )
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "")
+    throw new ApiError(
+      `API ${resp.status}: ${path}`,
+      resp.status,
+      path,
+      body.slice(0, 500)
+    )
+  }
   return resp.json()
 }
 
