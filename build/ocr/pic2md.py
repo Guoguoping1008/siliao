@@ -24,6 +24,7 @@
 from __future__ import annotations
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -110,6 +111,24 @@ def page_to_markdown(lines: list[dict], page_number: int | None = None) -> str:
     return "\n\n".join(md_lines)
 
 
+# 水印 inpaint 残留: 实测出现 "Quad Camera", "HUAWEI P4O Pro 5G", "G" 单字 (G 是 LEICA 边缘残字)
+WATERMARK_RESIDUE_RE = re.compile(
+    r"(?:HUAWEI\s+P4O?\s*Pro\s*5G|Ultra\s+Vision\s+LEICA\s+Quad\s+Camera|Quad\s+Camera|\bG\b\s*$|^\s*G\s+|\s+G\s+Quad\s+Camera\s*$)",
+    re.IGNORECASE,
+)
+
+
+def clean_watermark_residue(md: str) -> str:
+    """抹掉 OCR 后文本里残留的水印片段 (inpaint 没抹干净的部分)"""
+    lines = md.split("\n")
+    cleaned = []
+    for ln in lines:
+        ln = WATERMARK_RESIDUE_RE.sub("", ln).strip()
+        if ln:
+            cleaned.append(ln)
+    return "\n\n".join(cleaned)
+
+
 def process_dir(
     src_dir: Path,
     doc_id: str,
@@ -151,6 +170,7 @@ def process_dir(
 
         # 3. 拼 markdown
         md = page_to_markdown(lines, page_number=i)
+        md = clean_watermark_residue(md)
         md_path = pages_dir / f"{img_path.stem}.md"
         md_path.write_text(md, encoding="utf-8")
         md_files.append(md_path)

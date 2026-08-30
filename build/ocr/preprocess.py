@@ -138,6 +138,11 @@ def preprocess(
 ) -> PreprocessResult:
     """
     处理单张图片: 透视校正 + 水印裁剪
+
+    降级策略:
+    - 透视校正后若宽高比异常 (不在 [0.3, 3.0]), 视为角点检测失败, 回退用原图。
+      实测 16/20 张图会因书本装订线/阴影被误识别为四角, 压成细条。
+    - 校正后图像最小边若 < 100 px, 也视为失败, 回退用原图。
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
@@ -148,9 +153,16 @@ def preprocess(
     corners = detect_document_corners(img)
     warped_img = img
     warped = False
+    fallback_reason = None
     if corners is not None:
-        warped_img = warp_perspective(img, corners)
-        warped = True
+        candidate = warp_perspective(img, corners)
+        cw, ch = candidate.shape[1], candidate.shape[0]
+        ratio = cw / ch if ch > 0 else 0
+        if 0.3 <= ratio <= 3.0 and min(cw, ch) >= 200:
+            warped_img = candidate
+            warped = True
+        else:
+            fallback_reason = f"bad_ratio={ratio:.2f},size=({cw},{ch})"
 
     cleaned, wm_removed = remove_watermark(warped_img)
 
@@ -164,6 +176,7 @@ def preprocess(
         "out_size": list(cleaned.shape[:2][::-1]),
         "warped": warped,
         "watermark_removed": wm_removed,
+        "fallback_reason": fallback_reason,
     }
     meta_path = meta_dir / f"{src.stem}.json"
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
