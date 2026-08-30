@@ -13,6 +13,11 @@
   第X条 ...           ->  段落条目 (作为 chunk 粒度)
   X.Y 条              ->  段落条目(子条)
   (一)(二)...         ->  列表项
+
+扩展(支持《饲料法规文件(2023)》这类汇编书):
+  [一二三四...]、<title>  ->  一级标题 #(中文数字 + 顿号 + 标题)
+                             例如 "一、法规" / "二、制度文件" / "三、法律" 等
+                             后面可能带页码或空白, 单独一行才算章节起点
 """
 
 from __future__ import annotations
@@ -27,6 +32,13 @@ SECTION_RE = re.compile(r"^第[一二三四五六七八九十百千零〇0-9]+�
 ARTICLE_RE = re.compile(r"^第[一二三四五六七八九十百千零〇0-9]+条\s*(.*?)\s*$")
 SUBARTICLE_RE = re.compile(r"^(\d+)\.(\d+)\s+(.+?)\s*$")
 LISTITEM_RE = re.compile(r"^\([一二三四五六七八九十]+\)\s*(.+?)\s*$")
+
+# 汇编书章节: "一、法规" / "二、制度文件" / "三、法律" / "四、标准" 等
+# 后面可能跟页码 (如 "二、制度文件 17"), 容忍末尾 1-3 位数字
+CN_NUM_RE = r"[一二三四五六七八九十]+"
+ASSEMBLY_CHAPTER_RE = re.compile(
+    rf"^({CN_NUM_RE})、\s*(\S+?)\s*\d*\s*$"  # 整行是 "一、法规" 或 "二、制度文件 17"
+)
 
 
 @dataclass
@@ -62,7 +74,7 @@ def split_by_chapter(md_text: str, doc_id: str) -> tuple[list[Chapter], list[Art
     chapter_counter = 0
     article_counter = 0
 
-    def flush_article():
+    def flush_article(line_no: int):
         nonlocal cur_article, cur_buf
         if cur_article is not None:
             cur_article.text = "\n".join(cur_buf).strip()
@@ -76,9 +88,10 @@ def split_by_chapter(md_text: str, doc_id: str) -> tuple[list[Chapter], list[Art
         line_no += 1
         stripped = raw.strip()
 
+        # 1. 标准章节 "第X章 ..."
         m_chap = CHAPTER_RE.match(stripped)
         if m_chap:
-            flush_article()
+            flush_article(line_no)
             chapter_counter += 1
             cur_chapter = Chapter(
                 chapter_id=f"ch{chapter_counter:02d}",
@@ -91,14 +104,34 @@ def split_by_chapter(md_text: str, doc_id: str) -> tuple[list[Chapter], list[Art
             chapters.append(cur_chapter)
             continue
 
+        # 2. 汇编书章节 "一、法规" / "二、制度文件 17"
+        m_assem = ASSEMBLY_CHAPTER_RE.match(stripped)
+        if m_assem:
+            title = m_assem.group(2).strip()
+            # 防误伤: 标题必须短(<=12字), 不以句号/逗号结尾
+            if title and len(title) <= 12 and not title.endswith(("。", "，", ";", "；")):
+                flush_article(line_no)
+                chapter_counter += 1
+                cur_chapter = Chapter(
+                    chapter_id=f"ch{chapter_counter:02d}",
+                    number=m_assem.group(1),
+                    title=title,
+                    article_ids=[],
+                    start_line=line_no,
+                    end_line=line_no,
+                )
+                chapters.append(cur_chapter)
+                continue
+
+        # 3. 节标记(忽略,不切分)
         m_sec = SECTION_RE.match(stripped)
         if m_sec:
-            # 节是章内的二级,不创建独立 chapter,记到当前 chapter 的 metadata
             continue
 
+        # 4. 条文 "第X条 ..."
         m_art = ARTICLE_RE.match(stripped)
         if m_art:
-            flush_article()
+            flush_article(line_no)
             article_counter += 1
             aid = f"art{article_counter:03d}"
             if cur_chapter:
@@ -118,7 +151,7 @@ def split_by_chapter(md_text: str, doc_id: str) -> tuple[list[Chapter], list[Art
         if cur_article:
             cur_buf.append(raw)
 
-    flush_article()
+    flush_article(line_no)
 
     # end_line 回填
     for i in range(len(chapters) - 1):
