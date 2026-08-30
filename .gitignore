@@ -72,3 +72,6 @@ raw-pic/
 .models/
 data/markdown/feed-law-collection-2023/
 
+# Wrangler build artifacts (regenerated on dev/deploy)
+query/worker/build/
+
