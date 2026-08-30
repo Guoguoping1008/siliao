@@ -96,16 +96,26 @@ def write_articles(
         art_anchors.append((m.start(), m.group(1)))
 
     # 给每条 article 配 chapter
-    def find_chapter(pos: int) -> tuple[str, str]:
-        ch_num, ch_title = "前言", "前言"
-        for cp, num, title, _ in chapter_anchors:
+    # 返回 (number, title, idx_in_chapter_anchors) 让 caller 能精确定位
+    def find_chapter(pos: int) -> tuple[str, str, int]:
+        ch_num, ch_title, ch_idx = "前言", "前言", -1
+        for idx, (cp, num, title, _) in enumerate(chapter_anchors):
             if cp <= pos:
-                ch_num, ch_title = num, title
+                ch_num, ch_title, ch_idx = num, title, idx
             else:
                 break
-        return ch_num, ch_title
+        return ch_num, ch_title, ch_idx
 
     chapters_dict: dict[str, dict] = {}
+    cid_zero = f"{doc_prefix}_ch00"
+    # 把 ch00 放在最前, 让 anchor idx 与 dict key idx 一一对应
+    chapters_dict[cid_zero] = {
+        "chapter_id": cid_zero,
+        "number": "前言",
+        "title": "前言",
+        "full_line": "",
+        "article_ids": [],
+    }
     for idx, (_, num, title, full_line) in enumerate(chapter_anchors):
         cid = f"{doc_prefix}_ch{idx + 1:02d}"
         chapters_dict[cid] = {
@@ -115,15 +125,6 @@ def write_articles(
             "full_line": full_line,
             "article_ids": [],
         }
-    cid_zero = f"{doc_prefix}_ch00"
-    if cid_zero not in chapters_dict:
-        chapters_dict[cid_zero] = {
-            "chapter_id": cid_zero,
-            "number": "前言",
-            "title": "前言",
-            "full_line": "",
-            "article_ids": [],
-        }
 
     # 切条文: 每条 article text 从其 char_pos 到下一条的 char_pos
     articles = []
@@ -131,13 +132,14 @@ def write_articles(
         next_pos = art_anchors[idx + 1][0] if idx + 1 < len(art_anchors) else len(md_text)
         text = md_text[pos:next_pos].strip()
 
-        ch_num, ch_title = find_chapter(pos)
-        cid = "ch00"
-        for k, v in chapters_dict.items():
-            if v["number"] == ch_num and v["title"] == ch_title:
-                cid = k
-                break
-        if cid == "ch00" and (ch_num, ch_title) != ("前言", "前言"):
+        ch_num, ch_title, ch_idx = find_chapter(pos)
+        # 按章节索引直接定位 cid (ch00 在 dict 最前, anchor idx 0 对应 ch01, idx 1 对应 ch02, ...)
+        # ch_idx 是 chapter_anchors 的索引 (0-based, 不含 ch00 虚拟扉页)
+        if ch_idx >= 0:
+            keys = list(chapters_dict.keys())
+            # chapters_dict[0] 是 cid_zero, [1] 是 fee_ch01, [2] 是 fee_ch02...
+            cid = keys[ch_idx + 1]  # +1 是因为 cid_zero 占第 0 位
+        else:
             cid = cid_zero
 
         aid = f"{doc_prefix}_art{idx + 1:03d}"
