@@ -26,3 +26,9 @@
 {"query": "   ", "expect_articles": [], "desc": "NEGATIVE:纯空格,应 0 命中"}
 {"query": "饲料生产", "expect_articles": ["art008", "art009"], "desc": "生产企业条款"}
 {"query": "研制生产经营", "expect_articles": ["art002"], "desc": "适用范围:5 类活动列举"}
+{"query": "饲料管理部门", "expect_articles": ["fee_art010", "fee_art017", "fee_art026", "fee_art027", "fee_art038"], "desc": "feed-law-2023 含 饲料管理部门 的条文"}
+{"query": "生产许可证", "expect_articles": ["fee_art004", "fee_art013", "fee_art029", "fee_art034", "fee_art051"], "desc": "feed-law-2023 含 生产许可证 的条文"}
+{"query": "监测期", "expect_articles": ["fee_art005", "fee_art006", "fee_art031"], "desc": "feed-law-2023 含 监测期 的条文"}
+{"query": "进口登记", "expect_articles": ["fee_art005", "fee_art010", "fee_art029", "fee_art055", "fee_art062"], "desc": "feed-law-2023 含 进口登记 的条文"}
+{"query": "饲料添加剂品种目录", "expect_articles": ["fee_art010", "fee_art014", "fee_art016", "fee_art051", "fee_art053"], "desc": "feed-law-2023 含 饲料添加剂品种目录 的条文"}
+{"query": "农业农村部", "expect_articles": ["fee_art001", "fee_art002", "fee_art003", "fee_art004"], "desc": "feed-law-2023 含 农业农村部 的条文"}

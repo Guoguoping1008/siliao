@@ -31,85 +31,98 @@ def escape_sql(s: str) -> str:
 
 
 def main():
+    """
+    支持多个 articles.json 输入, 全部灌到同一份 seed.sql
+
+    用法:
+        python build/export/seed_d1.py <doc1>/articles.json [doc1/chapters.json <doc2>/articles.json ...]
+    """
     if len(sys.argv) < 2:
-        print("[ERR] usage: seed_d1.py <articles.json> [chapters.json]")
+        print("[ERR] usage: seed_d1.py <doc/articles.json> [doc/chapters.json ...]")
         sys.exit(1)
 
-    arts_path = Path(sys.argv[1])
-    raw_articles = json.loads(arts_path.read_text(encoding="utf-8"))
-    # data/markdown/<doc_id>/articles.json  →  doc_id 是祖父目录名
-    doc_id = arts_path.parent.name
+    # 把 args 按 doc 分组: arts.json 后跟可选的 chapters.json, 再下一组
+    docs: list[tuple[Path, Path | None]] = []
+    i = 1
+    while i < len(sys.argv):
+        arts_path = Path(sys.argv[i])
+        chap_path = Path(sys.argv[i + 1]) if (i + 1 < len(sys.argv) and "chapters.json" in sys.argv[i + 1]) else None
+        docs.append((arts_path, chap_path))
+        i += 2 if chap_path else 1
 
-    # 切分器产物没有 doc_id 字段,统一补上
-    articles = [{**a, "doc_id": doc_id} for a in raw_articles]
-
-    chapters: list[dict] = []
-    if len(sys.argv) > 2:
-        ch_path = Path(sys.argv[2])
-        raw_chapters = json.loads(ch_path.read_text(encoding="utf-8"))
-        chapters = [{**c, "doc_id": doc_id, "sort_order": idx + 1} for idx, c in enumerate(raw_chapters)]
-
-    # 章节标题 → article_ids 反向索引,用于把章节名注入 articles 索引
-    # 这样查"总则"能召回 ch01 的所有条文,查"法律责任"能召回 ch05 全部
-    chapter_titles_by_art: dict[str, str] = {}
-    for c in chapters:
-        for aid in c.get("article_ids", []):
-            # 拼章节全名:`第一章 总则`,章节号+标题,FTS5 trigram 更易命中
-            chapter_titles_by_art[aid] = f"{c['number']} {c['title']}"
-
-    # 输出一份可执行的 SQL(便于 wrangler d1 execute --file 直接吃)
     lines: list[str] = []
 
-    # 清空 FTS5(幂等)
+    # 清空 (幂等)
     lines.append("DELETE FROM articles_fts;")
     lines.append("DELETE FROM articles;")
-    # 清空 chapters + documents(幂等,顺序:子表先)
     lines.append("DELETE FROM chapters;")
     lines.append("DELETE FROM documents;")
 
-    # 灌 document(每部法规一行) — 先于 chapters(被 FK 引用)
-    lines.append(
-        f"INSERT INTO documents(doc_id, title) VALUES('{escape_sql(doc_id)}', '{escape_sql(doc_id)}');"
-    )
+    total_articles = 0
+    total_chapters = 0
+    for arts_path, chap_path in docs:
+        doc_id = arts_path.parent.name
+        raw_articles = json.loads(arts_path.read_text(encoding="utf-8"))
+        articles = [{**a, "doc_id": doc_id} for a in raw_articles]
 
-    # 灌 chapter 元数据
-    for c in chapters:
+        chapters: list[dict] = []
+        if chap_path and chap_path.exists():
+            raw_chapters = json.loads(chap_path.read_text(encoding="utf-8"))
+            chapters = [
+                {**c, "doc_id": doc_id, "sort_order": idx + 1}
+                for idx, c in enumerate(raw_chapters)
+            ]
+
+        # 章节标题 → article_ids 反向索引
+        chapter_titles_by_art: dict[str, str] = {}
+        for c in chapters:
+            for aid in c.get("article_ids", []):
+                chapter_titles_by_art[aid] = f"{c['number']} {c['title']}"
+
+        # 灌 document
         lines.append(
-            "INSERT INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) "
-            f"VALUES('{escape_sql(c['chapter_id'])}', '{escape_sql(c.get('doc_id', doc_id))}', "
-            f"'{escape_sql(c['number'])}', '{escape_sql(c['title'])}', {len(c.get('article_ids', []))}, "
-            f"{c.get('sort_order', 0)}, '{escape_sql(c['chapter_id'] + '.md')}');"
+            f"INSERT INTO documents(doc_id, title) VALUES('{escape_sql(doc_id)}', '{escape_sql(doc_id)}');"
         )
 
-    # 灌 articles 主表(FK 引用 chapters)
-    for a in articles:
-        title = (a.get("title") or "").strip()
-        lines.append(
-            "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) "
-            f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
-            f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
-            f"'{escape_sql(title)}', '{escape_sql(a['article_id'] + '.md')}');"
-        )
+        # 灌 chapter
+        for c in chapters:
+            lines.append(
+                "INSERT INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) "
+                f"VALUES('{escape_sql(c['chapter_id'])}', '{escape_sql(c.get('doc_id', doc_id))}', "
+                f"'{escape_sql(c['number'])}', '{escape_sql(c['title'])}', {len(c.get('article_ids', []))}, "
+                f"{c.get('sort_order', 0)}, '{escape_sql(c['chapter_id'] + '.md')}');"
+            )
 
-    # 灌 articles_fts 全文索引(包含章节名前缀,便于章节级召回)
-    for a in articles:
-        text = (a.get("text") or "").replace("\n", " ").strip()
-        title = (a.get("title") or "").strip()
-        chapter_name = chapter_titles_by_art.get(a["article_id"], "")
-        if chapter_name:
-            text = f"{chapter_name} {text}"
-        lines.append(
-            "INSERT INTO articles_fts(article_id, chapter_id, doc_id, number, title, text) "
-            f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
-            f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
-            f"'{escape_sql(title)}', '{escape_sql(text)}');"
-        )
+        # 灌 articles + articles_fts
+        for a in articles:
+            title = (a.get("title") or "").strip()
+            lines.append(
+                "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) "
+                f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
+                f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
+                f"'{escape_sql(title)}', '{escape_sql(a['article_id'] + '.md')}');"
+            )
+
+            text = (a.get("text") or "").replace("\n", " ").strip()
+            chapter_name = chapter_titles_by_art.get(a["article_id"], "")
+            if chapter_name:
+                text = f"{chapter_name} {text}"
+            lines.append(
+                "INSERT INTO articles_fts(article_id, chapter_id, doc_id, number, title, text) "
+                f"VALUES('{escape_sql(a['article_id'])}', '{escape_sql(a['chapter_id'])}', "
+                f"'{escape_sql(a['doc_id'])}', '{escape_sql(a['number'])}', "
+                f"'{escape_sql(title)}', '{escape_sql(text)}');"
+            )
+
+        total_articles += len(articles)
+        total_chapters += len(chapters)
+        print(f"  [doc] {doc_id}: {len(chapters)} chapters · {len(articles)} articles")
 
     out_path = Path("build/export/seed.sql")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[OK] wrote {len(lines)} SQL statements to {out_path}")
-    print(f"     articles: {len(articles)}, chapters: {len(chapters)}, doc: {doc_id}")
+    print(f"     total: {total_chapters} chapters · {total_articles} articles · {len(docs)} docs")
 
 
 if __name__ == "__main__":

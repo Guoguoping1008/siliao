@@ -10,9 +10,10 @@ Text-based 法条切分器: 不依赖物理坐标, 直接按"第X条"文本特�
 输出:
   data/markdown/<doc_id>/articles/<article_id>.md
   data/markdown/<doc_id>/articles.json
+  data/markdown/<doc_id>/chapters.json
+  data/markdown/<doc_id>/chapters/<chapter_id>.md
 
-合并 chapter_splitter 的章节识别(支持"一、法规" / "二、制度文件")+ 本脚本的
-条文识别 = 完整章节+条文结构。
+chapter_id 加 doc_id 前缀 (如 'fee_ch01') 避免多 doc 灌库时主键冲突。
 
 用法:
   python build/ocr/article_splitter.py data/markdown/feed-law-collection-2023/merged.md \\
@@ -34,11 +35,7 @@ ARTICLE_RE = re.compile(r"^第[一二三四五六七八九十百千零〇0-9]+�
 
 
 def split_articles(md_text: str) -> list[dict]:
-    """
-    把 merged.md 按"第X条"切分。
-    每条: {number, text, offset}
-    """
-    # 用 lookahead split, 保留锚点
+    """把 merged.md 按"第X条"切分。每条: {number, text, offset}"""
     parts = re.split(r"(?=第[一二三四五六七八九十百千零〇0-9]+条)", md_text)
     articles = []
     for p in parts:
@@ -53,9 +50,7 @@ def split_articles(md_text: str) -> list[dict]:
 
 
 def split_chapters(md_text: str) -> list[dict]:
-    """
-    找章节锚点位置, 返回 [{number, title, offset}, ...]
-    """
+    """找章节锚点位置, 返回 [{number, title, offset}, ...]"""
     chapters = []
     for line in md_text.splitlines():
         line = line.strip()
@@ -72,17 +67,19 @@ def write_articles(
     md_text: str,
     out_root: Path,
 ):
-    """输出 articles.json + articles/<id>.md"""
+    """输出 articles.json + articles/<id>.md
+
+    chapter_id 用 doc_id 前缀避免多 doc 灌库时主键冲突
+    (feed-law-2026 用 'fee_ch01', feed-law-collection-2023 用 'fee_col_ch01')
+    """
     md_dir = out_root / "markdown" / doc_id
     art_dir = md_dir / "articles"
     art_dir.mkdir(parents=True, exist_ok=True)
 
-    # 章节锚点 (按行)
-    lines = md_text.splitlines()
-
-    chapter_anchors = []  # [(char_pos, number, title, full_line)]
+    # 章节锚点 (按 char_pos)
     char_pos = 0
-    for ln in lines:
+    chapter_anchors = []  # [(char_pos, number, title, full_line)]
+    for ln in md_text.splitlines():
         m = ASSEMBLY_CHAPTER_RE.match(ln.strip())
         if m:
             title = m.group(2).strip()
@@ -90,12 +87,15 @@ def write_articles(
                 chapter_anchors.append((char_pos, m.group(1), title, ln.strip()))
         char_pos += len(ln) + 1  # +1 for \n
 
+    # doc_id 短前缀 (去横线, 前 3 字符)
+    doc_prefix = doc_id.replace("-", "")[:3]
+
     # 找条文锚点 — 扫整段文本的所有"第X条"位置
     art_anchors = []  # [(char_pos, number)]
     for m in re.finditer(r"(第[一二三四五六七八九十百千零〇0-9]+条)", md_text):
         art_anchors.append((m.start(), m.group(1)))
 
-    # 给每条 article 配 chapter (最近的、< 该 char_pos 的 chapter)
+    # 给每条 article 配 chapter
     def find_chapter(pos: int) -> tuple[str, str]:
         ch_num, ch_title = "前言", "前言"
         for cp, num, title, _ in chapter_anchors:
@@ -106,8 +106,8 @@ def write_articles(
         return ch_num, ch_title
 
     chapters_dict: dict[str, dict] = {}
-    for _, num, title, full_line in chapter_anchors:
-        cid = f"ch{len(chapters_dict) + 1:02d}"
+    for idx, (_, num, title, full_line) in enumerate(chapter_anchors):
+        cid = f"{doc_prefix}_ch{idx + 1:02d}"
         chapters_dict[cid] = {
             "chapter_id": cid,
             "number": num,
@@ -115,12 +115,13 @@ def write_articles(
             "full_line": full_line,
             "article_ids": [],
         }
-    # 加"前言"虚拟章节
-    if "ch00" not in chapters_dict:
-        chapters_dict["ch00"] = {
-            "chapter_id": "ch00",
+    cid_zero = f"{doc_prefix}_ch00"
+    if cid_zero not in chapters_dict:
+        chapters_dict[cid_zero] = {
+            "chapter_id": cid_zero,
             "number": "前言",
             "title": "前言",
+            "full_line": "",
             "article_ids": [],
         }
 
@@ -137,9 +138,9 @@ def write_articles(
                 cid = k
                 break
         if cid == "ch00" and (ch_num, ch_title) != ("前言", "前言"):
-            cid = "ch00"
+            cid = cid_zero
 
-        aid = f"art{idx + 1:03d}"
+        aid = f"{doc_prefix}_art{idx + 1:03d}"
         chapters_dict[cid]["article_ids"].append(aid)
 
         articles.append({
@@ -150,13 +151,12 @@ def write_articles(
             "text": text,
         })
 
-        # 写单条 md
         meta = (
             f"<!-- doc_id: {doc_id} · chapter_id: {cid} · article_id: {aid} · number: {number} -->\n\n"
         )
         (art_dir / f"{aid}.md").write_text(meta + text, encoding="utf-8")
 
-    # 章节也写一份 markdown
+    # 章节 markdown
     chap_dir = md_dir / "chapters"
     chap_dir.mkdir(parents=True, exist_ok=True)
     for cid, ch in chapters_dict.items():
@@ -165,13 +165,11 @@ def write_articles(
             art = next(a for a in articles if a["article_id"] == aid)
             body_lines.append(f"## {art['number']}\n\n{art['text']}")
         body = "\n\n---\n\n".join(body_lines) if body_lines else "(本章暂无条文)"
-
-        # 用原始章节标题行 (保留顿号和页码)
         header_title = ch.get("full_line") or f"{ch['number']} {ch['title']}"
         header = f"# {header_title}\n\n> doc_id: {doc_id} · chapter_id: {cid} · articles: {len(ch['article_ids'])}\n\n"
         (chap_dir / f"{cid}.md").write_text(header + body, encoding="utf-8")
 
-    # 写 JSON
+    # JSON 索引
     (md_dir / "articles.json").write_text(
         json.dumps(articles, ensure_ascii=False, indent=2),
         encoding="utf-8",
