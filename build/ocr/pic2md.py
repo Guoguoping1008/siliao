@@ -66,10 +66,16 @@ def ocr_one(ocr: PaddleOCR, img_path: Path) -> list[dict]:
     return lines
 
 
-def group_by_paragraph(lines: list[dict], y_gap_ratio: float = 0.6) -> list[list[dict]]:
+def group_by_paragraph(lines: list[dict], y_gap_ratio: float = 1.2) -> list[list[dict]]:
     """
     把 PaddleOCR 行聚成段落: y 间距小于上一行高度 * y_gap_ratio 的归一段。
-    返回段落列表, 每段是一个 line 列表。
+
+    阈值选择:
+    - 0.6 (旧): 段内换行 / 条间换行 都被合一段 → 14-23 条压成一段
+    - 1.5 (现): 容忍段内换行 (上一行的 1.5 倍行高), 但拒绝跨条合并
+    - 2.0: 更激进, 可能段内换行也被切, 适合表格密集页
+
+    实测法规正文 (条间距约 2-3 倍行高), 1.5 平衡最佳。
     """
     if not lines:
         return []
@@ -135,10 +141,14 @@ def process_dir(
     *,
     use_gpu: bool = False,
     preprocessed_dir: Path | None = None,
+    from_cache: bool = False,
 ) -> list[Path]:
     """
     处理整个目录的图片, 输出到 data/markdown/<doc_id>/pages/
     返回所有生成的 md 文件路径(按图片文件名排序, 但不保证物理页序)。
+
+    from_cache=True: 不重跑 OCR, 从 raw_ocr/<stem>.json 直接读 PaddleOCR 输出
+    适合调 group_by_paragraph 参数时快速验证 (省 ~3 分钟/次)
     """
     base = Path("data/markdown") / doc_id
     raw_ocr_dir = base / "raw_ocr"
@@ -150,7 +160,7 @@ def process_dir(
     preprocessed_root.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
-    ocr = init_ocr(use_gpu=use_gpu)
+    ocr = init_ocr(use_gpu=use_gpu) if not from_cache else None
     img_paths = sorted(src_dir.glob("*.jpg"))
     print(f"[pic2md] {len(img_paths)} 张图 → {pages_dir}")
 
@@ -158,15 +168,23 @@ def process_dir(
     for i, img_path in enumerate(img_paths, 1):
         print(f"[pic2md] ({i}/{len(img_paths)}) {img_path.name}")
 
-        # 1. 预处理 (透视校正 + 水印裁剪)
-        result = do_preprocess(img_path, preprocessed_root, meta_dir)
-        clean_img = result.out_path
+        if from_cache:
+            # 读 raw_ocr 缓存, 跳过预处理和 OCR
+            cached = raw_ocr_dir / f"{img_path.stem}.json"
+            if not cached.exists():
+                print(f"  [SKIP] cache missing: {cached}")
+                continue
+            lines = json.loads(cached.read_text(encoding="utf-8"))
+        else:
+            # 1. 预处理 (透视校正 + 水印裁剪)
+            result = do_preprocess(img_path, preprocessed_root, meta_dir)
+            clean_img = result.out_path
 
-        # 2. OCR
-        lines = ocr_one(ocr, clean_img)
-        (raw_ocr_dir / f"{img_path.stem}.json").write_text(
-            json.dumps(lines, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+            # 2. OCR
+            lines = ocr_one(ocr, clean_img)
+            (raw_ocr_dir / f"{img_path.stem}.json").write_text(
+                json.dumps(lines, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
         # 3. 拼 markdown
         md = page_to_markdown(lines, page_number=i)
@@ -185,6 +203,7 @@ def main():
     p.add_argument("doc_id", help="目标 doc_id, 例如 feed-law-collection-2023")
     p.add_argument("--gpu", action="store_true", help="启用 GPU")
     p.add_argument("--limit", type=int, default=0, help="只处理前 N 张 (0 = 全部)")
+    p.add_argument("--from-cache", action="store_true", help="从 raw_ocr/ 缓存复用 OCR 结果, 只重做 markdown 拼装")
     args = p.parse_args()
 
     src = args.src_dir
@@ -195,9 +214,9 @@ def main():
             tmp = Path(td)
             for i, p in enumerate(sorted(src.glob("*.jpg"))[: args.limit]):
                 (tmp / p.name).write_bytes(p.read_bytes())
-            process_dir(tmp, args.doc_id, use_gpu=args.gpu)
+            process_dir(tmp, args.doc_id, use_gpu=args.gpu, from_cache=args.from_cache)
     else:
-        process_dir(src, args.doc_id, use_gpu=args.gpu)
+        process_dir(src, args.doc_id, use_gpu=args.gpu, from_cache=args.from_cache)
 
 
 if __name__ == "__main__":
