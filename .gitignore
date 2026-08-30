@@ -65,3 +65,8 @@ web/coverage/
 # Playwright e2e outputs
 test-results/
 playwright-report/
+
+# OCR / phone photos (上游原始资料,不进 git)
+raw-pic/
+.venv-ocr/
+.models/
