@@ -21,6 +21,7 @@ Seed D1: 把 data/markdown/<doc_id>/articles.json 灌入 articles_fts 全文索�
 
 from __future__ import annotations
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -75,9 +76,32 @@ def main():
 
         # 章节标题 → article_ids 反向索引
         chapter_titles_by_art: dict[str, str] = {}
+        # 主键前缀化: 多 doc 灌库时 chapter_id / article_id 必须唯一
+        # 规则: 如果 chapter_id 已经有"字母_xxx"的形式 (即有自定义前缀), 保留原前缀;
+        #       如果是 "chNN" / "artNN" 无前缀形式, 加上 doc 前缀避免冲突
+        # doc_prefix 用 doc_id 去横线 (避免 3 字符 "fee" 在多个 feed-* doc 间冲突)
+        # 安全字符替换: 横线 → 空, 数字保留, 取前 8 字符确保足够唯一
+        doc_prefix = doc_id.replace("-", "")[:8]
+        cid_prefix_re = re.compile(r"^[a-z]+_")
+
+        def ensure_prefix(raw_id: str) -> str:
+            if cid_prefix_re.match(raw_id):
+                return raw_id  # 已有前缀 (如 fee_col_xxx), 保留
+            return f"{doc_prefix}_{raw_id}"
+
         for c in chapters:
+            c["chapter_id"] = ensure_prefix(c["chapter_id"])
+            new_art_ids = []
             for aid in c.get("article_ids", []):
+                new_aid = ensure_prefix(aid)
+                new_art_ids.append(new_aid)
+            c["article_ids"] = new_art_ids
+            # 章节名前缀索引: key 是 article_id (灌库后实际值的字符串), 用于每条 article 的 text 注入章节名
+            for aid in c["article_ids"]:
                 chapter_titles_by_art[aid] = f"{c['number']} {c['title']}"
+
+        for a in articles:
+            a["article_id"] = ensure_prefix(a["article_id"])
 
         # 灌 document
         lines.append(
