@@ -68,9 +68,11 @@ playwright-report/
 
 # OCR / phone photos (上游原始资料,不进 git)
 raw-pic/
+raw/                 # 新版原始资料落地区(raw/<date>/<hash>.jpg 或 raw/<date>/<seq>.jpg)
 .venv-ocr/
 .models/
 data/markdown/feed-law-collection-2023/
+data/markdown/feed-trial-guideline-2023/
 
 # Wrangler build artifacts (regenerated on dev/deploy)
 query/worker/build/

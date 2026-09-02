@@ -6,7 +6,9 @@
 
 | doc_id | 标题 | 文号 | 颁布日期 | 生效日期 | 章节数 | 文件 | 状态 |
 |---|---|---|---|---|---|---|---|
-| _PENDING_ | _等待用户补入《中国农业饲料法规 2026 版》_ | - | - | - | - | `data/raw/` | 待补 |
+| feed-law-2026 | 中国农业饲料法规 2026 版 | 农业农村部令 第X号 | 2026 | 2026 | 6 | `data/markdown/feed-law-2026/` | indexed |
+| feed-law-collection-2023 | 饲料法规文件汇编 2023 | - | 2023 | 2023 | 5 | `data/markdown/feed-law-collection-2023/` | indexed |
+| feed-trial-guideline-2023 | 饲料和饲料添加剂靶动物有效性评价试验指南(试行) | 饲料法规文件【2023】 | 2023 | 2023 | 15 | `data/markdown/feed-trial-guideline-2023/` | indexed |
 
 ## 元数据 JSON 模板(每部法规一份)
 
