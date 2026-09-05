@@ -102,6 +102,9 @@ def main():
 
         for a in articles:
             a["article_id"] = ensure_prefix(a["article_id"])
+            # chapter_id 也要前缀化: 多 doc 灌库时 articles.chapter_id 引用 chapters.chapter_id,
+            # 没加前缀会导致 FOREIGN KEY 失败
+            a["chapter_id"] = ensure_prefix(a["chapter_id"])
 
         # 灌 document
         lines.append(
