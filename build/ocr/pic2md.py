@@ -36,7 +36,15 @@ from paddleocr import PaddleOCR  # noqa: E402
 
 
 def init_ocr(use_gpu: bool = False) -> PaddleOCR:
-    """PaddleOCR 初始化 (中文 v4 模型, 开方向分类)"""
+    """
+    PaddleOCR 初始化 (中文 v4 模型, 开方向分类)
+
+    注意 use_gpu 默认 False 且建议保持:
+    本机 paddle 2.6.2 是 CUDA 11.8 编译版, 但系统装的是 CUDA 13.1 runtime,
+    缺 cudnn64_8.dll → 一旦走 GPU 分支会在 predict_det 阶段抛
+    "PreconditionNotMet: cudnn64_8.dll ... error code 126" 直接崩批次。
+    CPU 实测 2-7s/页 (均 5.1s), 1005 页约 1.4h, 完全够用, 不值得为此修 cuDNN。
+    """
     return PaddleOCR(
         use_angle_cls=True,
         lang="ch",

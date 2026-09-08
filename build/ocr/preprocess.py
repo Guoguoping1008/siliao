@@ -135,20 +135,29 @@ def preprocess(
     src: Path,
     out_dir: Path,
     meta_dir: Path,
+    *,
+    min_area_ratio: float = 0.75,
 ) -> PreprocessResult:
     """
     处理单张图片: 透视校正 + 水印裁剪
 
-    降级策略:
+    降级策略 (实测 058.jpg 数据丢失事故后加严):
     - 透视校正后若宽高比异常 (不在 [0.3, 3.0]), 视为角点检测失败, 回退用原图。
       实测 16/20 张图会因书本装订线/阴影被误识别为四角, 压成细条。
-    - 校正后图像最小边若 < 100 px, 也视为失败, 回退用原图。
+    - 校正后图像最小边若 < 200 px, 也视为失败, 回退用原图。
+    - **面积守卫 (关键)**: 校正后面积 < 原图 min_area_ratio 时回退。
+      事故记录: 058.jpg 角点检测锁到"表格内边框"而不是纸张边缘,
+      1280x1707 → 1030x484 (剩 23% 面积), 裁掉了整个表 1 和半个表 2。
+      OCR 行数从 83 掉到 34, 「后备种用火鸡」整行凭空消失。
+      宽高比 2.13 落在 [0.3,3.0] 内, 旧 guard 放行了 → 必须用面积判定。
+      实测 feed-trial-guideline-2023 有 14/33 页 (42%) 受此影响。
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
     img = load_image(src)
     h0, w0 = img.shape[:2]
+    src_area = w0 * h0
 
     corners = detect_document_corners(img)
     warped_img = img
@@ -158,11 +167,17 @@ def preprocess(
         candidate = warp_perspective(img, corners)
         cw, ch = candidate.shape[1], candidate.shape[0]
         ratio = cw / ch if ch > 0 else 0
-        if 0.3 <= ratio <= 3.0 and min(cw, ch) >= 200:
+        area_ratio = (cw * ch) / src_area if src_area else 0
+        if not (0.3 <= ratio <= 3.0):
+            fallback_reason = f"bad_ratio={ratio:.2f}"
+        elif min(cw, ch) < 200:
+            fallback_reason = f"too_small=({cw},{ch})"
+        elif area_ratio < min_area_ratio:
+            # 角点锁到了页面内部的框线 (表格边框 / 版心), 裁掉了真实内容
+            fallback_reason = f"area_loss={area_ratio:.2f}<{min_area_ratio}"
+        else:
             warped_img = candidate
             warped = True
-        else:
-            fallback_reason = f"bad_ratio={ratio:.2f},size=({cw},{ch})"
 
     cleaned, wm_removed = remove_watermark(warped_img)
 
