@@ -155,7 +155,9 @@ def main():
             full_text = L_part or R_part
         if not full_text:
             full_text = "(空白页)"
-        r2_key = f"{args.doc}/pages_m3/{p['stem']}.md"
+        # worker 硬编码 key 约定: <doc_id>/articles/<article_id>.md
+        # push 时 R2 文件名也用 article_id.md,内容从对应 stem 的 md 来
+        r2_key = f"{args.doc}/articles/{article_id}.md"
 
         lines.append(
             f"INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) "
@@ -178,6 +180,23 @@ def main():
     print(f"[write] {out_sql}")
     print(f"[write] {len(lines)} SQL 行")
     print(f"[stats] {len(real_pairs)} articles, 总字符 {total_chars/1024/1024:.2f} MB, 平均 {total_chars/max(len(real_pairs),1):.0f} B/article")
+
+    # === 同步生成 worker 期望的 R2 merged md ===
+    # key 约定: <doc_id>/articles/<article_id>.md
+    merged_dir = ROOT / "data/markdown" / args.doc / "articles"
+    merged_dir.mkdir(parents=True, exist_ok=True)
+    for seq, p in enumerate(real_pairs, 1):
+        article_id = f"{doc_prefix}_p{seq:04d}"
+        L_part = "" if p["L_placeholder"] else p["L_text"]
+        R_part = "" if p["R_placeholder"] else p["R_text"]
+        if L_part and R_part:
+            full_text = L_part + "\n\n---\n\n" + R_part
+        else:
+            full_text = L_part or R_part
+        if not full_text:
+            full_text = "(空白页)"
+        (merged_dir / f"{article_id}.md").write_text(full_text, encoding="utf-8")
+    print(f"[write] {merged_dir} ({len(real_pairs)} 个 merged md, worker 期望 articles/<article_id>.md)")
     return 0
 
 
