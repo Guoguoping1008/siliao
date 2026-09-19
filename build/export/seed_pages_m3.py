@@ -47,6 +47,29 @@ def clean_md(text: str) -> str:
     return text.strip()
 
 
+PLACEHOLDER_PATTERNS = [
+    r"无法准确识别",
+    r"无法清晰辨认",
+    r"此页为空白页",
+    r"此页为前页内容",
+    r"无内容.*不可见",
+    r"无可识别内容",
+    r"右侧页面文字的镜像",
+    r"背面透印",
+    r"内容透出",
+]
+
+
+def is_placeholder(text: str) -> bool:
+    """整页是占位(背面透印 / 空白 / 无法识别)→ True"""
+    if not text.strip():
+        return True
+    for pat in PLACEHOLDER_PATTERNS:
+        if re.search(pat, text):
+            return True
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--doc", default=DEFAULT_DOC)
@@ -82,10 +105,18 @@ def main():
             "R_text": R_text,
             "L_size": len(L_text),
             "R_size": len(R_text),
+            "L_placeholder": is_placeholder(L_text),
+            "R_placeholder": is_placeholder(R_text),
         })
     pairs.sort(key=lambda x: x["ts"])
 
-    print(f"[plan] {len(pairs)} 页 (每页 1 article)")
+    # 过滤: 整页 L+R 都是占位 → 跳过该 article
+    # 单页占位 → 保留 article 但只灌另一页
+    skipped = [p for p in pairs if p["L_placeholder"] and p["R_placeholder"]]
+    real_pairs = [p for p in pairs if not (p["L_placeholder"] and p["R_placeholder"])]
+    print(f"[plan] {len(pairs)} 页, 跳过整页占位 {len(skipped)}, 实际灌 {len(real_pairs)}")
+    if skipped:
+        print(f"[skip-sample] {skipped[0]['stem']}")
 
     # 生成 SQL
     lines: list[str] = []
@@ -111,14 +142,17 @@ def main():
     )
 
     # 插每页为 1 个 article
-    for seq, p in enumerate(pairs, 1):
+    for seq, p in enumerate(real_pairs, 1):
         article_id = f"{doc_prefix}_p{seq:04d}"
         number = f"p{seq:04d}"
         title = p["stem"]
-        # 拼 L+R, 但 R 标 "(右页)" 起头避免和左页粘连
-        full_text = p["L_text"]
-        if p["R_text"]:
-            full_text = full_text + "\n\n---\n\n" + p["R_text"] if full_text else p["R_text"]
+        # 拼 L+R: 单页占位时只灌另一页;两边都有只拼一起
+        L_part = "" if p["L_placeholder"] else p["L_text"]
+        R_part = "" if p["R_placeholder"] else p["R_text"]
+        if L_part and R_part:
+            full_text = L_part + "\n\n---\n\n" + R_part
+        else:
+            full_text = L_part or R_part
         if not full_text:
             full_text = "(空白页)"
         r2_key = f"{args.doc}/pages_m3/{p['stem']}.md"
@@ -136,10 +170,14 @@ def main():
 
     # 写
     out_sql.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    total_chars = sum((len(p["L_text"]) + len(p["R_text"])) for p in pairs)
+    total_chars = sum(
+        (len(p["L_text"]) if not p["L_placeholder"] else 0)
+        + (len(p["R_text"]) if not p["R_placeholder"] else 0)
+        for p in real_pairs
+    )
     print(f"[write] {out_sql}")
     print(f"[write] {len(lines)} SQL 行")
-    print(f"[stats] {len(pairs)} articles, 总字符 {total_chars/1024/1024:.2f} MB, 平均 {total_chars/len(pairs):.0f} B/article")
+    print(f"[stats] {len(real_pairs)} articles, 总字符 {total_chars/1024/1024:.2f} MB, 平均 {total_chars/max(len(real_pairs),1):.0f} B/article")
     return 0
 
 

@@ -19,6 +19,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 SCHEMA = ROOT / "query/worker/schema.sql"
 SEED = ROOT / "build/export/seed.sql"
+# 2023-full M3 OCR 灌库(2026-09-13 批次, 515 articles)
+SEED_PAGES_M3 = ROOT / "build/export/seed_pages_m3.sql"
 EVAL = ROOT / "evals/retrieval.jsonl"
 REPORT = ROOT / "evals/retrieval_report.md"
 
@@ -27,6 +29,8 @@ def build_db() -> sqlite3.Connection:
     con = sqlite3.connect(":memory:")
     con.executescript(SCHEMA.read_text(encoding="utf-8"))
     con.executescript(SEED.read_text(encoding="utf-8"))
+    if SEED_PAGES_M3.exists() and SEED_PAGES_M3.stat().st_size > 0:
+        con.executescript(SEED_PAGES_M3.read_text(encoding="utf-8"))
     return con
 
 

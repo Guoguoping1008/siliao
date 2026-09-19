@@ -44,3 +44,12 @@
 {"query": "消费者安全性", "expect_articles": ["fee_sec025"], "desc": "3.2 消费者安全性"}
 {"query": "试验", "expect_articles": ["fee_sec003", "fee_sec014", "fee_sec029", "fee_sec030", "fee_sec041"], "desc": "2 字 query padding"}
 {"query": "转基因", "expect_articles": ["feedlawco_art044", "feedlawco_art055", "feedlawco_art062"], "desc": "语料内 — collection 有转基因相关条款"}
+{"query": "新兽药研制管理办法", "expect_articles": ["flc23_p0400"], "desc": "2023-full 独有法规,农业大学令第 55 号, flc23_p0400 起始页"}
+{"query": "兽药注册办法", "expect_articles": ["flc23_p0402", "flc23_p0404", "flc23_p0405"], "desc": "2023-full 独有兽药注册办法, flc23_p0402 起始"}
+{"query": "进口饲料和饲料添加剂登记管理办法", "expect_articles": ["flc23_p0112", "flc23_p0113", "flc23_p0117", "flc23_p0119"], "desc": "2023-full 进口登记, flc23_p0112 起始"}
+{"query": "盐酸克仑特罗", "expect_articles": ["flc23_p0186", "flc23_p0309", "flc23_p0310", "flc23_p0311"], "desc": "2023-full 瘦肉精专项整治独有, flc23_p0309 起始(具体通知)"}
+{"query": "评审委", "expect_articles": ["flc23_p0014", "flc23_p0015", "flc23_p0016", "flc23_p0021"], "desc": "2023-full 新饲料新饲料添加剂管理办法 评审委, flc23_p0014 起始"}
+{"query": "新饲料和新饲料添加剂管理办法", "expect_articles": ["flc23_p0014", "flc23_p0015", "flc23_p0016"], "desc": "2023-full 新饲料管理办法起始, flc23_p0014 是首章"}
+{"query": "第三十八条", "expect_articles": ["flc23_p0011", "flc23_p0063", "flc23_p0064"], "desc": "2023-full 第三十八条罚款, 1 页 1 article, flc23_p0011 起始(管理条例第三十八条)"}
+{"query": "第二十三条", "expect_articles": ["flc23_p0010", "flc23_p0015", "flc23_p0047"], "desc": "2023-full 第二十三条经营者义务, flc23_p0010 起始"}
+{"query": "违法生产饲料", "expect_articles": ["flc23_p0011", "flc23_p0063", "flc23_p0064"], "desc": "2023-full 第三十八条具体场景(违法生产饲料)"}
