@@ -173,6 +173,9 @@ def process_dir(
     print(f"[pic2md] {len(img_paths)} 张图 → {pages_dir}")
 
     md_files: list[Path] = []
+    n_cache_hit = 0
+    n_cache_miss = 0
+    n_skipped = 0
     for i, img_path in enumerate(img_paths, 1):
         print(f"[pic2md] ({i}/{len(img_paths)}) {img_path.name}")
 
@@ -181,18 +184,28 @@ def process_dir(
             cached = raw_ocr_dir / f"{img_path.stem}.json"
             if not cached.exists():
                 print(f"  [SKIP] cache missing: {cached}")
+                n_skipped += 1
                 continue
             lines = json.loads(cached.read_text(encoding="utf-8"))
+            n_cache_hit += 1
         else:
-            # 1. 预处理 (透视校正 + 水印裁剪)
-            result = do_preprocess(img_path, preprocessed_root, meta_dir)
-            clean_img = result.out_path
+            # smart 模式: 有 raw_ocr 就 skip OCR, 没有就做 preprocess+OCR
+            cached = raw_ocr_dir / f"{img_path.stem}.json"
+            if cached.exists():
+                lines = json.loads(cached.read_text(encoding="utf-8"))
+                n_cache_hit += 1
+                print(f"  [cache] {cached.name}")
+            else:
+                # 1. 预处理 (透视校正 + 水印裁剪)
+                result = do_preprocess(img_path, preprocessed_root, meta_dir)
+                clean_img = result.out_path
 
-            # 2. OCR
-            lines = ocr_one(ocr, clean_img)
-            (raw_ocr_dir / f"{img_path.stem}.json").write_text(
-                json.dumps(lines, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+                # 2. OCR
+                lines = ocr_one(ocr, clean_img)
+                (raw_ocr_dir / f"{img_path.stem}.json").write_text(
+                    json.dumps(lines, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                n_cache_miss += 1
 
         # 3. 拼 markdown
         md = page_to_markdown(lines, page_number=i)
@@ -201,7 +214,7 @@ def process_dir(
         md_path.write_text(md, encoding="utf-8")
         md_files.append(md_path)
 
-    print(f"[pic2md] 完成: {len(md_files)} 个 markdown 文件")
+    print(f"[pic2md] 完成: {len(md_files)} 个 markdown 文件 (cache_hit={n_cache_hit}, cache_miss={n_cache_miss}, skipped={n_skipped})")
     return md_files
 
 

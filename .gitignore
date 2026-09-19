@@ -71,8 +71,18 @@ raw-pic/
 raw/                 # 新版原始资料落地区(raw/<date>/<hash>.jpg 或 raw/<date>/<seq>.jpg)
 .venv-ocr/
 .models/
+Images/              # 原始手机翻拍图 (3.2GB, 重生成)
 data/markdown/feed-law-collection-2023/
 data/markdown/feed-trial-guideline-2023/
+
+# M3 OCR 最终产物 (每页 markdown, 1k+ 文件, 重生成)
+data/markdown/feed-law-collection-2023-full/
+
+# LLM 结构化中间产物 (chapter_splitter_v2 输出 + pages_struct/)
+markdown/
+
+# RAG 灌库 SQL (重生成)
+build/export/seed_pages_m3.sql
 
 # Wrangler build artifacts (regenerated on dev/deploy)
 query/worker/build/
