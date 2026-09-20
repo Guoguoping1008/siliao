@@ -116,13 +116,20 @@ async function searchArticles(
   }
 
   // 兜底:中文 query 补一次 LIKE,确保 2 字短 query / 专有名词近义也能召回
-  if (rows.length < 20 && /[\u4E00-\u9FFF]/.test(q)) {
+  // [2026-09-20 玄穹 C-a] 负例收紧: 仅当 FTS5 trigram 已有 ≥1 命中时才补位。
+  // 之前 2 字 query (如 "刑法") 的 trigram/padding 全空时, LIKE "%刑法%" 会把
+  // "追究刑事责任" 等偶然 substring 凑成命中 → 语料外 query 假阳性。
+  // 与 evals/eval_retrieval.py (LIKE 门控) 对齐: 门控后 LIKE 只做召回 top-up。
+  if (rows.length > 0 && rows.length < 20 && /[\u4E00-\u9FFF]/.test(q)) {
     const like = `%${q}%`;
+    // [2026-09-20 玄穹 C-b] LIKE 结果按 instr 首次出现位置排序,
+    // 避免 FTS5 表扫描的任意行序 → 2 字 query 真实命中靠前。
     const fallback = await env.DB.prepare(
       `SELECT article_id, 0 as rank FROM articles_fts
        WHERE title LIKE ?1 OR text LIKE ?1
+       ORDER BY instr(text, ?2)
        LIMIT 20`
-    ).bind(like).all();
+    ).bind(like, q).all();
     const seen = new Set(rows.map(r => r.article_id));
     for (const r of fallback.results as any[]) {
       if (!seen.has(r.article_id)) {

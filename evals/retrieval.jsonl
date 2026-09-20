@@ -19,7 +19,7 @@
 {"query": "法律责任", "expect_articles": ["feedlaw2_art014", "feedlaw2_art015"], "desc": "法律责任章节"}
 {"query": "总则", "expect_articles": ["feedlaw2_art001", "feedlaw2_art002", "feedlaw2_art003", "feedlaw2_art004"], "desc": "章节级召回:总则 = ch01 全部"}
 {"query": "附则", "expect_articles": ["feedlaw2_art016"], "desc": "章节级召回:附则 = 第十六条"}
-{"query": "安全生产", "expect_articles": [], "desc": "NEGATIVE:本语料无安全生产相关条款,应 0 命中"}
+{"query": "安全生产", "expect_articles": ["flc23_p0490", "flc23_p0209", "flc23_p0214"], "desc": "positive(2026-09-20 改判) — 2023-full 补充语料含实质安全生产条款:GB 19081 粉尘防爆安全规程(p0490) + 企业承诺书安全生产义务(p0209/p0214)"}
 {"query": "刑法", "expect_articles": [], "desc": "NEGATIVE:语料外 query,应 0 命中"}
 {"query": "兽药", "expect_articles": ["feedlawco_art010", "feedlawco_art014", "feedlawco_art021", "feedlawco_art029", "feedlawco_art034"], "desc": "兽药相关条款 (collection 2023)"}
 {"query": "abcdefg", "expect_articles": [], "desc": "NEGATIVE:纯英文乱码,应 0 命中"}

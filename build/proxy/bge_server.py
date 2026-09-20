@@ -33,6 +33,26 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# === [2026-09-20 玄穹 CEO 决策 C-a] ===
+# 强制走 hf-mirror.com + 禁用 httpx 系统代理(Windows Clash 127.0.0.1:7897 撞 SSL EOF)
+# + 禁用 xet CAS(走 hf-mirror 时 cas-server.xethub.hf.co 401 unauthorized)
+# HF_ENDPOINT 必须在 import huggingface_hub 之前设置
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "120")
+
+import httpx  # noqa: E402
+_orig_client_init = httpx.Client.__init__
+_orig_async_client_init = httpx.AsyncClient.__init__
+def _patched_sync_client_init(self, *a, **kw):
+    kw.setdefault("trust_env", False)
+    return _orig_client_init(self, *a, **kw)
+def _patched_async_client_init(self, *a, **kw):
+    kw.setdefault("trust_env", False)
+    return _orig_async_client_init(self, *a, **kw)
+httpx.Client.__init__ = _patched_sync_client_init
+httpx.AsyncClient.__init__ = _patched_async_client_init
+
 MODEL_NAME = os.environ.get("BGE_MODEL", "BAAI/bge-large-zh-v1.5")
 PORT = int(os.environ.get("BGE_PORT", "8080"))
 HOST = os.environ.get("BGE_HOST", "127.0.0.1")
@@ -129,7 +149,16 @@ def main():
     print(f"[bge] model: {MODEL_NAME}", flush=True)
     print(f"[bge] graphrag config: api_base=http://{HOST}:{PORT}/v1, model={MODEL_NAME}", flush=True)
     print(f"[bge] health: curl http://{HOST}:{PORT}/health", flush=True)
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    # === [2026-09-20 玄穹 CEO 决策 C-a] ===
+    # 启动时预加载模型:避免第一个请求阻塞整个 server(2.27GB 下载会卡几分钟)
+    # 也避免 ThreadingHTTPServer 单线程下 "loading" handler 把 listen socket 卡住
+    print(f"[bge] preloading model (首次启动会下载 ~2.27GB, 可能 5-15 分钟)...", flush=True)
+    t0 = time.time()
+    get_model()
+    print(f"[bge] preloaded in {time.time() - t0:.1f}s, ready for requests", flush=True)
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    server.daemon_threads = True  # 工作线程不阻塞 server shutdown
+    server.serve_forever()
 
 
 if __name__ == "__main__":

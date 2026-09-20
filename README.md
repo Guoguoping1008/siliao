@@ -55,10 +55,10 @@ siliao/
 | 指标 | 当前值 | 来源 |
 |---|---|---|
 | 检索 recall@10(单语料 feed-law-2026) | **95.7%** (22/23) | evals/retrieval.jsonl (历史基线) |
-| 检索 recall@10(跨语料合并,649 articles,86 用例) | **79.4%** (62/77, recall ≥ 50% 阈值) | evals/retrieval.jsonl (F+G: section优先 + TF-IDF hybrid) |
-| 检索 MRR(跨语料) | **0.584** | evals/eval_retrieval.py |
-| 检索 recall@20(跨语料) | 85.6% | evals/retrieval.jsonl |
-| 检索 negative 精度(跨语料) | **33%** (3/9) | 语料外 query 召回控制 |
+| 检索 recall@10(跨语料合并,649 articles,86 用例) | **86.2%** (69/78, recall ≥ 50% 阈值) | evals/retrieval.jsonl (H: FTS5-agreement 门禁 + bge sim 缩放) |
+| 检索 MRR(跨语料) | **0.649** | evals/eval_retrieval.py |
+| 检索 recall@20(跨语料) | 90.7% | evals/retrieval.jsonl |
+| 检索 negative 精度(跨语料) | **100%** (8/8) | 语料外 query 召回控制 (H 收紧) |
 | RAG faithfulness | **100%** (5/5) | 引用 + 未找到兜底校验 |
 | 前端单元测试 | 33/33 通过,94% line coverage | vitest,4 个测试文件 |
 | 前端 e2e 测试 | 9 个 spec(Mock 模式) | Playwright,CI 自动装 Chromium |
@@ -107,5 +107,5 @@ npm run dev
 
 - 法规新版本:丢进 `data/raw/` 跑 `build/run_all.sh <doc_id>`
 - 扫描版:必须先 MinerU,后面流程相同
-- 接 bge embedding:触发条件 eval recall < 80%(当前 95.7% 充足,推迟)
+- bge 语义召回:已接入 eval hybrid(evals/bge_m3_cache.json, sim 缩放加成);生产 Worker 边缘未接,bge_server 跑外部(见 `build/proxy/`)
 - GraphRAG 真跑:需 DeepSeek API Key
