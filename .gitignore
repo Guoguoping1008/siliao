@@ -91,3 +91,6 @@ build/export/seed_pages_m3.sql
 # Wrangler build artifacts (regenerated on dev/deploy)
 query/worker/build/
 
+# 残留的 wrangler r2 误 push 路径 (历史 bug, --file 相对路径被解析到 cwd)
+query/worker/feed-law-collection-2023-full/
+
