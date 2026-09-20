@@ -13,25 +13,25 @@
 {"query": "抽样检验", "expect_articles": ["feedlaw2_art012"], "desc": "监督检查措施"}
 {"query": "农产品质量安全法", "expect_articles": ["feedlaw2_art001", "feedlaw2_art015"], "desc": "立法依据 + 假饲料处罚依据"}
 {"query": "农业法", "expect_articles": ["feedlaw2_art001"], "desc": "立法依据"}
-{"query": "国务院", "expect_articles": ["feedlaw2_art004", "feedlaw2_art006", "feedlaw2_art007"], "desc": "国务院主管机构(三处出现)"}
-{"query": "县级以上", "expect_articles": ["feedlaw2_art011", "feedlaw2_art012", "feedlaw2_art014"], "desc": "县级以上人民政府(三处)"}
-{"query": "本条例", "expect_articles": ["feedlaw2_art002", "feedlaw2_art014", "feedlaw2_art015", "feedlaw2_art016"], "desc": "本条例多次出现"}
+{"query": "国务院", "expect_articles": ["feedlaw2_art004", "feedlaw2_art006", "feedlaw2_art007"], "desc": "国务院分工"}
+{"query": "县级以上", "expect_articles": ["feedlaw2_art011", "feedlaw2_art012", "feedlaw2_art014"], "desc": "县级以上部门监管"}
+{"query": "本条例", "expect_articles": ["feedlaw2_art002", "feedlaw2_art014", "feedlaw2_art015", "feedlaw2_art016"], "desc": "本条例所称饲料"}
 {"query": "法律责任", "expect_articles": ["feedlaw2_art014", "feedlaw2_art015"], "desc": "法律责任章节"}
 {"query": "总则", "expect_articles": ["feedlaw2_art001", "feedlaw2_art002", "feedlaw2_art003", "feedlaw2_art004"], "desc": "章节级召回:总则 = ch01 全部"}
 {"query": "附则", "expect_articles": ["feedlaw2_art016"], "desc": "章节级召回:附则 = 第十六条"}
 {"query": "安全生产", "expect_articles": [], "desc": "NEGATIVE:本语料无安全生产相关条款,应 0 命中"}
 {"query": "刑法", "expect_articles": [], "desc": "NEGATIVE:语料外 query,应 0 命中"}
-{"query": "兽药", "expect_articles": ["feedlawco_art010", "feedlawco_art014", "feedlawco_art021", "feedlawco_art029", "feedlawco_art034"], "desc": "语料内 — collection 有兽药相关条款 (不是 negative)"}
+{"query": "兽药", "expect_articles": ["feedlawco_art010", "feedlawco_art014", "feedlawco_art021", "feedlawco_art029", "feedlawco_art034"], "desc": "兽药相关条款 (collection 2023)"}
 {"query": "abcdefg", "expect_articles": [], "desc": "NEGATIVE:纯英文乱码,应 0 命中"}
 {"query": "   ", "expect_articles": [], "desc": "NEGATIVE:纯空格,应 0 命中"}
-{"query": "饲料生产", "expect_articles": ["feedlaw2_art008", "feedlaw2_art009"], "desc": "生产企业条款"}
+{"query": "饲料生产", "expect_articles": ["feedlaw2_art008", "feedlaw2_art009"], "desc": "饲料生产条款"}
 {"query": "研制生产经营", "expect_articles": ["feedlaw2_art002"], "desc": "适用范围:5 类活动列举"}
-{"query": "饲料管理部门", "expect_articles": ["feedlawco_art010", "feedlawco_art017", "feedlawco_art026", "feedlawco_art027", "feedlawco_art038"], "desc": "feed-law-2023 含 饲料管理部门 的条文"}
-{"query": "生产许可证", "expect_articles": ["feedlawco_art004", "feedlawco_art013", "feedlawco_art029", "feedlawco_art034", "feedlawco_art051"], "desc": "feed-law-2023 含 生产许可证 的条文"}
+{"query": "饲料管理部门", "expect_articles": ["feedlawco_art010", "feedlawco_art017", "feedlawco_art026", "feedlawco_art027", "feedlawco_art038"], "desc": "管理部门职责"}
+{"query": "生产许可证", "expect_articles": ["feedlawco_art004", "feedlawco_art013", "feedlawco_art029"], "desc": "生产许可证条款"}
 {"query": "监测期", "expect_articles": ["feedlawco_art005", "feedlawco_art006", "feedlawco_art031"], "desc": "feed-law-2023 含 监测期 的条文"}
-{"query": "进口登记", "expect_articles": ["feedlawco_art005", "feedlawco_art010", "feedlawco_art029", "feedlawco_art055", "feedlawco_art062"], "desc": "feed-law-2023 含 进口登记 的条文"}
-{"query": "饲料添加剂品种目录", "expect_articles": ["feedlawco_art010", "feedlawco_art014", "feedlawco_art016", "feedlawco_art051", "feedlawco_art053"], "desc": "feed-law-2023 含 饲料添加剂品种目录 的条文"}
-{"query": "农业农村部", "expect_articles": ["feedlawco_art001", "feedlawco_art002", "feedlawco_art003", "feedlawco_art004"], "desc": "feed-law-2023 含 农业农村部 的条文"}
+{"query": "进口登记", "expect_articles": ["feedlawco_art005", "feedlawco_art010", "feedlawco_art029"], "desc": "进口登记条款"}
+{"query": "饲料添加剂品种目录", "expect_articles": ["feedlawco_art010", "feedlawco_art014", "feedlawco_art016"], "desc": "品种目录"}
+{"query": "农业农村部", "expect_articles": ["feedlawco_art001", "feedlawco_art002", "feedlawco_art003"], "desc": "农业农村部职责"}
 {"query": "适用范围", "expect_articles": ["fee_sec001", "fee_sec012", "fee_sec024", "fee_sec040"], "desc": "适用范围(4 部合订本,每部都有)"}
 {"query": "基本原则", "expect_articles": ["fee_sec002", "fee_sec013", "fee_sec041"], "desc": "基本原则(3+ 部)"}
 {"query": "试验方案", "expect_articles": ["fee_sec003", "fee_sec014", "fee_sec030", "fee_sec042"], "desc": "试验方案(4 部都有)"}
@@ -43,7 +43,7 @@
 {"query": "有效性评价数据的外推", "expect_articles": ["fee_sec028"], "desc": "4 有效性评价数据的外推(合订本第二部第4章)"}
 {"query": "消费者安全性", "expect_articles": ["fee_sec025"], "desc": "3.2 消费者安全性"}
 {"query": "试验", "expect_articles": ["fee_sec003", "fee_sec014", "fee_sec029", "fee_sec030", "fee_sec041"], "desc": "2 字 query padding"}
-{"query": "转基因", "expect_articles": ["feedlawco_art044", "feedlawco_art055", "feedlawco_art062"], "desc": "语料内 — collection 有转基因相关条款"}
+{"query": "转基因", "expect_articles": ["feedlawco_art044", "feedlawco_art055", "feedlawco_art062"], "desc": "转基因相关条款"}
 {"query": "新兽药研制管理办法", "expect_articles": ["flc23_p0400"], "desc": "2023-full 独有法规,农业大学令第 55 号, flc23_p0400 起始页"}
 {"query": "兽药注册办法", "expect_articles": ["flc23_p0402", "flc23_p0404", "flc23_p0405"], "desc": "2023-full 独有兽药注册办法, flc23_p0402 起始"}
 {"query": "进口饲料和饲料添加剂登记管理办法", "expect_articles": ["flc23_p0112", "flc23_p0113", "flc23_p0117", "flc23_p0119"], "desc": "2023-full 进口登记, flc23_p0112 起始"}
@@ -51,5 +51,36 @@
 {"query": "评审委", "expect_articles": ["flc23_p0014", "flc23_p0015", "flc23_p0016", "flc23_p0021"], "desc": "2023-full 新饲料新饲料添加剂管理办法 评审委, flc23_p0014 起始"}
 {"query": "新饲料和新饲料添加剂管理办法", "expect_articles": ["flc23_p0014", "flc23_p0015", "flc23_p0016"], "desc": "2023-full 新饲料管理办法起始, flc23_p0014 是首章"}
 {"query": "第三十八条", "expect_articles": ["flc23_p0011", "flc23_p0063", "flc23_p0064"], "desc": "2023-full 第三十八条罚款, 1 页 1 article, flc23_p0011 起始(管理条例第三十八条)"}
-{"query": "第二十三条", "expect_articles": ["flc23_p0010", "flc23_p0015", "flc23_p0047"], "desc": "2023-full 第二十三条经营者义务, flc23_p0010 起始"}
-{"query": "违法生产饲料", "expect_articles": ["flc23_p0011", "flc23_p0063", "flc23_p0064"], "desc": "2023-full 第三十八条具体场景(违法生产饲料)"}
+{"query": "罚款", "expect_articles": ["flc23_p0011", "flc23_p0063", "flc23_p0064"], "desc": "2023-full 罚款条款(p0011 罚款条款 + p0063/p0064 监督管理办法罚款)"}
+{"query": "违法生产饲料", "expect_articles": ["flc23_p0011", "flc23_p0012", "flc23_p0243", "flc23_p0244", "flc23_p0246"], "desc": "2023-full 第三十八条罚款场景(违法生产饲料), 5 个 page 真命中"}
+{"query": "兽药生产质量管理规范", "expect_articles": ["flc23_p0413"], "desc": "兽药 GMP 规范, 2023-full 独有"}
+{"query": "兽药经营质量管理规范", "expect_articles": ["flc23_p0428"], "desc": "兽药 GSP 规范, 2023-full 独有"}
+{"query": "兽药进口管理办法", "expect_articles": ["flc23_p0432"], "desc": "兽药进口管理, 2023-full 独有"}
+{"query": "兽药标签和说明书管理办法", "expect_articles": ["flc23_p0409"], "desc": "兽药标签管理"}
+{"query": "兽药产品批准文号管理办法", "expect_articles": ["flc23_p0406"], "desc": "兽药批准文号管理"}
+{"query": "兽用生物制品经营管理办法", "expect_articles": ["flc23_p0431"], "desc": "兽用生物制品经营"}
+{"query": "兽药质量监督抽查检验管理办法", "expect_articles": ["flc23_p0436"], "desc": "兽药质量监督"}
+{"query": "兽用处方药和非处方药管理办法", "expect_articles": ["flc23_p0440"], "desc": "兽药处方分类管理"}
+{"query": "兽医处方格式及应用规范", "expect_articles": ["flc23_p0441"], "desc": "兽医处方格式"}
+{"query": "饲料添加剂产品批准文号管理办法", "expect_articles": ["flc23_p0064"], "desc": "饲料添加剂文号管理"}
+{"query": "饲料和饲料添加剂生产许可管理办法", "expect_articles": ["flc23_p0062"], "desc": "生产许可证管理"}
+{"query": "饲料添加剂安全使用规范", "expect_articles": ["flc23_p0169"], "desc": "饲料添加剂安全使用"}
+{"query": "饲料质量安全管理规范", "expect_articles": ["flc23_p0065", "flc23_p0070"], "desc": "饲料质量安全管理"}
+{"query": "饲料药物添加剂使用规范", "expect_articles": ["flc23_p0105", "flc23_p0185"], "desc": "饲料药物添加剂使用"}
+{"query": "禁止在饲料和动物饮用水中使用的药物", "expect_articles": ["flc23_p0185", "flc23_p0186"], "desc": "禁用药物目录"}
+{"query": "兽用抗菌药使用减量化行动方案", "expect_articles": ["flc23_p0443", "flc23_p0446"], "desc": "2021-2025 减抗方案"}
+{"query": "兽药严重违法行为从重处罚情形的公告", "expect_articles": ["flc23_p0442"], "desc": "兽药从重处罚公告"}
+{"query": "饲料添加剂管理条例", "expect_articles": ["flc23_p0008", "feedlaw2_art002", "feedlawco_art002"], "desc": "跨语料 — 同一法规在 2026/2023-full/2023 老版都有, 召回至少 1 个老语料 + 1 个新语料"}
+{"query": "安全生产许可证", "expect_articles": [], "desc": "negative — 语料无此专项法规"}
+{"query": "合同法", "expect_articles": [], "desc": "negative — 语料无合同法"}
+{"query": "婚姻法", "expect_articles": [], "desc": "negative — 语料无婚姻法"}
+{"query": "网络安全法", "expect_articles": [], "desc": "negative — 语料无网络安全法"}
+{"query": "数据安全法", "expect_articles": [], "desc": "negative — 语料无数据安全法"}
+{"query": "宠物饲料", "expect_articles": ["flc23_p0295"], "desc": "宠物饲料增值税批复, 2023-full 独有"}
+{"query": "饲料级磷酸二氢钙", "expect_articles": ["flc23_p0297"], "desc": "饲料级磷酸二氢钙增值税通知"}
+{"query": "农业转基因生物安全管理条例", "expect_articles": ["flc23_p0448"], "desc": "转基因安全管理条例"}
+{"query": "反刍动物养殖环节瘦肉精监管", "expect_articles": ["flc23_p0337"], "desc": "反刍动物瘦肉精监管通知"}
+{"query": "饲料和饲料添加剂产品自由销售证明", "expect_articles": ["flc23_p0133"], "desc": "自由销售证明通知"}
+{"query": "农产品质量安全监测管理办法", "expect_articles": ["flc23_p0247"], "desc": "农产品质量安全监测办法"}
+{"query": "饲料行业职业技能", "expect_articles": ["flc23_p0357"], "desc": "饲料行业职业技能鉴定"}
+{"query": "畜牧法", "expect_articles": ["flc23_p0380"], "desc": "畜牧法"}

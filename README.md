@@ -55,10 +55,10 @@ siliao/
 | 指标 | 当前值 | 来源 |
 |---|---|---|
 | 检索 recall@10(单语料 feed-law-2026) | **95.7%** (22/23) | evals/retrieval.jsonl (历史基线) |
-| 检索 recall@10(跨语料合并,134 articles) | **86.5%** (36/42, recall ≥ 50% 阈值) | evals/retrieval.jsonl (当前) |
-| 检索 MRR(跨语料) | **0.745** | evals/eval_retrieval.py |
-| 检索 recall@20(跨语料) | 88.2% | evals/retrieval.jsonl |
-| 检索 negative 精度(跨语料) | **100%** (4/4) | 语料外 query 0 召回 |
+| 检索 recall@10(跨语料合并,649 articles,86 用例) | **72.4%** (55/77, recall ≥ 50% 阈值) | evals/retrieval.jsonl (当前) |
+| 检索 MRR(跨语料) | **0.571** | evals/eval_retrieval.py |
+| 检索 recall@20(跨语料) | 80.0% | evals/retrieval.jsonl |
+| 检索 negative 精度(跨语料) | **78%** (7/9) | 语料外 query 0 召回 |
 | RAG faithfulness | **100%** (5/5) | 引用 + 未找到兜底校验 |
 | 前端单元测试 | 33/33 通过,94% line coverage | vitest,4 个测试文件 |
 | 前端 e2e 测试 | 9 个 spec(Mock 模式) | Playwright,CI 自动装 Chromium |
