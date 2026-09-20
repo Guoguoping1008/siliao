@@ -48,19 +48,19 @@ def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
         for suffix in ("制", "的", "条", "法", "理"):
             queries.append(cleaned + suffix)
 
-    seen: list[str] = []
+    seen: list[tuple[str, int]] = []  # (article_id, rank)
     seen_set: set[str] = set()
     for query in queries:
         try:
             rows = con.execute(
-                "SELECT article_id FROM articles_fts WHERE articles_fts MATCH ?1 ORDER BY rank LIMIT ?2",
+                "SELECT article_id, rank FROM articles_fts WHERE articles_fts MATCH ?1 ORDER BY rank LIMIT ?2",
                 (query, top_k),
             ).fetchall()
         except sqlite3.OperationalError:
             rows = []
         for r in rows:
             if r[0] not in seen_set:
-                seen.append(r[0])
+                seen.append((r[0], r[1]))
                 seen_set.add(r[0])
         if len(seen) >= top_k:
             break
@@ -69,16 +69,125 @@ def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
     if len(seen) < top_k and re.search(r"[\u4e00-\u9fff]", q):
         like = f"%{q}%"
         rows = con.execute(
-            "SELECT article_id FROM articles_fts WHERE title LIKE ?1 OR text LIKE ?1 LIMIT ?2",
+            "SELECT article_id, rank FROM articles_fts WHERE title LIKE ?1 OR text LIKE ?1 LIMIT ?2",
             (like, top_k),
         ).fetchall()
         for r in rows:
             if r[0] not in seen_set:
-                seen.append(r[0])
+                seen.append((r[0], r[1] if r[1] is not None else 0))
                 seen_set.add(r[0])
             if len(seen) >= top_k:
                 break
-    return seen[:top_k]
+
+    # === F 排序加权:章节级 (section) 排在页级 (page) 前面 ===
+    # section: 老 doc 人工结构化 (feedlaw2_/feedlawco_/fee_sec* 等)
+    # page:    新 doc M3 OCR 自动切 (flc23_p* 等)
+    SECTION_DOCS = ("feed-law-2026", "feed-law-collection-2023", "feed-trial-guideline-2023")
+    SECTION_PREFIXES = ("feedlaw2_", "feedlawco_", "fee_sec", "fee_ch")
+
+    def is_section(aid: str) -> bool:
+        # 用 article_id 前缀粗判
+        return any(aid.startswith(p) for p in SECTION_PREFIXES)
+
+    # 排序: section 优先, 同类内按 FTS5 rank 升序 (rank 越低越好)
+    seen.sort(key=lambda x: (0 if is_section(x[0]) else 1, x[1]))
+
+    fts5_hits = [aid for aid, _ in seen[:top_k]]
+
+    # === G 语义召回 (TF-IDF fallback,无 bge 模型时的方案) ===
+    # 用 TF-IDF 算 query vs article text 的 cosine 相似度, 与 FTS5 合并去重
+    # 触发条件: TF-IDF cache 存在 (eval/tfidf_cache.json)
+    tfidf_hits = _tfidf_search(q, top_k=top_k)
+
+    # Hybrid 合并: FTS5 权重 0.7, TF-IDF 权重 0.3 (仅前 5 位有效, 避免宽召回污染)
+    # 思路: 每个 article 得综合分 = w_fts5 * fts5_rank_score + w_tfidf * tfidf_rank_score
+    # rank_score = 1/(rank+1), rank 越小分越高
+    # FTS5 是 trigram 字符匹配, 严格; TF-IDF 是 bi-gram + cosine, 召回更宽但易 false positive
+    # 只让 TF-IDF 前 5 位贡献, 避免 "安全生产" 等通用词噪声拉高错命中
+    score: dict[str, float] = {}
+    for r, aid in enumerate(fts5_hits):
+        score[aid] = score.get(aid, 0) + 0.7 * (1.0 / (r + 1))
+    for r, (aid, _) in enumerate(tfidf_hits[:5]):  # 只前 5 位合并
+        score[aid] = score.get(aid, 0) + 0.3 * (1.0 / (r + 1))
+
+    # 按综合分排序, 取 top_k
+    ranked = sorted(score.items(), key=lambda x: -x[1])
+    return [aid for aid, _ in ranked[:top_k]]
+
+
+# === G: TF-IDF 召回 (Lazy load cache) ===
+_TFIDF_CACHE = None
+
+
+def _load_tfidf_cache():
+    global _TFIDF_CACHE
+    if _TFIDF_CACHE is not None:
+        return _TFIDF_CACHE
+    cache_path = Path(__file__).parent / "tfidf_cache.json"
+    if not cache_path.exists():
+        return None
+    import json as _json
+    import math as _math
+    from collections import Counter as _Counter
+    import re as _re
+    data = _json.loads(cache_path.read_text(encoding="utf-8"))
+    _TFIDF_CACHE = {
+        "data": data,
+        "Counter": _Counter,
+        "math": _math,
+        "re": _re,
+    }
+    return _TFIDF_CACHE
+
+
+def _tfidf_search(query: str, top_k: int = 20) -> list[tuple[str, float]]:
+    cache = _load_tfidf_cache()
+    if not cache:
+        return []
+    data = cache["data"]
+    Counter = cache["Counter"]
+    math = cache["math"]
+    re = cache["re"]
+
+    def tokenize_zh(text):
+        if not text:
+            return []
+        text = re.sub(r"[\s\u3000\u3001\u3002\uff0c\uff01\uff1f\uff1b\uff1a\u201c\u201d\u2018\u2019\uff08\uff09\u300a\u300b\uff3b\uff3d]+", "", text)
+        chars = list(text)
+        grams = set()
+        for i in range(len(chars) - 1):
+            g = chars[i] + chars[i+1]
+            if re.match(r"[\u4e00-\u9fff]", g):
+                grams.add(g)
+        return list(grams)
+
+    qtf = Counter(tokenize_zh(query))
+    total = sum(qtf.values()) or 1
+    idf = data["idf"]
+    qvec = {t: (qtf[t] / total) * idf.get(t, 0) for t in qtf}
+
+    if not qvec:
+        return []
+
+    def cosine(a, b):
+        if not a or not b:
+            return 0.0
+        common = set(a.keys()) & set(b.keys())
+        num = sum(a[t] * b[t] for t in common)
+        na = math.sqrt(sum(v*v for v in a.values()))
+        nb = math.sqrt(sum(v*v for v in b.values()))
+        if na == 0 or nb == 0:
+            return 0.0
+        return num / (na * nb)
+
+    scores = []
+    for i, v in enumerate(data["vecs"]):
+        s = cosine(qvec, v)
+        # === 阈值: TF-IDF cosine < 0.03 的不算召回 (避免字符偶然命中) ===
+        if s > 0.03:
+            scores.append((data["tokenized"][i][0], s))
+    scores.sort(key=lambda x: -x[1])
+    return scores[:top_k]
 
 
 def mrr(hits: list[str], expected: set[str]) -> float:
