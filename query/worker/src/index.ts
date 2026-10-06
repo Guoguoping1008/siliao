@@ -88,7 +88,24 @@ function json(data: unknown, env: Env, status = 200): Response {
   });
 }
 
-// ---------- 检索(FTS5) ----------
+// ---------- 检索(FTS5 + bge-m3 hybrid) ----------
+//
+// [2026-09-20 玄穹 CEO 决策 C-b]
+// C-a 评测证明: FTS5 trigram (0.5) + TF-IDF (0.2) + bge-m3 (0.3) hybrid
+// 比单 FTS5 recall@10 从 53.7% 提到 86.2%。生产环境必须上 hybrid。
+//
+// Workers 边缘跑不了 Python/sentence_transformers,所以 bge 召回走
+// fetch BGE_SERVER_URL (env). 接口契约:
+//   POST {BGE_SERVER_URL}/v1/search
+//   body: {"query": str, "top_k": 20, "doc_id"?: str}
+//   reply: {"hits": [{article_id, doc_id, score, excerpt}, ...]}
+//
+// 融合策略: RRF (Reciprocal Rank Fusion),权重为各路单独 recall 数。
+// FTS5 命中 rank 已在 D1 (rank 越低越好),bge 命中 rank = 1..N (score 降序)。
+//
+// 失败兜底: 如果 BGE_SERVER_URL 未配或 fetch 失败,
+// 退化为纯 FTS5 + LIKE,与 v1 一致 (不破生产)。
+
 async function searchArticles(
   q: string,
   env: Env,
@@ -96,12 +113,11 @@ async function searchArticles(
 ) {
   if (!q) return { hits: [], query: q };
 
-  // FTS5 MATCH 语法:对用户 query 做转义,加双引号做 phrase 查询避免语法错
+  // FTS5 主路径
   const ftsQuery = escapeFts(q.trim());
   if (!ftsQuery) return { hits: [], query: q };
 
-  // 主查询走 FTS5 + padding,拿 article_id
-  let rows: { article_id: string; rank: number }[];
+  let ftsRows: { article_id: string; rank: number }[] = [];
   try {
     const result = await env.DB.prepare(
       `SELECT article_id, rank FROM articles_fts
@@ -109,40 +125,99 @@ async function searchArticles(
        ORDER BY rank
        LIMIT 20`
     ).bind(ftsQuery).all();
-    rows = result.results as any;
+    ftsRows = result.results as any;
   } catch (e) {
     console.warn(`[search] FTS5 fallback for "${q}":`, (e as Error).message);
-    rows = [];
   }
 
-  // 兜底:中文 query 补一次 LIKE,确保 2 字短 query / 专有名词近义也能召回
-  // [2026-09-20 玄穹 C-a] 负例收紧: 仅当 FTS5 trigram 已有 ≥1 命中时才补位。
-  // 之前 2 字 query (如 "刑法") 的 trigram/padding 全空时, LIKE "%刑法%" 会把
-  // "追究刑事责任" 等偶然 substring 凑成命中 → 语料外 query 假阳性。
-  // 与 evals/eval_retrieval.py (LIKE 门控) 对齐: 门控后 LIKE 只做召回 top-up。
-  if (rows.length > 0 && rows.length < 20 && /[\u4E00-\u9FFF]/.test(q)) {
+  // LIKE 补位 (仅当 FTS5 已有 ≥1 命中)
+  if (ftsRows.length > 0 && ftsRows.length < 20 && /[\u4E00-\u9FFF]/.test(q)) {
     const like = `%${q}%`;
-    // [2026-09-20 玄穹 C-b] LIKE 结果按 instr 首次出现位置排序,
-    // 避免 FTS5 表扫描的任意行序 → 2 字 query 真实命中靠前。
     const fallback = await env.DB.prepare(
       `SELECT article_id, 0 as rank FROM articles_fts
        WHERE title LIKE ?1 OR text LIKE ?1
        ORDER BY instr(text, ?2)
        LIMIT 20`
     ).bind(like, q).all();
-    const seen = new Set(rows.map(r => r.article_id));
+    const seen = new Set(ftsRows.map(r => r.article_id));
     for (const r of fallback.results as any[]) {
       if (!seen.has(r.article_id)) {
-        rows.push(r);
+        ftsRows.push(r);
         seen.add(r.article_id);
       }
     }
   }
 
-  if (rows.length === 0) return { hits: [], query: q };
+  // bge 召回 (失败静默退化为单 FTS5)
+  let bgeRows: { article_id: string; rank: number; score: number }[] = [];
+  const bgeUrl = (env as any).BGE_SERVER_URL;
+  if (bgeUrl) {
+    try {
+      const docFilter = filters.get("doc_id") || "";
+      const bgeResp = await fetch(`${bgeUrl}/v1/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, top_k: 20, doc_id: docFilter }),
+        cf: { cacheTtl: 0, cacheEverything: false },  // 不缓存,query 多变
+      });
+      if (bgeResp.ok) {
+        const bgeData = (await bgeResp.json()) as {
+          hits: { article_id: string; score: number }[];
+        };
+        bgeRows = (bgeData.hits || []).map((h, i) => ({
+          article_id: h.article_id,
+          rank: i + 1,  // bge top-1 = rank 1
+          score: h.score,
+        }));
+      } else {
+        console.warn(`[search] bge_server ${bgeResp.status}, falling back to FTS5-only`);
+      }
+    } catch (e) {
+      console.warn(`[search] bge_server unreachable:`, (e as Error).message);
+    }
+  }
 
-  // 关联 D1 articles 表拿元数据(用 IN 一次性拿,避免 N+1)
-  const ids = rows.map(r => r.article_id);
+  if (ftsRows.length === 0 && bgeRows.length === 0) return { hits: [], query: q };
+
+  // RRF 融合: score = sum( 1 / (k + rank_i) ) for each retriever i
+  // k=60 是原 RRF 论文推荐值
+  const K = 60;
+  const fused = new Map<string, { ftsRank: number; bgeRank: number; bgeScore: number }>();
+  for (const r of ftsRows) {
+    fused.set(r.article_id, {
+      ftsRank: r.rank,
+      bgeRank: 0,
+      bgeScore: 0,
+    });
+  }
+  for (const r of bgeRows) {
+    const ex = fused.get(r.article_id);
+    if (ex) {
+      ex.bgeRank = r.rank;
+      ex.bgeScore = r.score;
+    } else {
+      fused.set(r.article_id, { ftsRank: 0, bgeRank: r.rank, bgeScore: r.score });
+    }
+  }
+
+  // 算 RRF 分,加权:
+  //   fused_score = 0.5 / (K + ftsRank) + 0.3 / (K + bgeRank)
+  //   FTS5 单独命中 (bgeRank=0) 用 0.5/(K+99) 兜底,防止单路占主导
+  //   bge 单独命中 (ftsRank=0) 用 0.3/(K+99) 兜底
+  const fusedRows = [...fused.entries()].map(([aid, v]) => {
+    const ftsC = v.ftsRank > 0 ? 0.5 / (K + v.ftsRank) : 0.5 / (K + 99);
+    const bgeC = v.bgeRank > 0 ? 0.3 / (K + v.bgeRank) : 0.3 / (K + 99);
+    return {
+      article_id: aid,
+      fused_score: ftsC + bgeC,
+      ftsRank: v.ftsRank,
+      bgeRank: v.bgeRank,
+      bgeScore: v.bgeScore,
+    };
+  }).sort((a, b) => b.fused_score - a.fused_score).slice(0, 20);
+
+  // 关联 D1 + R2
+  const ids = fusedRows.map(r => r.article_id);
   const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
   const meta = await env.DB.prepare(
     `SELECT a.article_id, a.chapter_id, a.doc_id, a.number, a.title as atitle,
@@ -153,8 +228,7 @@ async function searchArticles(
   ).bind(...ids).all();
   const metaById = new Map((meta.results as any[]).map(m => [m.article_id, m]));
 
-  // 批量从 R2 拉 excerpt(避免 N+1)
-  // R2 key 约定: <doc_id>/articles/<article_id>.md(用 metaById 的 doc_id 拼)
+  const fusedById = new Map(fusedRows.map(r => [r.article_id, r]));
   const excerptById = new Map<string, string>();
   await Promise.all((meta.results as any[]).map(async (m) => {
     const key = `${m.doc_id}/articles/${m.article_id}.md`;
@@ -163,22 +237,29 @@ async function searchArticles(
     excerptById.set(m.article_id, text);
   }));
 
-  const hits = rows.map((r, i) => {
-    const m = metaById.get(r.article_id);
+  const hits: SearchHit[] = ids.map((aid) => {
+    const m = metaById.get(aid);
+    const f = fusedById.get(aid)!;
     return {
-      article_id: r.article_id,
+      article_id: aid,
       chapter_id: m?.chapter_id,
       doc_id: m?.doc_id,
       chapter_title: m?.chapter_title,
       chapter_number: m?.chapter_number,
       article_number: m?.number,
       title: m?.atitle,
-      excerpt: excerptById.get(r.article_id) ?? "",
-      relevance: -r.rank,  // FTS5 rank 越低越好,转成正数越大越好
+      excerpt: excerptById.get(aid) ?? "",
+      relevance: f.fused_score,
+      // 调试字段,生产可隐藏
+      ...(filters.get("debug") === "1" && {
+        fts_rank: f.ftsRank,
+        bge_rank: f.bgeRank,
+        bge_score: f.bgeScore,
+      } as any),
     };
   });
 
-  // 按 doc_id / chapter_id 过滤
+  // doc_id / chapter_id 过滤 (bge 已传 doc_id 过滤,这里再做一次兜底)
   const docFilter = filters.get("doc_id");
   const chapFilter = filters.get("chapter_id");
   const filtered = hits.filter(h =>

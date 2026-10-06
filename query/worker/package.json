@@ -4,6 +4,10 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@cloudflare/workerd-windows-64": "^1.20260826.1",
     "wrangler": "^4.127.0"
+  },
+  "allowScripts": {
+    "workerd@1.20260826.1": true
   }
 }
