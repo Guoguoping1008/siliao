@@ -3,6 +3,38 @@
 > 适用于本地 miniflare 验证后的真实环境部署。**所有需要 OAuth / 浏览器交互
 > 的命令(wrangler login)无法在 sandbox 中完成,需要你手动跑。**
 
+## 0.1 本次部署前置 checklist (2026-10-06)
+
+执行前请逐项打勾:
+
+**GitHub repo (https://github.com/<owner>/siliao)**
+- [ ] Settings → Secrets and variables → Actions → New repository secret 加 3 个:
+  - `CLOUDFLARE_API_TOKEN`    Dashboard → My Profile → API Tokens → Edit Cloudflare Pages/Workers
+  - `CLOUDFLARE_ACCOUNT_ID`   Dashboard 右下角
+  - `DEEPSEEK_API_KEY`        DeepSeek 或 MiniMax 控制台复制
+
+**本地工作树 (本次部署分支 = `deploy/c-b-hybrid`)**
+- [x] 5 modified 已 commit 到分支 `171a59f`(C-b bge-m3 hybrid)
+- [ ] `git push origin deploy/c-b-hybrid` (你手动 push,触发 CI)
+- [ ] 合并 PR 到 main (可选,直接 push main 也行)
+
+**Cloudflare 账户 (执行时按顺序)**
+- [ ] `npx wrangler login` 选 `guoguoping@gmail.com`
+- [ ] 跑 §3 创建 R2 / D1 / Pages,把 `database_id` 填回 `wrangler.toml`
+- [ ] 跑 §4 灌 D1 + R2
+- [ ] 跑 §5 `wrangler secret put DEEPSEEK_API_KEY`
+- [ ] §6 部署 Worker,记下 URL
+- [ ] §7 部署 Pages,env 配 `VITE_USE_MOCK=false` + `VITE_API_BASE=<worker url>`
+- [ ] §8 烟测 3 个 endpoint 全绿
+
+**本次部署风险点**
+- BGE_SERVER_URL 在 wrangler.toml 是 `http://127.0.0.1:8080` (本地 dev only)。
+  生产 Workers 边缘连不到本机 → 自动 fallback 到纯 FTS5+LIKE,recall@10 ≈ 53.7%
+  (单 FTS5 基线)。如果想拿 86.2% hybrid 数,需另起一台公网 bge 代理。
+  本次部署:接受 fallback,不阻塞上线。
+- `wrangler.toml` 里 `database_id` 还是占位符 `REPLACE_AFTER_WRANGLER_D1_CREATE`,
+  §3 创建 D1 后必须改 wrangler.toml 重 commit 才能 deploy Worker (否则 worker job 必失败)。
+
 ## 0. 前置
 
 - Cloudflare 账户(已有 `guoguoping@gmail.com`)
