@@ -38,7 +38,7 @@ def extract_d1_id(text: str) -> str:
     m = DID_PATTERN.search(text)
     if not m:
         raise SystemExit(
-            "❌ 找不到 database_id。请确认输入是 std::wrangler d1 create 的完整输出。\n"
+            "❌ 找不到 database_id。请确认输入是 `wrangler d1 create` 的完整输出。\n"
             "   期望形如:  database_id = \"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\""
         )
     return m.group(1)
@@ -95,9 +95,16 @@ def main() -> None:
         if d1_id in target.read_text(encoding="utf-8"):
             print(f"ℹ️  {target} 里 database_id 已是 {d1_id},无需替换")
         else:
+            cur_id_line = next(
+                (ln.strip() for ln in target.read_text(encoding="utf-8").splitlines()
+                 if ln.lstrip().startswith("database_id")),
+                "(未找到 database_id 行)"
+            )
             raise SystemExit(
-                f"❌ {target} 里找不到占位符 {PLACEHOLDER},且当前 ID 也已不是它。\n"
-                "   请手动确认 wrangler.toml 状态(可能已经替换过了)"
+                f"❌ {target} 里找不到占位符 {PLACEHOLDER}\n"
+                f"   当前 database_id 行: {cur_id_line}\n"
+                f"   本次想写入: {d1_id}\n"
+                "   可能原因: 占位符已被替换,或 wrangler.toml 不是这次部署的版本。"
             )
     else:
         print(f"✅ {target} 占位符 → {d1_id}")
