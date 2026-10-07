@@ -1,5 +1,11 @@
-# API 代理:前端 /api/* 转发到 Workers
-# 注意: 不要在这里加 SPA fallback(* → /index.html),那会覆盖所有路径
-# Pages 自动用 dist/index.html 处理根路径;React Router 的客户端路由由 JS 处理
-
-/api/*  https://siliao-api.workers.dev/api/:splat  200
+# 2026-10-06 之前的 /api/* → https://silao-api.workers.dev/api/:splat (200) 已废弃
+#
+# 现改用 Cloudflare Pages Functions (web/functions/api/[[path]].ts) 做代理,
+# 不在静态文件里硬编 Worker URL (账户换 / 部署新 URL 会坏)。
+#
+# 部署后配 env:
+#   Pages → siliao-web → Settings → Environment variables → API_BASE
+#   = https://siliao-api.<你的 account_subdomain>.workers.dev
+#
+# React Router 客户端路由用 SPA fallback:
+/*    /index.html   200
