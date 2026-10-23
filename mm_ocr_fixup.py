@@ -51,6 +51,7 @@ def reprocess(rel, workers_lock=None, use_cache=True):
         open(dst, "w", encoding="utf-8").write("")
         return ("BLANK", rel, "")
     raw = None
+    xflag = None
     cp = cache_path(rel)
     if use_cache and os.path.exists(cp):
         raw = open(cp, encoding="utf-8").read()
@@ -58,20 +59,28 @@ def reprocess(rel, workers_lock=None, use_cache=True):
         raw, err = mm_ocr.ocr_with_retry(src)
         if raw is None:
             return ("ERR", rel, err or "")
+        raw, xflag = mm_ocr.cross_check_low_contrast(src, raw)
         os.makedirs(os.path.dirname(cp), exist_ok=True)
         with open(cp, "w", encoding="utf-8") as f:
             f.write(raw)
     if mm_ocr.is_toc_page(rel):
         entries = mm_ocr.split_toc_entries(raw.replace("\n", " "))
-        md = "\n".join(x for x in (mm_ocr.toc_entry_to_md(e) for e in entries) if x)
+        md = mm_ocr.toc_entries_to_md(entries)
         md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
+        if not md.strip():
+            md = mm_ocr.to_markdown(raw)
     else:
         md = mm_ocr.to_markdown(raw)
     md = md.replace("```", "")
     md = re.sub(r"[ \t]+$", "", md, flags=re.M)
+    if xflag and "hallucination" in xflag:
+        md = (f"<!-- OCR 低置信: {xflag} -->\n"
+              f"<!-- 原始图: {rel.replace('/', ' / ')} -->\n"
+              f"<!-- 扫描对比度过低({mm_ocr.local_contrast(src):.2f} < {mm_ocr.LOW_CONTRAST}), "
+              f"模型输出被判定为幻觉, 已丢弃, 需人工复核或重新扫描 -->\n")
     with open(dst, "w", encoding="utf-8") as f:
         f.write(md)
-    return ("OK", rel, "")
+    return ("OK", rel, xflag or "")
 
 
 def main():

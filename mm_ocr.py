@@ -111,6 +111,33 @@ def page_stats(path, header_crop=HEADER_CROP):
 
 BLANK_GX = 2.8      # gx 低于此值 -> 判为空白页
 BLANK_INK = 0.01    # ink 低于此值 -> 判为空白页
+# 局部对比度: 页面文字与背景的残差绝对值均值。
+# 实测: 正常页 8.9~26, 幻觉页(扫描发白) 4.3~6.5。
+LOW_CONTRAST = 7.0
+
+
+def local_contrast(path, header_crop=HEADER_CROP):
+    """局部对比度 = 页面图 减去 高斯模糊背景 的残差绝对值均值。
+
+    扫描发白/褪色的页面, 文字几乎看不见, 模型会**编造**内容。
+    这个指标把这种页筛出来, 走交叉校验流程。
+    """
+    import numpy as np
+    from PIL import ImageFilter
+    im = Image.open(path).convert("L")
+    W, H = im.size
+    c = im.crop((0, int(H * header_crop), W, H))
+    c = c.resize((400, max(1, int(400 * (H * (1 - header_crop)) / W))), Image.LANCZOS)
+    bg = c.filter(ImageFilter.GaussianBlur(10))
+    r = np.asarray(c).astype(float) - np.asarray(bg).astype(float)
+    return float(np.abs(r).mean())
+
+
+def is_low_contrast(path):
+    try:
+        return local_contrast(path) < LOW_CONTRAST
+    except Exception:
+        return False
 
 
 def is_blank_page(path):
@@ -619,68 +646,147 @@ def to_markdown(raw):
 
 
 # ---------------- 目录页处理 ----------------
-# 目录模型返回形态(实测):
-#   "(三) 进口登记和出口服务 ....... 208\n"
-#   "进口饲料和饲料添加剂登记管理办法\n"
-#   "中华人民共和国农业部令 2014年第2号 ....... 208\n"
-# 先去掉点引导线("......"), 再按"页码 + 中文"切条目边界。
+# 目录模型返回有两种形态(实测):
+# A) 按行: "(三) 进口登记和出口服务 ....... 208\n"
+#          "进口饲料和饲料添加剂登记管理办法\n"
+#          "中华人民共和国农业部令 2014年第2号 ....... 208\n"
+# B) 扁平一行: "标题A 文号A 页码A 标题B 文号B 页码B ..."
+# 统一用**文号锚点**切条目: 每个目录项必有一个文号, 文号前面的文字就是标题。
+# 先去掉点引导线。
 DOTS_RE = re.compile(r"[.．·…]{2,}\s*")
-# 目录条目边界: 页码后紧跟新的中文标题 -> 下一条目开始
-TOC_BOUND_RE = re.compile(r"(?<=\s)(\d{1,4})(?=\s+[一-鿿（(])")
+
+# 文号锚点(3 类写法)。
+# 机关名前缀用**非贪婪**: 长度不定, 贪婪会一路吞到上一个文号, 把整段目录并成一条。
+# 编号部分 3 种:
+#   2011年第609号 / 2014年第2号   (带年份)
+#   第1519号 / 第20号             (只有序号)
+#   〔2023〕1号 / 〔2015〕144号    (年份在括号里)
+DOCNO_ANCHOR_RE = re.compile(
+    r"[\u4e00-\u9fa5]{1,14}?(?:令|公告|发|函|号|部令|部公告)"
+    r"\s*(?:"
+    r"[\[\〔（(【]?\s*\d{4}\s*年?\s*第\s*\d{1,5}\s*号"          # 2011年第609号
+    r"|"
+    r"第\s*\d{1,5}\s*号"                                        # 第1519号
+    r"|"
+    r"[\[\〔（(【]\s*\d{4}\s*[\]〕）)】]\s*第?\s*\d{1,5}\s*号"   # 〔2023〕1号
+    r")\s*[\]〕）)】]?"
+    r"|"
+    r"[\u4e00-\u9fa5]{1,8}?\s*〔\s*\d{4}\s*〕\s*第?\s*\d{1,4}\s*号"  # 农办牧〔2023〕1号
+)
 
 
-def split_toc_entries(text):
-    """把目录页文本切成一条条目录项。
+def _split_docno_anchors(text):
+    """按文号锚点切目录条目。
 
-    目录模型返回形态(实测):
-        "(三) 进口登记和出口服务 ....... 208"      <- 章节标题 + 页码
-        "进口饲料和饲料添加剂登记管理办法"        <- 文件标题(单独一行)
-        "中华人民共和国农业部令 2014年第2号 ... 208" <- 文号 + 页码
-        "关于禁止进出口莱克多巴胺的公告"          <- 文件标题(单独一行)
-        "中华人民共和国农业部公告第2109号 ... 212" <- 文号 + 页码
-
-    规则:
-      - 先去掉点引导线
-      - 按行处理: 不含页码的行是"文件标题", 缓; 含页码的行是"章节标题"或"文号+页码"
-      - 若当前行是文号+页码且有缓存的文件标题, 两者合并成一个条目
-      - 若当前行只有标题+页码(没有文号), 就是一个章节条目
+    返回 [{"title":..., "docno":..., "page":...}, ...]
+    文号锚点之前的那段文字是标题; 之后紧跟的数字是页码。
+    标题段里如果嵌着「（一）xxx 250」这种章节标题, 拆成独立的章节条目。
     """
-    text = DOTS_RE.sub(" ", text)
+    ms = list(DOCNO_ANCHOR_RE.finditer(text))
     entries = []
-    pending_title = ""
-    for ln in re.split(r"[\n\r]+", text):
-        ln = re.sub(r"\s+", " ", ln).strip()
-        if not ln:
-            continue
-        m = re.search(r"(?:^|\s)(\d{1,4})$", ln)
+
+    def emit_title_chunk(chunk):
+        """把标题段里的章节标题拆出来。
+
+        形态: "（五）宠物饲料管理 363 关于宠物饲料管理的公告"
+              -> 章节条目「（五）宠物饲料管理 363」+ 文件标题「关于宠物饲料管理的公告」
+        """
+        chunk = chunk.strip()
+        if not chunk:
+            return
+        # 章节标题: 「（一）xxx <页码>」, 可能出现在标题段任意位置
+        m = re.search(r"[（(]\s*([一-鿿\d]{1,4})\s*[)）]\s*(.+?)\s+(\d{1,4})(?=\s|$)", chunk)
         if m:
-            page = m.group(1)
-            head = ln[:m.start()].strip()
-            if pending_title:
-                # 文号行 -> 与缓存的文件标题合并
-                entries.append({"title": pending_title, "docno": head, "page": page})
-                pending_title = ""
-            else:
-                # 章节标题 + 页码
-                entries.append({"title": head, "docno": "", "page": page})
-        else:
-            # 无页码 -> 文件标题(下一行是它的文号)
-            if pending_title:
-                entries.append({"title": pending_title, "docno": "", "page": ""})
-            pending_title = ln
-    if pending_title:
-        entries.append({"title": pending_title, "docno": "", "page": ""})
+            head = chunk[:m.start()].strip()
+            rest = chunk[m.end():].strip()
+            if head:
+                entries.append({"title": head, "docno": "", "page": ""})
+            entries.append({"title": f"（{m.group(1)}）{m.group(2)}".strip(),
+                            "docno": "", "page": m.group(3)})
+            if rest:
+                emit_title_chunk(rest)
+            return
+        entries.append({"title": chunk, "docno": "", "page": ""})
+
+    for i, m in enumerate(ms):
+        docno = m.group(0).strip()
+        # 标题 = 上一个文号之后的页码之后(到本文号之前)
+        start = ms[i - 1].end() if i > 0 else 0
+        head = text[start:m.start()].strip()
+        # 页码: 文号之后紧跟的数字
+        after = text[m.end():]
+        pm = re.match(r"\s*(\d{1,4})", after)
+        page = pm.group(1) if pm else ""
+        # 去掉上一页码
+        head = re.sub(r"^\s*\d{1,4}\s*", "", head).strip()
+        if head:
+            emit_title_chunk(head)
+        entries.append({"title": "", "docno": docno, "page": page})
+    # 尾部(没有文号的残留): 一般是章节标题+页码
+    if ms:
+        tail = text[ms[-1].end():].strip()
+        tail = re.sub(r"^\s*\d{1,4}\s*", "", tail).strip()
+        tm = re.search(r"^(.*?)\s*(\d{1,4})$", tail)
+        if tm and tm.group(1).strip():
+            emit_title_chunk(tm.group(1).strip())
+            # 页码挂在最后那个章节条目上
+            for e in reversed(entries):
+                if not e["page"]:
+                    e["page"] = tm.group(2)
+                    break
     return entries
 
 
+def split_toc_entries(text):
+    """把目录页文本切成一条条目录项。兼容"按行"和"扁平一行"两种形态。"""
+    text = DOTS_RE.sub(" ", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    lines = [l.strip() for l in re.split(r"[\n\r]+", text) if l.strip()]
+    # 形态A: 有多行 -> 按行处理, 标题行与文号行配对
+    if len(lines) > 2:
+        out = []
+        pending = ""
+        for ln in lines:
+            m = re.search(r"(?:^|\s)(\d{1,4})$", ln)
+            if m and DOCNO_ANCHOR_RE.fullmatch(ln[:m.start()].strip()):
+                page = m.group(1)
+                docno = ln[:m.start()].strip()
+                if pending:
+                    out.append({"title": pending, "docno": docno, "page": page})
+                    pending = ""
+                else:
+                    out.append({"title": "", "docno": docno, "page": page})
+            elif m and not DOCNO_ANCHOR_RE.search(ln):
+                # 章节标题 + 页码
+                title = ln[:m.start()].strip()
+                page = m.group(1)
+                if pending:
+                    out.append({"title": pending, "docno": "", "page": ""})
+                    pending = ""
+                out.append({"title": title, "docno": "", "page": page})
+            else:
+                if pending:
+                    out.append({"title": pending, "docno": "", "page": ""})
+                pending = ln
+        if pending:
+            out.append({"title": pending, "docno": "", "page": ""})
+        if out:
+            return out
+    # 形态B: 扁平一行 -> 按文号锚点切
+    return _split_docno_anchors(text)
+
+
 def toc_entry_to_md(entry):
-    """目录项 dict -> Markdown。标题 / 文号 / 页码 分行。"""
+    """目录项 dict -> Markdown。标题 / 文号 / 页码 分行。
+
+    条目序列里, 标题条目后面可能跟着一个只有文号的条目 —— 它们是一组,
+    合并渲染成 "### 标题\\n\\n文号 页码"。
+    """
     if isinstance(entry, dict):
         title = normalize_spaces(entry.get("title", "")).strip()
         docno = normalize_spaces(entry.get("docno", "")).strip()
         page = entry.get("page", "")
     else:
-        # 兼容旧的字符串输入
         s = entry.strip()
         if not s:
             return ""
@@ -701,6 +807,30 @@ def toc_entry_to_md(entry):
         out.append(bits)
         out.append("")
     return "\n".join(out)
+
+
+def toc_entries_to_md(entries):
+    """条目序列 -> Markdown 文本。标题条目与其后的文号条目合并成一项。"""
+    chunks = []
+    pending_title = ""
+    for e in entries:
+        if isinstance(e, dict) and e.get("docno") and not e.get("title"):
+            # 文号条目 -> 并到上一个标题
+            bits = " ".join(x for x in (normalize_spaces(e["docno"]).strip(), e.get("page", "")) if x)
+            if pending_title:
+                chunks.append("### " + pending_title + "\n\n" + bits + "\n")
+                pending_title = ""
+            else:
+                chunks.append(bits + "\n")
+        else:
+            if pending_title:
+                chunks.append("### " + pending_title + "\n")
+            t = normalize_spaces(e.get("title", "")).strip() if isinstance(e, dict) else str(e)
+            p = e.get("page", "") if isinstance(e, dict) else ""
+            pending_title = (t + " " + p).strip() if p else t
+    if pending_title:
+        chunks.append("### " + pending_title + "\n")
+    return "\n".join(chunks)
 
 
 def is_toc_page(rel_path):
@@ -744,6 +874,33 @@ def raw_cache_path(rel):
     return os.path.join(RAW_CACHE, os.path.splitext(rel.replace("/", os.sep))[0] + ".txt")
 
 
+def cross_check_low_contrast(path, text01):
+    """低对比度页的幻觉防护。
+
+    背景: 扫描发白的页面文字几乎看不见, MiniMax-Text-01 会**编造**内容
+    (实测同一张图两次跑出两篇完全不同的"新闻通稿"), 而 MiniMax-M3
+    在同样的图上会返回空 —— M3 更保守, 读不出来就说读不出来。
+
+    策略: 对低对比度页, 用 M3 独立跑一遍:
+      - M3 也有内容 -> 两边都有, 用 M3 的(更保守的模型, 更可能是真读出来的)
+      - M3 为空     -> Text-01 那份很可能是幻觉, 不输出正文, 标注为待人工复核
+      - M3 报错     -> 保留 Text-01 的, 但标注低置信
+    """
+    if not is_low_contrast(path):
+        return text01, None
+    try:
+        img = prep_image(path, target_w=1400)
+        m3 = clean_raw(ocr_bytes(img, model=FALLBACK_MODEL, prompt=ALT_PROMPTS[0]))
+    except Exception as e:  # noqa: BLE001
+        return text01, f"low_contrast_m3_error:{type(e).__name__}"
+    if m3 and m3.strip():
+        return m3, "low_contrast_m3_used"
+    if not text01 or not text01.strip():
+        return "", "low_contrast_both_empty"
+    # Text-01 有内容而 M3 读不出来 -> 高度怀疑幻觉
+    return "", "low_contrast_hallucination_suspected"
+
+
 def run_one(src_dir, fname, rel):
     dst_dir = os.path.join(DST_ROOT, os.path.relpath(src_dir, SRC_ROOT))
     os.makedirs(dst_dir, exist_ok=True)
@@ -760,6 +917,8 @@ def run_one(src_dir, fname, rel):
     raw, err = ocr_with_retry(src)
     if raw is None:
         return ("ERR", rel, time.time() - t0, err or "")
+    # 低对比度页: 用 M3 交叉校验, 防幻觉
+    raw, xflag = cross_check_low_contrast(src, raw)
     # 缓存原始 OCR, 以后改格式不用重烧 API
     cp = raw_cache_path(rel)
     os.makedirs(os.path.dirname(cp), exist_ok=True)
@@ -768,16 +927,24 @@ def run_one(src_dir, fname, rel):
     if is_toc_page(rel):
         # 目录页: 扁平文本 -> 逐条目录项
         entries = split_toc_entries(raw.replace("\n", " "))
-        chunks = [toc_entry_to_md(e) for e in entries]
-        md = "\n".join(c for c in chunks if c)
+        md = toc_entries_to_md(entries)
         md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
+        # 目录解析不出条目(比如前言页/只有章节标题页) -> 回退到正文管线
+        if not md.strip():
+            md = to_markdown(raw)
     else:
         md = to_markdown(raw)
     md = md.replace("```", "")
     md = re.sub(r"[ \t]+$", "", md, flags=re.M)
+    if xflag and "hallucination" in xflag:
+        # 疑似幻觉: 不落正文, 只留标记供人工复核
+        md = (f"<!-- OCR 低置信: {xflag} -->\n"
+              f"<!-- 原始图: {rel.replace('/', ' / ')} -->\n"
+              f"<!-- 扫描对比度过低({local_contrast(src):.2f} < {LOW_CONTRAST}), "
+              f"模型输出被判定为幻觉, 已丢弃, 需人工复核或重新扫描 -->\n")
     with open(dst, "w", encoding="utf-8") as f:
         f.write(md)
-    return ("OK", rel, time.time() - t0, "")
+    return ("OK", rel, time.time() - t0, xflag or "")
 
 
 def stratified_sample(tasks, per_dir=8, src_root=SRC_ROOT):
