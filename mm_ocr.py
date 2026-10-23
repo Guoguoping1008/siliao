@@ -46,7 +46,10 @@ MAX_RETRY = 3
 
 # ---------------- 图像参数 ----------------
 TARGET_W = 1600        # 超过这个宽度模型会拒识
-HEADER_CROP = 0.13     # 顶部页眉带裁掉比例
+# 顶部页眉带裁掉比例。
+# 实测(30 页抽样, 行墨迹剖面): 页眉行占页高 0.2%~5.4%, 正文最早在 6% 之后。
+# 文件大标题(居中大字)在 9%~11%, 所以裁 13% 会把标题切掉 -> 必须用 6%。
+HEADER_CROP = 0.06
 JPEG_QUALITY = 88
 
 # ---------------- 并发 ----------------
@@ -290,6 +293,38 @@ def strip_headers(lines):
     return out
 
 
+# ---------------- 空格归一化 ----------------
+# 模型会把排版上的字间距转写成空格: "编 委 会" "目 录" "前 言" "2014 年 第 1 号"。
+# 中文之间的空格一律去掉; 中英文/数字之间的空格保留(有意义)。
+CJK = r"一-鿿㐀-䶿　-〿＀-￯"
+SPACE_BETWEEN_CJK_RE = re.compile(r"(?<=[%s])[ \t　]+(?=[%s])" % (CJK, CJK))
+SPACE_CJK_DIGIT_RE = re.compile(r"(?<=[%s])[ \t　]+(?=[0-9])" % CJK)
+SPACE_DIGIT_CJK_RE = re.compile(r"(?<=[0-9])[ \t　]+(?=[%s])" % CJK)
+
+
+MARK_SP_RE = re.compile(r"(?<![\d])(第[一二三四五六七八九十百零〇\d]+[章节条])"
+                        r"(\s*)")
+# 编号条款: "4.4.3 外观与物理性状" —— 编号后保留一个空格
+# 两侧都不能是数字/字母: 否则 "2014 年第1号" 里的 "20" 会被误当编号条款。
+CLAUSE_SP_RE = re.compile(r"(?<![\w.．。])(\d{1,2}(?:\.\d{1,2}){0,3})(?!\d)(?!\.\d)\s*(\S)")
+
+
+def normalize_spaces(text):
+    """去掉中文排版字间距, 保留中英文/数字间有意义的空格。
+
+    章节条标记后保留一个空格("第一章 总则"), 编号条款后保留一个空格
+    ("4.4.3 外观与物理性状"), 否则标题和正文会粘在一起。
+    """
+    t = SPACE_BETWEEN_CJK_RE.sub("", text)
+    t = SPACE_CJK_DIGIT_RE.sub("", t)
+    t = SPACE_DIGIT_CJK_RE.sub("", t)
+    # 章节条标记后补一个空格
+    t = MARK_SP_RE.sub(lambda m: m.group(1) + " ", t)
+    # 编号条款后补一个空格
+    t = CLAUSE_SP_RE.sub(lambda m: m.group(1) + " " + m.group(2), t)
+    return t
+
+
 # ---------------- 结构化 -> Markdown ----------------
 CHAPTER_RE = re.compile(r"^第[一二三四五六七八九十百零〇\d]+[章篇]\s*[、.]?\s*(.*)$")
 ARTICLE_RE = re.compile(r"^第[一二三四五六七八九十百零〇\d]+条\s*[、.]?\s*(.*)$")
@@ -442,6 +477,7 @@ def to_markdown(raw):
     """
     lines = [l.rstrip() for l in raw.replace("\r\n", "\n").split("\n")]
     lines = strip_headers(lines)
+    lines = [normalize_spaces(l) for l in lines]
 
     blocks = []      # (kind, text)
     buf = []
@@ -566,11 +602,14 @@ def toc_entry_to_md(entry):
     s = entry.strip()
     if not s:
         return ""
+    # 注意: 页码抽取必须在空格归一化之前做。
+    # 归一化会把 "农业部令2014年第2号 208" 里的空格吃掉, 页码就粘到文号上了。
     # 末尾页码
     m = re.search(r"\s(\d{1,4})$", s)
     page = m.group(1) if m else ""
     if m:
         s = s[:m.start()].strip()
+    s = normalize_spaces(s)
     # 抽文号(可在标题后任意位置)。用 finditer 找最长的合法文号, 且不能跨过句读。
     docno = ""
     docno_re = re.compile(
