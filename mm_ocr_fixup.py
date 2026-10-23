@@ -30,8 +30,16 @@ def load_errors():
     return [rel for rel, v in prog.items() if v.get("status") == "ERR"]
 
 
-def reprocess(rel, workers_lock=None):
-    """重跑单页(强制覆盖)。"""
+RAW_CACHE = r"E:/workspace/siliao/.mm_raw_cache"
+
+
+def cache_path(rel):
+    """原始 OCR 文本的本地缓存(按相对路径)。改格式时不用重烧 API。"""
+    return os.path.join(RAW_CACHE, os.path.splitext(rel.replace("/", os.sep))[0] + ".txt")
+
+
+def reprocess(rel, workers_lock=None, use_cache=True):
+    """重跑单页(强制覆盖)。use_cache=True 时优先用本地缓存的原始 OCR。"""
     src = os.path.join(mm_ocr.SRC_ROOT, rel.replace("/", os.sep))
     if not os.path.exists(src):
         return ("ERR", rel, "src_missing")
@@ -42,15 +50,25 @@ def reprocess(rel, workers_lock=None):
     if mm_ocr.is_blank_page(src):
         open(dst, "w", encoding="utf-8").write("")
         return ("BLANK", rel, "")
-    raw, err = mm_ocr.ocr_with_retry(src)
+    raw = None
+    cp = cache_path(rel)
+    if use_cache and os.path.exists(cp):
+        raw = open(cp, encoding="utf-8").read()
     if raw is None:
-        return ("ERR", rel, err or "")
+        raw, err = mm_ocr.ocr_with_retry(src)
+        if raw is None:
+            return ("ERR", rel, err or "")
+        os.makedirs(os.path.dirname(cp), exist_ok=True)
+        with open(cp, "w", encoding="utf-8") as f:
+            f.write(raw)
     if mm_ocr.is_toc_page(rel):
         entries = mm_ocr.split_toc_entries(raw.replace("\n", " "))
         md = "\n".join(x for x in (mm_ocr.toc_entry_to_md(e) for e in entries) if x)
         md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
     else:
         md = mm_ocr.to_markdown(raw)
+    md = md.replace("```", "")
+    md = re.sub(r"[ \t]+$", "", md, flags=re.M)
     with open(dst, "w", encoding="utf-8") as f:
         f.write(md)
     return ("OK", rel, "")
@@ -61,10 +79,16 @@ def main():
     ap.add_argument("--errors", action="store_true")
     ap.add_argument("--toc", action="store_true")
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--list", default="", help="指定要重跑的相对路径列表(json 文件)")
     ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args()
 
     todo = []
+    if args.list:
+        with open(args.list, encoding="utf-8") as f:
+            todo = json.load(f)
+        todo = [t.replace(".md", ".jpg") for t in todo]
+        print(f"[fixup] 指定列表 {len(todo)} 张")
     if args.errors or args.all:
         errs = load_errors()
         todo += [e for e in errs if not mm_ocr.is_toc_page(e)]

@@ -40,6 +40,8 @@ PROGRESS = r"E:/workspace/siliao/.mm_ocr_progress.json"
 # ---------------- API ----------------
 API_URL = "https://api.minimaxi.com/v1/chat/completions"
 MODEL = "MiniMax-Text-01"
+# 兜底模型: Text-01 的内容审核更严, 少数页被判 sensitive 时 M3 能过。
+FALLBACK_MODEL = "MiniMax-M3"
 MAX_TOKENS = 8000
 TIMEOUT = 300
 MAX_RETRY = 3
@@ -234,32 +236,51 @@ ALT_PROMPTS = [
 
 
 def ocr_with_retry(path, model=MODEL):
-    """带质量门的 OCR: 空响应/元话术/拒识 -> 换提示词重试, 最后降级换模型。"""
+    """带质量门的 OCR。
+
+    关键: MiniMax-Text-01 的内容审核比 M3 严格。
+    少数页面(政策文件里提到"形式主义/官僚主义"等词的)会被 Text-01 判为
+    `input new_sensitive (1026)` 返回 422, 但 M3 可以正常识别。
+    所以遇到 422 要**立刻换模型**, 不要在同一个模型上死磕。
+
+    M3 的输出是非确定的(同一张图可能这次给正文、下次给"请上传图片"),
+    所以换到 M3 后要多试几次。
+    """
     last = ""
     img = None
-    for attempt in range(MAX_RETRY):
+    m3_tries = 0
+    for attempt in range(MAX_RETRY + 3):
         try:
             if img is None:
                 img = prep_image(path)
-            prompt = None if attempt == 0 else ALT_PROMPTS[(attempt - 1) % len(ALT_PROMPTS)]
+            if model == FALLBACK_MODEL:
+                m3_tries += 1
+                # M3 用强指令提示词, 它默认会反问"请上传图片"
+                prompt = ALT_PROMPTS[(m3_tries - 1) % len(ALT_PROMPTS)]
+            else:
+                prompt = None if attempt == 0 else ALT_PROMPTS[(attempt - 1) % len(ALT_PROMPTS)]
             txt = clean_raw(ocr_bytes(img, model=model, prompt=prompt))
             if not is_meta_response(txt):
                 return txt, None
             last = "meta_response:" + txt[:80]
+            img = None   # 重试时换个尺寸, 增加多样性
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", "ignore")[:200]
+            except Exception:
+                pass
+            last = f"HTTP{e.code}:{body}"
+            img = None
+            # 审核拦截 -> 立刻换模型(Text-01 更严, M3 能过)
+            if e.code in (400, 413, 422) and model != FALLBACK_MODEL:
+                model = FALLBACK_MODEL
+            elif e.code not in (400, 413, 422):
+                pass
         except Exception as e:  # noqa: BLE001
             last = f"{type(e).__name__}: {e}"
-            # 422/413 等与图片体积相关 -> 换更小的尺寸重试
             img = None
         time.sleep(1.5 * (attempt + 1))
-    # 全部失败 -> 换模型 M3 再试一轮
-    try:
-        img = prep_image(path, target_w=1400)
-        txt = clean_raw(ocr_bytes(img, model="MiniMax-M3", prompt=ALT_PROMPTS[0]))
-        if not is_meta_response(txt):
-            return txt, None
-        last = "m3_meta:" + txt[:80]
-    except Exception as e:  # noqa: BLE001
-        last = f"m3 {type(e).__name__}: {e}"
     return None, last
 
 
@@ -270,12 +291,12 @@ BOOK_WORDS = "饲料法规文件相关法律法规制度标准目录"
 
 def is_header_line(t):
     """内容级页眉判定: 页眉带 <<< / >>> 或纯页码。"""
-    s = t.strip().strip("|").strip()
+    s = t.strip().strip("|").strip("｜").strip()
     if not s:
         return False
     if HEADER_MARK.search(s):
         return True
-    core = re.sub(r"[\s　|]", "", s)
+    core = re.sub(r"[\s　|｜]", "", s)
     if re.fullmatch(r"[\d\-—―]{1,6}", core):
         return True
     # 形如 "300 | 饲料法规文件 (2023)" / "<<< 二、制度文件 | 301"
@@ -344,7 +365,10 @@ DOCNO_RE4 = re.compile(
     r"^[\u4e00-\u9fa5]{6,20}(令|公告|令第|公告第)\s*[\d]{4}\s*年?\s*第?\s*[\d]+\s*号"
     r"(\s*[（(][^）)]{0,120}[)）])?$")
 STDLIST_RE = re.compile(r"^(GB|NY/T|NY|DB\d*|C\s?\d{3,}|SB|T)\s?[\d\.\-—]+$")
-BRACKET_TITLE_RE = re.compile(r"^[（(]\s*[一-龥\d]{1,12}\s*[)）]\s*\S")
+BRACKET_TITLE_RE = re.compile(r"^[（(]\s*[一-鿿\d]{1,12}\s*[)）]\s*\S")
+# 「（一）xxx」当标题的前提: 短 + 不以句读结尾。
+# 否则 "（一）有与经营饲料相适应的经营场所和仓储设施；" 这种列表项会被误标成标题。
+BRACKET_MAX_LEN = 24
 # 编号条款标题: 4.4.3 外观与物理性状 / 4.5 产品功能 / 4.6.2 产品稳定性试验报告
 CLAUSE_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){0,3})\s+(\S.*)$")
 
@@ -398,6 +422,22 @@ def is_clause_title(title):
     return True
 
 
+def is_bracket_title(s):
+    """「（一）xxx」是不是标题(而不是列表项)。
+
+    标题: 短(<=24字)、不以句读结尾。
+    列表项: "（一）有与经营饲料相适应的经营场所和仓储设施；" -> 以分号结尾, 不是标题。
+    """
+    t = s.strip().strip("|｜").strip()
+    if not t or len(t) > BRACKET_MAX_LEN:
+        return False
+    if t.endswith(("。", "，", "、", "；", "：", "）", "）", "?", "？", "!", "！")):
+        return False
+    if re.search(r"[，、；：。]", t):
+        return False
+    return True
+
+
 def is_standalone_line(s):
     """判断一行是否是独立成段的短行(落款机构名 / 日期 / 短小标题)。
 
@@ -422,23 +462,29 @@ def is_standalone_line(s):
 
 
 def classify(line, first_block=False):
-    """返回 (kind, rest_text)。kind ∈ {h1, h3, tbl, None}
+    """返回 (kind, rest_text)。kind ∈ {h1, h2, h3, tbl, None}
 
     h1 = 发文标题(文件标题 / 文号)
+    h2 = 编号条款标题 (4.4.3 外观与物理性状)
     h3 = 第N章 / 第N条 / 附录X
     tbl = 表格行
     None = 普通段落
     """
-    s = line.strip()
-    s = re.sub(r"^\s*\|", "", s) if s.startswith("|") else s
-    s = s.strip().strip("|").strip()
+    raw = line.strip()
+    # 表格行必须最先判定: 否则 "| 28 | 甘肃... |" 去掉竖线后
+    # 会被 CLAUSE_RE 误认成 "28 甘肃..." 条款标题, 变成 "## 28 | 甘肃..."
+    if raw.startswith("|"):
+        return "tbl", raw
+    s = raw.strip()
     if not s:
         return None, ""
     if is_header_line(s):
         return None, ""
-    # 表格行原样保留
-    if line.strip().startswith("|"):
-        return "tbl", line.strip()
+    # 模型偶尔自己吐 "#### xxx" / "**xxx**" -> 去掉标记再判定
+    s = re.sub(r"^#{1,6}\s+", "", s)
+    s = s.strip().strip("|｜").strip()
+    if not s:
+        return None, ""
     if APPENDIX_RE.match(s):
         return "h3", s
     if CHAPTER_RE.match(s):
@@ -458,11 +504,9 @@ def classify(line, first_block=False):
     # 页面首行: 无句读、长度适中 -> 发文标题
     if first_block and is_doc_title(s):
         return "h1", s
-    # 页面首行的「（一）xxx」子标题 -> h1 (参考 Markdown_v2 格式)
-    if first_block and BRACKET_TITLE_RE.match(s) and len(s) <= 40:
-        return "h1", s
-    if BRACKET_TITLE_RE.match(s) and len(s) <= 40:
-        return "h3", s
+    # 「（一）xxx」子标题: 只在页面首行 或 确实是短标题时
+    if BRACKET_TITLE_RE.match(s) and is_bracket_title(s):
+        return ("h1" if first_block else "h3"), s
     return None, s
 
 
@@ -565,8 +609,13 @@ def to_markdown(raw):
             out.append(txt)
             out.append("")
     md = "\n".join(out)
-    md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
-    return md
+    md = re.sub(r"\n{3,}", "\n\n", md)
+    # 模型偶尔吐出的残留标记: 行首 #### / ** / 围栏
+    md = re.sub(r"^#{4,6}\s+", "", md, flags=re.M)
+    md = md.replace("```", "")
+    md = re.sub(r"[ \t]+$", "", md, flags=re.M)
+    md = re.sub(r"\n{3,}", "\n\n", md)
+    return md.strip() + "\n"
 
 
 # ---------------- 目录页处理 ----------------
@@ -687,6 +736,14 @@ def save_progress(d):
     os.replace(tmp, PROGRESS)
 
 
+RAW_CACHE = r"E:/workspace/siliao/.mm_raw_cache"
+
+
+def raw_cache_path(rel):
+    """原始 OCR 文本的本地缓存(按相对路径)。改格式时不用重烧 API。"""
+    return os.path.join(RAW_CACHE, os.path.splitext(rel.replace("/", os.sep))[0] + ".txt")
+
+
 def run_one(src_dir, fname, rel):
     dst_dir = os.path.join(DST_ROOT, os.path.relpath(src_dir, SRC_ROOT))
     os.makedirs(dst_dir, exist_ok=True)
@@ -703,6 +760,11 @@ def run_one(src_dir, fname, rel):
     raw, err = ocr_with_retry(src)
     if raw is None:
         return ("ERR", rel, time.time() - t0, err or "")
+    # 缓存原始 OCR, 以后改格式不用重烧 API
+    cp = raw_cache_path(rel)
+    os.makedirs(os.path.dirname(cp), exist_ok=True)
+    with open(cp, "w", encoding="utf-8") as f:
+        f.write(raw)
     if is_toc_page(rel):
         # 目录页: 扁平文本 -> 逐条目录项
         entries = split_toc_entries(raw.replace("\n", " "))
@@ -711,6 +773,8 @@ def run_one(src_dir, fname, rel):
         md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
     else:
         md = to_markdown(raw)
+    md = md.replace("```", "")
+    md = re.sub(r"[ \t]+$", "", md, flags=re.M)
     with open(dst, "w", encoding="utf-8") as f:
         f.write(md)
     return ("OK", rel, time.time() - t0, "")
