@@ -570,76 +570,83 @@ def to_markdown(raw):
 
 
 # ---------------- 目录页处理 ----------------
+# 目录模型返回形态(实测):
+#   "(三) 进口登记和出口服务 ....... 208\n"
+#   "进口饲料和饲料添加剂登记管理办法\n"
+#   "中华人民共和国农业部令 2014年第2号 ....... 208\n"
+# 先去掉点引导线("......"), 再按"页码 + 中文"切条目边界。
+DOTS_RE = re.compile(r"[.．·…]{2,}\s*")
 # 目录条目边界: 页码后紧跟新的中文标题 -> 下一条目开始
 TOC_BOUND_RE = re.compile(r"(?<=\s)(\d{1,4})(?=\s+[一-鿿（(])")
 
 
 def split_toc_entries(text):
-    """把目录页的扁平文本切成一条条目录项。
+    """把目录页文本切成一条条目录项。
 
-    目录模型返回的是一整行: "标题A 文号A 页码A 标题B 文号B 页码B ..."。
-    靠"页码 + 空格 + 中文"这个模式切边界。
+    目录模型返回形态(实测):
+        "(三) 进口登记和出口服务 ....... 208"      <- 章节标题 + 页码
+        "进口饲料和饲料添加剂登记管理办法"        <- 文件标题(单独一行)
+        "中华人民共和国农业部令 2014年第2号 ... 208" <- 文号 + 页码
+        "关于禁止进出口莱克多巴胺的公告"          <- 文件标题(单独一行)
+        "中华人民共和国农业部公告第2109号 ... 212" <- 文号 + 页码
+
+    规则:
+      - 先去掉点引导线
+      - 按行处理: 不含页码的行是"文件标题", 缓; 含页码的行是"章节标题"或"文号+页码"
+      - 若当前行是文号+页码且有缓存的文件标题, 两者合并成一个条目
+      - 若当前行只有标题+页码(没有文号), 就是一个章节条目
     """
-    cuts = [m.end(1) for m in TOC_BOUND_RE.finditer(text)]
-    parts = []
-    prev = 0
-    for c in cuts:
-        p = text[prev:c].strip()
-        if p:
-            parts.append(p)
-        prev = c
-    tail = text[prev:].strip()
-    if tail:
-        parts.append(tail)
-    return parts
+    text = DOTS_RE.sub(" ", text)
+    entries = []
+    pending_title = ""
+    for ln in re.split(r"[\n\r]+", text):
+        ln = re.sub(r"\s+", " ", ln).strip()
+        if not ln:
+            continue
+        m = re.search(r"(?:^|\s)(\d{1,4})$", ln)
+        if m:
+            page = m.group(1)
+            head = ln[:m.start()].strip()
+            if pending_title:
+                # 文号行 -> 与缓存的文件标题合并
+                entries.append({"title": pending_title, "docno": head, "page": page})
+                pending_title = ""
+            else:
+                # 章节标题 + 页码
+                entries.append({"title": head, "docno": "", "page": page})
+        else:
+            # 无页码 -> 文件标题(下一行是它的文号)
+            if pending_title:
+                entries.append({"title": pending_title, "docno": "", "page": ""})
+            pending_title = ln
+    if pending_title:
+        entries.append({"title": pending_title, "docno": "", "page": ""})
+    return entries
 
 
 def toc_entry_to_md(entry):
-    """目录项 -> Markdown。标题与文号拆开, 页码保留在末尾。
-
-    目录项形态: "标题 文号 页码"。文号可能在标题后、文号后紧跟页码。
-    """
-    s = entry.strip()
-    if not s:
-        return ""
-    # 注意: 页码抽取必须在空格归一化之前做。
-    # 归一化会把 "农业部令2014年第2号 208" 里的空格吃掉, 页码就粘到文号上了。
-    # 末尾页码
-    m = re.search(r"\s(\d{1,4})$", s)
-    page = m.group(1) if m else ""
-    if m:
-        s = s[:m.start()].strip()
-    s = normalize_spaces(s)
-    # 抽文号(可在标题后任意位置)。用 finditer 找最长的合法文号, 且不能跨过句读。
-    docno = ""
-    docno_re = re.compile(
-            # 前缀: 机关名 + 令/公告/发/函/号
-            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
-            # 形态A: 2011年第609号 / 2014年第2号
-            r"\s*[\[\〔（(【]?\s*\d{4}\s*年?\s*第\s*\d+\s*号"
-            # 形态B: 第2109号 (无年份)
-            r"|"
-            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
-            r"\s*第\s*\d{2,5}\s*号"
-            # 形态C: 〔2015〕第144号 / [2015]144号
-            r"|"
-            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
-            r"\s*[\[\〔（(【]\s*\d{4}\s*[\]〕）)】]\s*第?\s*\d{2,5}\s*号"
-            r"\s*[\]〕）)】]?")
-    best = None
-    for cand in docno_re.finditer(s):
-        # 前面不能有明显的标题分隔符(逗号/冒号)
-        if best is None or (cand.end() - cand.start()) > (best.end() - best.start()):
-            best = cand
-    if best:
-        docno = best.group(0).strip()
-        s = (s[:best.start()] + " " + s[best.end():]).strip()
-    title = re.sub(r"\s{2,}", " ", s).strip()
-    if not title:
+    """目录项 dict -> Markdown。标题 / 文号 / 页码 分行。"""
+    if isinstance(entry, dict):
+        title = normalize_spaces(entry.get("title", "")).strip()
+        docno = normalize_spaces(entry.get("docno", "")).strip()
+        page = entry.get("page", "")
+    else:
+        # 兼容旧的字符串输入
+        s = entry.strip()
+        if not s:
+            return ""
+        m = re.search(r"(?:^|\s)(\d{1,4})$", s)
+        page = m.group(1) if m else ""
+        if m:
+            s = s[:m.start()].strip()
+        s = normalize_spaces(s)
+        title, docno = s, ""
+    if not title and not docno:
         return ""
     out = []
-    out.append("### " + title)
-    out.append("")
+    if title:
+        out.append("### " + title)
+        out.append("")
     bits = " ".join(x for x in (docno, page) if x)
     if bits:
         out.append(bits)
