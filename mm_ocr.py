@@ -170,15 +170,30 @@ def is_meta_response(t):
 
     注意: 短内容不等于元话术。某些页正文极少(如版权页上的"上海译文出版社"),
     只要不含元话术关键词就算有效 OCR 结果。
+    判据只看**整段**: 若整段都是元话术 -> 拒识; 若元话术只出现在开头
+    且后面还有正文, 视为"前言+正文", 剥掉前言后接受。
     """
     if not t or not t.strip():
         return True
-    if META_RE.search(t[:200]):
-        return True
+    stripped = t.strip()
+    # 整段都是元话术 -> 拒识
+    if META_RE.search(stripped) and len(stripped) < 300:
+        # 若剥掉元话术句子后还剩实质内容, 不算拒识
+        rest = META_SENT_RE.sub("", stripped).strip()
+        if len(rest) < 8:
+            return True
     # 剥掉前言后没剩下东西 -> 前言式空响应
     if PREAMBLE_RE.match(t) and not PREAMBLE_RE.sub("", t, count=1).strip():
         return True
     return False
+
+
+# 含元话术的整句
+META_SENT_RE = re.compile(
+    r"[^\n。！？]*"
+    r"(无法识别|无法进行\s*OCR|没有任何文字|没有文字内容|一片空白|不包含任何文字|"
+    r"无法提供|抱歉|请上传|请提供图片|没有检测到|未检测到|图片模糊|无法读取)"
+    r"[^\n。！？]*[。！？]?")
 
 
 def ocr_bytes(img_bytes, model=MODEL, prompt=None, max_tokens=MAX_TOKENS):
@@ -518,6 +533,86 @@ def to_markdown(raw):
     return md
 
 
+# ---------------- 目录页处理 ----------------
+# 目录条目边界: 页码后紧跟新的中文标题 -> 下一条目开始
+TOC_BOUND_RE = re.compile(r"(?<=\s)(\d{1,4})(?=\s+[一-鿿（(])")
+
+
+def split_toc_entries(text):
+    """把目录页的扁平文本切成一条条目录项。
+
+    目录模型返回的是一整行: "标题A 文号A 页码A 标题B 文号B 页码B ..."。
+    靠"页码 + 空格 + 中文"这个模式切边界。
+    """
+    cuts = [m.end(1) for m in TOC_BOUND_RE.finditer(text)]
+    parts = []
+    prev = 0
+    for c in cuts:
+        p = text[prev:c].strip()
+        if p:
+            parts.append(p)
+        prev = c
+    tail = text[prev:].strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def toc_entry_to_md(entry):
+    """目录项 -> Markdown。标题与文号拆开, 页码保留在末尾。
+
+    目录项形态: "标题 文号 页码"。文号可能在标题后、文号后紧跟页码。
+    """
+    s = entry.strip()
+    if not s:
+        return ""
+    # 末尾页码
+    m = re.search(r"\s(\d{1,4})$", s)
+    page = m.group(1) if m else ""
+    if m:
+        s = s[:m.start()].strip()
+    # 抽文号(可在标题后任意位置)。用 finditer 找最长的合法文号, 且不能跨过句读。
+    docno = ""
+    docno_re = re.compile(
+            # 前缀: 机关名 + 令/公告/发/函/号
+            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
+            # 形态A: 2011年第609号 / 2014年第2号
+            r"\s*[\[\〔（(【]?\s*\d{4}\s*年?\s*第\s*\d+\s*号"
+            # 形态B: 第2109号 (无年份)
+            r"|"
+            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
+            r"\s*第\s*\d{2,5}\s*号"
+            # 形态C: 〔2015〕第144号 / [2015]144号
+            r"|"
+            r"[一-鿿]{2,12}?(?:令|公告|发|函|号|部令|部公告)"
+            r"\s*[\[\〔（(【]\s*\d{4}\s*[\]〕）)】]\s*第?\s*\d{2,5}\s*号"
+            r"\s*[\]〕）)】]?")
+    best = None
+    for cand in docno_re.finditer(s):
+        # 前面不能有明显的标题分隔符(逗号/冒号)
+        if best is None or (cand.end() - cand.start()) > (best.end() - best.start()):
+            best = cand
+    if best:
+        docno = best.group(0).strip()
+        s = (s[:best.start()] + " " + s[best.end():]).strip()
+    title = re.sub(r"\s{2,}", " ", s).strip()
+    if not title:
+        return ""
+    out = []
+    out.append("### " + title)
+    out.append("")
+    bits = " ".join(x for x in (docno, page) if x)
+    if bits:
+        out.append(bits)
+        out.append("")
+    return "\n".join(out)
+
+
+def is_toc_page(rel_path):
+    """目录页判定: 路径里含 '001目录'。"""
+    return "001目录" in rel_path.replace("\\", "/")
+
+
 # ---------------- 任务枚举 ----------------
 def enumerate_tasks(src_root):
     tasks = []
@@ -562,7 +657,14 @@ def run_one(src_dir, fname, rel):
     raw, err = ocr_with_retry(src)
     if raw is None:
         return ("ERR", rel, time.time() - t0, err or "")
-    md = to_markdown(raw)
+    if is_toc_page(rel):
+        # 目录页: 扁平文本 -> 逐条目录项
+        entries = split_toc_entries(raw.replace("\n", " "))
+        chunks = [toc_entry_to_md(e) for e in entries]
+        md = "\n".join(c for c in chunks if c)
+        md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
+    else:
+        md = to_markdown(raw)
     with open(dst, "w", encoding="utf-8") as f:
         f.write(md)
     return ("OK", rel, time.time() - t0, "")
