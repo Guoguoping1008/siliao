@@ -59,7 +59,12 @@ def scan_class2_flat(txt):
 
 
 def scan_class3_pseudo_table(txt):
-    """正文页被当成表格: 表里 1 列, 或每格都是长段落"""
+    """正文页被当成表格: 表里 1 列, 或每格都是长段落。
+
+    坑: **1 列的表不一定是伪表格** —— 实测 0422 是「GB/T 标准号清单」,
+    天然就是 1 列。所以 1 列时必须要求「**每一格都很长**」才判定为伪表格,
+    而且要排除「格子里是编号/标准号」这种短标签。
+    """
     if "<table" not in txt.lower():
         return False
     tabs = re.findall(r"<table.*?</table>", txt, re.S | re.I)
@@ -70,6 +75,7 @@ def scan_class3_pseudo_table(txt):
         widths = []
         longcells = 0
         total = 0
+        short_label = 0
         for tr in rows:
             cells = TD_RE.findall(tr)
             widths.append(len(cells))
@@ -78,26 +84,35 @@ def scan_class3_pseudo_table(txt):
                 total += 1
                 if len(t) > 40:
                     longcells += 1
+                elif len(t) <= 20:
+                    short_label += 1
         if not widths:
             continue
         maxw = max(widths)
-        # 1 列 且 有长段落 -> 伪表格
-        if maxw == 1 and longcells >= 3:
-            return True
-        # 平均每行 1~2 格 且 大量长段落 -> 伪表格
-        if maxw <= 2 and longcells >= max(3, total * 0.6):
+        if maxw == 1:
+            # 1 列: 必须是「每格都长」的散文段, 且不能有大量短标签
+            if longcells >= 3 and short_label == 0:
+                return True
+            continue
+        # 2 列以内且多数格子是长段落 -> 伪表格
+        if maxw <= 2 and longcells >= max(3, total * 0.6) and short_label == 0:
             return True
     return False
 
 
 def scan_class4_empty_cells(txt):
-    """空单元格撑满 (真空白表单退化)"""
+    """空单元格撑满 (退化输出)。
+
+    坑: **空白表单模板本来就有大量空单元格**(实测 0186「表2 产品基本情况」
+    是申报表模板, 空格子是设计如此), 不是缺陷。
+    只有「格子数异常多(>=60)」才是模型编造出来的退化网格。
+    """
     if "<table" not in txt.lower():
         return False
     tabs = re.findall(r"<table.*?</table>", txt, re.S | re.I)
     for tb in tabs:
         cells = TD_RE.findall(tb)
-        if len(cells) < 20:
+        if len(cells) < 60:          # 阈值: 表单模板一般 < 60 格
             continue
         empty = sum(1 for c in cells
                     if not re.sub(r"<[^>]+>|\s|&nbsp;", "", c).strip())
