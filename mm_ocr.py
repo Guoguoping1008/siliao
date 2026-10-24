@@ -28,12 +28,30 @@ import argparse
 import threading
 import urllib.request
 import urllib.error
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 from PIL import Image
 
 # ---------------- 路径 ----------------
-SRC_ROOT = r"E:/workspace/siliao/Images_split"   # 已拆好的单页图
+# 源图目录: 拆好的单页图。
+# 这个目录被挪过位置(Images_split/ -> back/Images_split/), 所以自动探测,
+# 别写死路径。
+_SRC_CANDIDATES = (
+    r"E:/workspace/siliao/Images_split",
+    r"E:/workspace/siliao/back/Images_split",
+)
+
+
+def _find_src_root():
+    for p in _SRC_CANDIDATES:
+        if os.path.isdir(p) and any(
+                f.lower().endswith(".jpg") for _, _, fs in os.walk(p) for f in fs):
+            return p
+    return _SRC_CANDIDATES[0]
+
+
+SRC_ROOT = _find_src_root()
 DST_ROOT = r"E:/workspace/siliao/minimax"
 PROGRESS = r"E:/workspace/siliao/.mm_ocr_progress.json"
 
@@ -217,6 +235,42 @@ def is_meta_response(t):
     # 剥掉前言后没剩下东西 -> 前言式空响应
     if PREAMBLE_RE.match(t) and not PREAMBLE_RE.sub("", t, count=1).strip():
         return True
+    # 退化输出: 模型在表单/密集表格页上会吐一长串空单元格("|  |  |  | ...")
+    # 撞满 max_tokens 后截断, 结果是一堆 "|", 没有任何文字。
+    if is_degenerate(t):
+        return True
+    return False
+
+
+# 退化输出判定: 表格单元格占比过高 & 实质文字极少
+DEGENERATE_MIN_LEN = 400
+
+
+def is_degenerate(t):
+    """是不是"一长串空表格单元格"的退化输出。
+
+    实测: 表单页(试验概述表)模型会吐 "|  |  |  | ..." 直到撞满 max_tokens,
+    结果 12000 字符全是 "|" 和空格, 只有开头一两句有字。
+
+    判据: 拆成单元格后, 空单元格占比 > 70% 且文本量远小于表格规模 -> 退化。
+    比"竖线字符占比"更准(实测退化样本竖线占比只有 0.33, 用字符数判会漏)。
+    """
+    s = t.strip()
+    if len(s) < DEGENERATE_MIN_LEN:
+        return False
+    # 按竖线拆单元格(保留空单元格, 它们才是退化信号)
+    cells = [c.strip() for c in re.split(r"[|｜]", s)]
+    nonempty = [c for c in cells if c]
+    # 单元格总数多, 而空单元格占绝大多数 -> 退化
+    if len(cells) >= 20 and len(nonempty) < len(cells) * 0.3:
+        return True
+    # 实质文字极少
+    real = re.sub(r"[\s|｜\-:：]", "", s)
+    if len(real) < 20:
+        return True
+    # 竖线占比过高
+    if s.count("|") / max(1, len(s)) > 0.35:
+        return True
     return False
 
 
@@ -260,6 +314,12 @@ ALT_PROMPTS = [
     "把图片里的中文内容逐字转写出来。只输出文字本身，不要写“图像中的文字如下”这类开场白，不要用代码块。",
     "请阅读这张扫描页并输出页面上的全部文字内容（纯文本，按原版面换行）。不要任何说明。",
 ]
+# 表单/密集表格页专用: 不要表格, 只要文字, 按"标签: 值"逐行列出
+FORM_PROMPT = (
+    "这是一页中文表单或表格。请把页面上所有能看清的文字标签逐行列出来, "
+    "格式为「标签 内容」, 一行一个, 不要输出表格竖线, 不要输出空单元格, "
+    "不要任何解释说明。"
+)
 
 
 def ocr_with_retry(path, model=MODEL):
@@ -276,6 +336,7 @@ def ocr_with_retry(path, model=MODEL):
     last = ""
     img = None
     m3_tries = 0
+    form_tried = False
     for attempt in range(MAX_RETRY + 3):
         try:
             if img is None:
@@ -284,8 +345,14 @@ def ocr_with_retry(path, model=MODEL):
                 m3_tries += 1
                 # M3 用强指令提示词, 它默认会反问"请上传图片"
                 prompt = ALT_PROMPTS[(m3_tries - 1) % len(ALT_PROMPTS)]
+            elif attempt == 0:
+                prompt = None
+            elif not form_tried:
+                # 第二次尝试: 用"只要文字不要表格"的表单提示词
+                form_tried = True
+                prompt = FORM_PROMPT
             else:
-                prompt = None if attempt == 0 else ALT_PROMPTS[(attempt - 1) % len(ALT_PROMPTS)]
+                prompt = ALT_PROMPTS[(attempt - 1) % len(ALT_PROMPTS)]
             txt = clean_raw(ocr_bytes(img, model=model, prompt=prompt))
             if not is_meta_response(txt):
                 return txt, None
@@ -313,11 +380,27 @@ def ocr_with_retry(path, model=MODEL):
 
 # ---------------- 页眉兜底过滤 ----------------
 HEADER_MARK = re.compile(r"(>>>|<<<)")
-BOOK_WORDS = "饲料法规文件相关法律法规制度标准目录"
+BOOK_WORDS = (
+    "饲料法规文件", "相关法律法规", "法律法规文件", "制度文件",
+    "标准及标准目录", "标准目录", "法规文件",
+)
 
 
 def is_header_line(t):
-    """内容级页眉判定: 页眉带 <<< / >>> 或纯页码。"""
+    """内容级页眉判定。
+
+    页眉形态(实测):
+      "116 | 饲料法规文件 (2023) >>>"
+      "<<< 二、制度文件 | 301"
+      "300 | 饲料法规文件（2023）"
+    判据(从严):
+      1. 含 >>> / <<<
+      2. 整行就是纯页码
+      3. 行首是纯页码, 且行内含书名关键词
+    坑: 不要用"整行含书名关键词 + 含数字"这种宽松判据 ——
+    正文里 "2.2 产品是否符合相关法律法规、产业政策的要求。" 会被误判成页眉
+    (含"相关法律法规" + 含数字"2.2"), 导致整行被丢弃。
+    """
     s = t.strip().strip("|").strip("｜").strip()
     if not s:
         return False
@@ -326,8 +409,9 @@ def is_header_line(t):
     core = re.sub(r"[\s　|｜]", "", s)
     if re.fullmatch(r"[\d\-—―]{1,6}", core):
         return True
-    # 形如 "300 | 饲料法规文件 (2023)" / "<<< 二、制度文件 | 301"
-    if len(core) <= 45 and any(w in core for w in BOOK_WORDS) and re.search(r"\d{1,4}", core):
+    # 行首是页码 + 行内含书名关键词 -> 页眉
+    m = re.match(r"^(\d{1,4})(?=[\s　|｜（(])", s)
+    if m and any(w in core for w in BOOK_WORDS):
         return True
     return False
 
@@ -350,7 +434,7 @@ SPACE_CJK_DIGIT_RE = re.compile(r"(?<=[%s])[ \t　]+(?=[0-9])" % CJK)
 SPACE_DIGIT_CJK_RE = re.compile(r"(?<=[0-9])[ \t　]+(?=[%s])" % CJK)
 
 
-MARK_SP_RE = re.compile(r"(?<![\d])(第[一二三四五六七八九十百零〇\d]+[章节条])"
+MARK_SP_RE = re.compile(r"(?<![0-9])(第[一二三四五六七八九十百零〇\d]+[章节条])"
                         r"(\s*)")
 # 编号条款: "4.4.3 外观与物理性状" —— 编号后保留一个空格
 # 两侧都不能是数字/字母: 否则 "2014 年第1号" 里的 "20" 会被误当编号条款。
@@ -362,8 +446,10 @@ def normalize_spaces(text):
 
     章节条标记后保留一个空格("第一章 总则"), 编号条款后保留一个空格
     ("4.4.3 外观与物理性状"), 否则标题和正文会粘在一起。
+    角空格(U+3000)也算字间距, 一并归一。
     """
-    t = SPACE_BETWEEN_CJK_RE.sub("", text)
+    t = text.replace("　", " ")
+    t = SPACE_BETWEEN_CJK_RE.sub("", t)
     t = SPACE_CJK_DIGIT_RE.sub("", t)
     t = SPACE_DIGIT_CJK_RE.sub("", t)
     # 章节条标记后补一个空格
@@ -373,10 +459,78 @@ def normalize_spaces(text):
     return t
 
 
+# 模型偶尔把整页返回成**一行**(无换行), 用双空格/全角空格当分隔。
+# 这时不能靠换行切段, 必须**按标题标记切**:
+#   "...第九条规定...第十三条 国家对...第三章 生产、经营和使用  第十四条 设立..."
+# -> 在 "第十三条"/"第三章"/"第十四条" 前面补换行。
+#
+# 注意: 不用 lookbehind+lookahead 组合(实测 Python re 在这种嵌套下解析异常),
+# 改成"捕获组 + 回调"的方式替换。
+FLAT_MARK_RE = re.compile(
+    r"(第[一二三四五六七八九十百零〇\d]+[章节条]"
+    r"|附\s*录\s*[A-Za-z\d一二三四五六七八九十]"
+    r"|[（(]\s*[一-鿿\d]{1,4}\s*[)）])"
+)
+FLAT_HEAD_RE = re.compile(r"[。；;：:！!？?）\)\s]")
+# 标记**后面**跟的角空格(U+3000) 是最可靠的标题信号:
+#   "第十三条\u3000国家对..."  -> 第十三条 是标题
+#   "依照本条例第九条规定"     -> 第九条 是交叉引用, 不是标题
+# 角空格在公文排版里只出现在"条/款/项"的编号后面。
+FLAT_MARK_IDEO_RE = re.compile(
+    r"(第[一二三四五六七八九十百零〇\d]+[章节条]"
+    r"|附\s*录\s*[A-Za-z\d一二三四五六七八九十]"
+    r"|[（(]\s*[一-鿿\d]{1,4}\s*[)）])"
+    r"\s*　"
+)
+
+
+def split_flat_text(text):
+    """把一行到底的 OCR 文本按标题标记切开, 补上换行。
+
+    优先用**角空格**(U+3000)信号 —— 公文排版里角空格只跟在"条/款/项"编号后,
+    是最可靠的标题标志。没有角空格时才退回"标记前是句读"的弱规则。
+    """
+    if "\n" in text.strip():
+        return text
+    # 双空格是模型给的分隔符
+    text = re.sub(r"[ \t]{2,}", "\n", text)
+    if "\n" in text:
+        return text
+    # 还是一行 -> 先按"标记 + 角空格"切(强信号)
+    out = []
+    last = 0
+    for m in FLAT_MARK_IDEO_RE.finditer(text):
+        if m.start() == 0:
+            continue
+        out.append(text[last:m.start()])
+        out.append("\n")
+        last = m.start()
+    out.append(text[last:])
+    text = "".join(out)
+    if "\n" in text.strip():
+        return text
+    # 兜底: 按标记切, 但要求标记前是句读/空白(避免切坏交叉引用)
+    out = []
+    last = 0
+    for m in FLAT_MARK_RE.finditer(text):
+        if m.start() == 0:
+            continue
+        prev = text[m.start() - 1]
+        if not FLAT_HEAD_RE.fullmatch(prev):
+            continue
+        out.append(text[last:m.start()])
+        out.append("\n")
+        last = m.start()
+    out.append(text[last:])
+    return "".join(out)
+
+
 # ---------------- 结构化 -> Markdown ----------------
 CHAPTER_RE = re.compile(r"^第[一二三四五六七八九十百零〇\d]+[章篇]\s*[、.]?\s*(.*)$")
 ARTICLE_RE = re.compile(r"^第[一二三四五六七八九十百零〇\d]+条\s*[、.]?\s*(.*)$")
 APPENDIX_RE = re.compile(r"^附\s*录\s*([A-Za-z\d一二三四五六七八九十]+)?\s*[、.]?\s*(.*)$")
+# 层级(用户指定): 第N章 -> ##, 第N条 -> ###, 附录X -> ###
+# 编号条款 4.4.3 -> ####  (比 章/条 更细)
 DOCNO_RE = re.compile(
     r"^[\u4e00-\u9fa5]{2,14}(令|公告|发|函|号|部令|部公告|办公厅)?\s*"
     r"[\[\〔（(【]?\s*[\d]{4}\s*年?\s*第?\s*[\d]+\s*号?\s*[\]〕）)】]?$")
@@ -489,13 +643,16 @@ def is_standalone_line(s):
 
 
 def classify(line, first_block=False):
-    """返回 (kind, rest_text)。kind ∈ {h1, h2, h3, tbl, None}
+    """返回 (kind, rest_text)。kind ∈ {h1, h2, h3, h4, tbl, docno, None}
 
-    h1 = 发文标题(文件标题 / 文号)
-    h2 = 编号条款标题 (4.4.3 外观与物理性状)
-    h3 = 第N章 / 第N条 / 附录X
-    tbl = 表格行
-    None = 普通段落
+    层级(用户指定):
+      h1 = 发文标题(文件主标题)
+      h2 = 第N章
+      h3 = 第N条 / 附录X
+      h4 = 编号条款 (4.4.3 外观与物理性状)
+      tbl = 表格行
+      docno = 文号(单独成段)
+      None = 普通段落
     """
     raw = line.strip()
     # 表格行必须最先判定: 否则 "| 28 | 甘肃... |" 去掉竖线后
@@ -515,15 +672,15 @@ def classify(line, first_block=False):
     if APPENDIX_RE.match(s):
         return "h3", s
     if CHAPTER_RE.match(s):
-        return "h3", s
+        return "h2", s
     if ARTICLE_RE.match(s):
         return "h3", s
     if STDLIST_RE.match(s):
         return "h1", s
-    # 编号条款标题 (4.4.3 外观与物理性状) -> ##
+    # 编号条款标题 (4.4.3 外观与物理性状) -> ####
     m = CLAUSE_RE.match(s)
     if m and is_clause_title(m.group(2)):
-        return "h2", s
+        return "h4", s
     # 文号: 不单独成标题, 归入前面的发文标题块(后处理合并)
     if (DOCNO_RE.match(s) or DOCNO_RE2.match(s)
             or DOCNO_RE3.match(s) or DOCNO_RE4.match(s)):
@@ -537,6 +694,38 @@ def classify(line, first_block=False):
     return None, s
 
 
+def split_heading_text(txt):
+    """把标题文本拆成 (标记, 正文)。
+
+    "第一条 为了加强……" -> ("第一条", "为了加强……")
+    "第一章 总则"          -> ("第一章", "总则")
+    "第三章 生产、经营和使用" -> ("第三章", "生产、经营和使用")
+    "（一）新产品审定"      -> ("（一）新产品审定", "")   # 整体是标题
+    """
+    s = txt.strip()
+    m = re.match(
+        r"^(第[一二三四五六七八九十百零〇\d]+[章节条]"
+        r"|附\s*录\s*[A-Za-z\d一二三四五六七八九十]*)"
+        r"\s*(.*)$", s)
+    if m:
+        head = m.group(1)
+        body = m.group(2).strip()
+        if body:
+            return head, body
+        return s, ""
+    return s, ""
+
+
+def out_heading(out, level, txt):
+    """输出一个标题。标题标记单独一行, 正文另起一段。"""
+    head, body = split_heading_text(txt)
+    out.append("#" * level + " " + head)
+    out.append("")
+    if body:
+        out.append(body)
+        out.append("")
+
+
 def to_markdown(raw):
     """把 OCR 原始文本转成结构化 Markdown。
 
@@ -548,7 +737,12 @@ def to_markdown(raw):
     """
     lines = [l.rstrip() for l in raw.replace("\r\n", "\n").split("\n")]
     lines = strip_headers(lines)
-    lines = [normalize_spaces(l) for l in lines]
+    # 表单提示词会带出一行表头"标签 内容" -> 去掉
+    lines = [l for l in lines if l.strip() not in ("标签 内容", "标签 内容：")]
+    # 顺序很重要: 先按"标记 + 角空格"切分, 再做空格归一化。
+    # 反过来的话, 归一化会把角空格换成 ASCII 空格, 标题信号就丢了。
+    lines = split_flat_text("\n".join(lines))
+    lines = [normalize_spaces(l) for l in lines.split("\n")]
 
     blocks = []      # (kind, text)
     buf = []
@@ -574,6 +768,9 @@ def to_markdown(raw):
         elif kind == "h2":
             flush()
             blocks.append(("h2", rest))
+        elif kind == "h4":
+            flush()
+            blocks.append(("h4", rest))
         elif kind == "docno":
             # 文号单独成段(不并入标题), 与 Markdown_v2 参考格式一致
             flush()
@@ -606,23 +803,26 @@ def to_markdown(raw):
     out = []
     for kind, txt in blocks:
         if kind == "h1":
-            out.append("# " + txt)
-            out.append("")
-        elif kind == "h3":
-            out.append("### " + txt)
-            out.append("")
+            out_heading(out, 1, txt)
         elif kind == "h2":
-            out.append("## " + txt)
-            out.append("")
+            out_heading(out, 2, txt)
+        elif kind == "h3":
+            out_heading(out, 3, txt)
+        elif kind == "h4":
+            out_heading(out, 4, txt)
         elif kind == "tbl":
             rows = [r for r in txt.split("\n") if r.strip()]
             # 补齐列数, 保证 Markdown 表格合法
             if len(rows) >= 2:
-                ncol = rows[0].count("|") - 1
+                # 列数取众数(不是第一行), 第一行可能是空的
+                counts = [r.count("|") - 1 for r in rows]
+                ncol = Counter(c for c in counts if c > 0).most_common(1)[0][0] if any(
+                    c > 0 for c in counts) else 0
+                ncol = min(ncol, 30)          # 防列数爆炸
                 fixed = []
-                for i, r in enumerate(rows):
+                for r in rows:
                     c = r.count("|") - 1
-                    if c < ncol:
+                    if c < ncol and c >= 0:
                         r = r.rstrip().rstrip("|") + " |" * (ncol - c)
                     fixed.append(r)
                 if not re.fullmatch(r"[\s\|:\-]+", fixed[1]):
@@ -637,8 +837,9 @@ def to_markdown(raw):
             out.append("")
     md = "\n".join(out)
     md = re.sub(r"\n{3,}", "\n\n", md)
-    # 模型偶尔吐出的残留标记: 行首 #### / ** / 围栏
-    md = re.sub(r"^#{4,6}\s+", "", md, flags=re.M)
+    # 模型偶尔吐出的残留标记: 5 级以上的标题号 / 代码围栏
+    # 注意: 只清 5 级及以上, #### 是我们自己用的合法层级(编号条款)
+    md = re.sub(r"^#{5,6}\s+", "", md, flags=re.M)
     md = md.replace("```", "")
     md = re.sub(r"[ \t]+$", "", md, flags=re.M)
     md = re.sub(r"\n{3,}", "\n\n", md)
