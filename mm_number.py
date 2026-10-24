@@ -1,14 +1,19 @@
-"""把章/节/文件 三层目录的 "xx_" 前缀换成全局连续编号 01_ 02_ ... 。
+"""把章/节/文件 三层目录改成**每层各自从 01 开始**的编号。
 
-编号顺序 = 书的自然阅读顺序(目录合并.md 的顺序):
-  章 -> 章下的节 -> 节下的文件, 全部串成一条全局序列。
-同一节内的文件按目录合并.md 里的先后排。
+规则:
+  章层: 01_ 02_ 03_ ...           (全书连续)
+  节层: 01_ 02_ 03_ ...           (每个章下重置)
+  文件层: 01_ 02_ 03_ ...         (每个节下重置)
 
-坑1: 目录合并.md 里同一节的文件顺序 != 磁盘上的字母序(磁盘是按文件名前缀排的,
-     目录是按书的顺序)。编号要按目录顺序, 所以要拿 TOC 的位置来排。
-坑2: 磁盘上可能有别的 agent 建的**空目录**(如 xx_1 新产品审定), 它们不在
-     TOC 里, 也没有内容。要单独处理(见 --drop-empty)。
-坑3: 改名要从深往浅做。
+排序依据 = 目录合并.md 的自然阅读顺序(书里的先后), 不是磁盘字母序。
+
+坑1: 章/节 目录自己没 md, 但子树里有 -> 判断空目录要看**子树** md 总数;
+    且 os.walk 父先子后, 累加子树计数要沿祖先链加不能覆盖。
+坑2: 磁盘深度 2 可能是 节(（一）新产品审定), 也可能是 文件(饲料和饲料添加剂管理条例),
+    kind 不能靠深度猜, 要用标题去目录里查。
+坑3: 改名要从深往浅做, 否则父目录改名后子目录旧路径就找不到了。
+坑4: strip_prefix 要剥**所有**层前缀(脚本重跑会叠成 "01_002_xxx")。
+坑5: 编号顺序(TOC顺序) 和 改名顺序(深度倒序) 是两回事, 不能混用。
 """
 import os
 import re
@@ -20,21 +25,17 @@ exec(open(r"E:/workspace/siliao/mm_reorg.py", encoding="utf-8").read().split("de
 
 MINIMAX = r"E:/workspace/siliao/minimax"
 SCOPES = ["01", "02", "03", "04"]
-PREFIX_RE = re.compile(r"^(?:xx_)?")
-# 剥掉**所有**层前缀: 数字前缀可能叠了多层(脚本重跑导致 "187_001_一、法规")
-# 每一层都是 "NNN_" 或 "xx_" 或 "_"
-_ALL_PREFIX_RE = re.compile(r"^(?:(?:\d{3}|xx|x)_)+")
-# 目录里自带的序号(用于排序): 一、/（一）/1 等
+# 剥掉所有层前缀: "NN_"/"NNN_"/"xx_"/"x_"/"_"
+_ALL_PREFIX_RE = re.compile(r"^(?:(?:\d{2,3}|xx|x)_)+")
 CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
 
 
 def strip_prefix(name):
-    """去掉所有层的前缀(xx_/x_/_/NNN_), 拿到裸名"""
+    """去掉所有层的前缀, 拿到裸名"""
     return _ALL_PREFIX_RE.sub("", name)
 
 
 def sort_key(name):
-    """按中文序号排: 一、法规 < 二、制度文件 < （一）... """
     n = strip_prefix(name)
     m = re.match(r"^[（(]?([一二三四五六七八九十]+)[）)、、]", n)
     if m:
@@ -60,19 +61,17 @@ def main():
             toc_seq.append(("节", t, c))
         elif lv == 4:
             toc_seq.append(("文件", t, c + "\x00" + s))
-    # 两种查表方式: 按 (kind, title, ctx) 和按 (title, ctx)
     toc_pos = {}
     for i, (k, t, ctx) in enumerate(toc_seq):
         toc_pos.setdefault((k, t, ctx), i)
     toc_pos_title = {}
     for i, (k, t, ctx) in enumerate(toc_seq):
         toc_pos_title.setdefault((t, ctx), i)
-    # 标题 -> TOC 位置(忽略 ctx, 兜底用)
     toc_pos_any = {}
     for i, (k, t, ctx) in enumerate(toc_seq):
         toc_pos_any.setdefault(t, i)
-    # 目录 OCR 会把页码粘进标题(如 "动物饮用598水"), 磁盘上的是清洗过的版本,
-    # 所以查表时要把 TOC 标题也清洗一遍, 两种形式都存进去。
+    # 目录 OCR 会把页码粘进标题(如 "动物饮用598水"), 磁盘上是清洗过的版本,
+    # 所以查表时把 TOC 标题也清洗一遍, 两种形式都存。
     all_pages = {p for _lv, _t, p, _dn, _c, _s in docs if p}
     toc_pos_clean = {}
     for i, (k, t, ctx) in enumerate(toc_seq):
@@ -82,20 +81,15 @@ def main():
             toc_pos_clean.setdefault((ct, ""), i)
             toc_pos_any.setdefault(ct, i)
 
-    # 磁盘上 01/02/03/04 下的目录树
     scopes = []
     for d in sorted(os.listdir(MINIMAX)):
         p = os.path.join(MINIMAX, d)
         if os.path.isdir(p) and any(d.startswith(s) for s in SCOPES):
             scopes.append((d, p))
 
-    # 收集 (章, 节, 文件) 三元组 + 路径
-    items = []   # (sortkey, path, depth, kind, title)
+    items = []
     empty_dirs = []
     for scope, spath in scopes:
-        # 先算每个目录子树里的 md 总数(章/节本身没 md, 但下面有)
-        # 坑: os.walk 是父先子后, 所以要**累加**不能覆盖;
-        #     先把每个目录自己的 md 数记下来, 再沿祖先链往上加。
         own = {}
         for dp, dns, fns in os.walk(spath):
             rel = os.path.relpath(dp, spath)
@@ -105,7 +99,6 @@ def main():
         subtree_md = dict(own)
         for dp, n in own.items():
             rel = os.path.relpath(dp, spath)
-            # 从直属父目录一路加到 scope 根
             for anc in range(rel.count(os.sep) - 1, -1, -1):
                 p = os.path.join(spath, *rel.split(os.sep)[:anc + 1])
                 subtree_md[p] = subtree_md.get(p, 0) + n
@@ -116,20 +109,12 @@ def main():
             depth = rel.count(os.sep) + 1
             base = os.path.basename(dp)
             bare = strip_prefix(base)
-            # 子树里一个 md 都没有才算空
             if subtree_md.get(dp, 0) == 0:
                 empty_dirs.append((dp, depth, bare))
                 continue
-            # 从 rel 拆出 章/节/文件 的裸名
             parts = [strip_prefix(x) for x in rel.split(os.sep)]
             chap = parts[0] if len(parts) >= 1 else ""
             sect = parts[1] if len(parts) >= 2 else ""
-            file = parts[2] if len(parts) >= 3 else ""
-
-            # kind 和 TOC 位置**不能靠深度猜**:
-            #   磁盘深度 2 可能是 节(（一）新产品审定), 也可能是 文件(饲料和饲料添加剂管理条例)
-            #   磁盘深度 3 一定是 文件
-            # 做法: 用 (标题, 各种可能的父级 ctx) 去 TOC 查, 查到就用 TOC 的 kind 和位置。
             cands = []
             if depth == 1:
                 cands = [("章", bare, "")]
@@ -161,29 +146,75 @@ def main():
             if key is None and bare in toc_pos_any:
                 key = toc_pos_any[bare]
             if key is None:
-                # TOC 里没有 -> 退回按目录名排序
                 key = 10 ** 6
-            items.append((key, sort_key(bare), dp, depth, kind, bare))
+            # 父级路径(用裸名拼), 用于分组重置编号
+            parent_key = os.path.dirname(rel).replace(os.sep, "\x00")
+            items.append({
+                "key": key, "sk": sort_key(bare), "path": dp, "depth": depth,
+                "kind": kind, "bare": bare, "parent": parent_key,
+                "scope": scope, "rel": rel,
+            })
 
-    # 全局排序: 章在前, 它的节/文件紧随
-    items.sort(key=lambda x: (x[0], x[1]))
+    # TOC 顺序
+    items.sort(key=lambda it: (it["key"], it["sk"]))
 
-    # 改名必须**从深往浅**做: 先把文件层(最深)改名, 再节, 最后章。
-    # 否则父目录改名后, 子目录的旧路径就找不到了(会全部失败)。
-    # 编号顺序和改名顺序是两回事: 编号按 TOC 阅读顺序, 改名按深度倒序。
-    by_num = list(enumerate(items, 1))
-    by_num.sort(key=lambda x: -x[1][3])   # depth 降序
+    # ---- 建立 父路径 -> 子项 索引, 用来找每个目录的"直接父章/父节" ----
+    # rel 是相对 scope 的路径; 用 (scope, rel) 做 key
+    by_rel = {(it["scope"], it["rel"]): it for it in items}
+    for it in items:
+        parent_rel = os.path.dirname(it["rel"])
+        pit = by_rel.get((it["scope"], parent_rel))
+        it["parent_item"] = pit
 
+    # ---- 分配编号: 每层各自从 01 开始 ----
+    # 章: 全书连续
+    chap_counter = 0
+    for it in items:
+        if it["kind"] == "章":
+            chap_counter += 1
+            it["num"] = chap_counter
+    # 往上传: 任意节点继承祖先章的编号
+    for it in items:
+        p = it.get("parent_item")
+        it["chap_num"] = it["num"] if it["kind"] == "章" else (p["chap_num"] if p else 0)
+
+    # 节: 每个章下重置
+    # 坑: 分组 key 必须用 (章号, 节号) 组合, 只用节号会串
+    #     (不同章里都可能有 01_（一）xxx)
+    sec_counter = {}
+    for it in items:
+        if it["kind"] != "节":
+            continue
+        g = it["chap_num"]
+        sec_counter[g] = sec_counter.get(g, 0) + 1
+        it["num"] = sec_counter[g]
+    # 往上传: 任意节点继承祖先节的编号
+    for it in items:
+        if it["kind"] == "节":
+            it["sec_group"] = (it["chap_num"], it["num"])
+        else:
+            p = it.get("parent_item")
+            it["sec_group"] = p["sec_group"] if p else (it["chap_num"], 0)
+
+    # 文件: 每个节下重置(直接挂在章下的按章分组)
+    file_counter = {}
+    for it in items:
+        if it["kind"] != "文件":
+            continue
+        g = it["sec_group"]
+        file_counter[g] = file_counter.get(g, 0) + 1
+        it["num"] = file_counter[g]
+
+    # 改名前的显示: 编号顺序 = TOC 顺序
     print("=" * 78)
-    print(f"编号 {len(items)} 个目录 (001_ .. {len(items):03d}_)")
+    print(f"编号 {len(items)} 个目录 (每层各自从 01 开始)")
     print("=" * 78)
-    for i, (key, sk, dp, depth, kind, bare) in by_num:
-        num = f"{i:03d}_"
-        new = num + bare
-        print(f"  {num} [{kind}][深度{depth}] {os.path.relpath(dp, MINIMAX)}")
-        print(f"        -> {new}")
+    for it in items:
+        num = f"{it['num']:02d}_"
+        print(f"  {num} [{it['kind']}] {it['rel']}")
+        print(f"        -> {num}{it['bare']}")
     if empty_dirs:
-        print(f"\n空目录(不在 TOC 里, 未编号): {len(empty_dirs)}")
+        print(f"\n空目录(不在目录里, 未编号): {len(empty_dirs)}")
         for dp, depth, bare in empty_dirs:
             print(f"  [{depth}] {os.path.relpath(dp, MINIMAX)}")
 
@@ -200,13 +231,15 @@ def main():
                 print(f"  删除失败 {dp}: {e}")
 
     # 改名: 深 -> 浅
+    by_path = sorted(items, key=lambda it: -it["depth"])
     renamed = 0
     failed = []
-    for i, (key, sk, dp, depth, kind, bare) in by_num:
+    for it in by_path:
+        dp = it["path"]
         parent = os.path.dirname(dp)
-        num = f"{i:03d}_"
-        new = os.path.join(parent, num + bare)
-        if os.path.basename(dp) == num + bare:
+        num = f"{it['num']:02d}_"
+        new = os.path.join(parent, num + it["bare"])
+        if os.path.basename(dp) == num + it["bare"]:
             continue
         if os.path.exists(new):
             print(f"  跳过(已存在): {new}")
