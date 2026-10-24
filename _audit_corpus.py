@@ -51,6 +51,23 @@ GLUE_TOKENS = ("序号", "机构名称", "签发人", "联系电话", "机构类
                "报告签发", "试验场地")
 SYMBOL_LINE = re.compile(r"[+＋*￥√✓\-—＝=]{1,4}")
 MD_HEADING = re.compile(r"^#{1,6}\s+\S")
+
+# --- 表头词「独占成行」---
+# 表格被打散后, 表头会独占成行(「加工工艺」「原料编号」)。正文里这些词不会单独成行。
+#
+# 【踩过的坑】曾尝试用「单元格边界拼接」(中文+英文术语, 如 风选Aspiration) 做信号,
+# 实测是**假阳性制造机**: 正常科技条文里的 WGS分析 / DNA提取 / MIC值 / PCR检测
+# 全都命中, 把 13 个好文件误判成 B/C。**表格单元格边界和正常中英混排词边界
+# 在词法上不可区分**, 这个方向不要再走。
+#
+# 可靠判据是**跨度 span**: 表头行在文档中的分布范围。
+#   span = (最后一个表头行位置 - 第一个表头行位置 + 1) / 正文行数
+#   span >= 0.35 且表头行 >= 2 个  -> 表格贯穿全文  -> B(整页是表)
+#   span <  0.35                  -> 局部表格      -> C(正文可用, 表格隔离)
+# 实测 0253 span=0.54(B) / 0305 span=0.08(C) / 0251 span=0.02(A) / 0353 无表头(A)
+HEADER_STANDALONE = ("原料编号", "原料名称", "特征描述", "强制性标识要求", "加工工艺",
+                      "常用名称", "俗称", "报告签发人", "报告签发机构", "试验机构名称",
+                      "试验场地名称", "试验场地地址", "证书编号", "机构类型", "机构名称")
 SOURCE_RE = re.compile(r"<!--\s*source:\s*(.+?)\s*-->", re.S)
 
 # 错字白名单 —— 只用已确认的组合, 别写宽正则
@@ -73,7 +90,7 @@ def analyze_body(body):
     lines = [l.strip() for l in body.split("\n") if l.strip()]
     if not lines:
         return dict(lines=0, prose_lines=0, hdr_lines=0, frag=0, longs=0,
-                    sym=0, hdr=0, glue=0,
+                    sym=0, hdr=0, glue=0, hdr_standalone=0, table_span=0.0,
                     frag_ratio=0.0, cn_chars=0, paren_delta=0, adj_dup=0)
     # 碎片率只统计「正文行」—— markdown 标题行(## 第三章 / ### 第十一条)是结构标记,
     # 不是 OCR 碎片. 坑: 带 12 章 + 30 条的纯条文页, 标题行数会超过正文行数,
@@ -91,7 +108,17 @@ def analyze_body(body):
         a, b = norm(lines[i]), norm(lines[i + 1])
         if len(a) >= 12 and len(b) >= 12 and (a in b or b in a):
             adj += 1
+    # 表头词独占成行 + 表格跨度
+    hdr_idx = [i for i, l in enumerate(prose_lines)
+               if len(l) <= 6
+               and sum(l.count(t) for t in HEADER_STANDALONE) >= 1]
+    hdr_standalone = len(hdr_idx)
+    if hdr_idx:
+        span = round((max(hdr_idx) - min(hdr_idx) + 1) / len(prose_lines), 2)
+    else:
+        span = 0.0
     return dict(lines=len(lines), prose_lines=len(prose_lines),
+                hdr_standalone=hdr_standalone, table_span=span,
                 hdr_lines=len(lines) - len(prose_lines),
                 frag=frag, longs=longs, sym=sym, hdr=hdr,
                 glue=glue, frag_ratio=round(frag / max(1, len(prose_lines)), 2),
@@ -112,14 +139,23 @@ def classify(d):
         return "B"
     if d["hdr"] >= 8:
         return "B"
-    if d["longs"] <= 1 and d["frag_ratio"] >= 0.55:
+    # 表格贯穿全文 (表头跨度大 + 多个表头行) -> 整页是表
+    if d["table_span"] >= 0.35 and d["hdr_standalone"] >= 2:
         return "B"
-    if d["frag_ratio"] >= 0.85:
-        return "B"
-    if d["frag_ratio"] >= 0.60 and d["longs"] <= 6:
-        return "B"
+    # 有表头但表头只集中在局部 (span 小) -> 文档是「表 + 别的内容」的混合,
+    # 表格区剥离后其余内容仍可用 -> 走 C, 不走 B。
+    # (实测 0305: 左页表 + 右页编号目录列表, frag=0.70 会被下面的 B 规则误杀)
+    local_table = d["hdr_standalone"] >= 1 and d["table_span"] < 0.35
+    if not local_table:
+        if d["longs"] <= 1 and d["frag_ratio"] >= 0.55:
+            return "B"
+        if d["frag_ratio"] >= 0.85:
+            return "B"
+        if d["frag_ratio"] >= 0.60 and d["longs"] <= 6:
+            return "B"
     # --- C: 正文可用, 表格不可信 ---
-    if d["frag_ratio"] >= 0.42 or d["hdr"] >= 3 or d["glue"] >= 1 or d["sym"] >= 5:
+    if (d["frag_ratio"] >= 0.42 or d["hdr"] >= 3 or d["glue"] >= 1
+            or d["sym"] >= 5 or d["hdr_standalone"] >= 1):
         return "C"
     return "A"
 
@@ -196,6 +232,7 @@ def audit_all():
                 frag_ratio=d["frag_ratio"], long_sentences=d["longs"],
                 header_hits=d["hdr"], glue_hits=d["glue"], table_symbols=d["sym"],
                 adj_dup=d["adj_dup"], paren_delta=d["paren_delta"],
+                hdr_standalone=d["hdr_standalone"], table_span=d["table_span"],
                 cn_chars=d["cn_chars"], note=note))
 
     return rows, gate1
