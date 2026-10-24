@@ -268,29 +268,41 @@ def repair_page_multi_cut(src_img, page_no, stem, src_rel):
 
     实测: 纯图像算法的书脊定位在 0255 上偏 484px(切掉了左页最后一列),
     而 OCR 反馈能靠「列宽不齐」「标题被切」「串页页眉」三个信号把坏切点筛掉。
+
+    **候选并行**: 9 个候选串行要 12 分钟/页(62 页 = 12 小时), 不可接受。
+    用线程池并发(每个候选是一次独立的 API 调用), 实测 9 个候选 ~90 秒。
     """
     import _spine_pick
+    from concurrent.futures import ThreadPoolExecutor
     im = Image.open(src_img).convert("RGB")
     W, H = im.size
     cands, base, why = _spine_pick.gen_candidates(im)
     print(f"  候选 {cands} (基线 {base}: {why})")
     is_right = (page_no % 2 == 1)
-    results = []
-    for c in cands:
+
+    def run(c):
         if is_right:
             page = im.crop((c, 0, W, H))
         else:
             page = im.crop((0, 0, c, H))
         if page.size[0] < 300:
-            continue
+            return None
         try:
             raw = clean(_spine_pick.api_ocr(prep_bytes(page), _spine_pick.TABLE_PROMPT))
         except Exception as e:
-            print(f"    cut={c}: API 失败 {e}")
-            continue
+            return (None, c, None, f"API 失败 {e}")
         s, d = _spine_pick.score(raw)
-        results.append((s, c, raw, d))
-        print(f"    cut={c}: score={s:+.0f}  {d}")
+        return (s, c, raw, d)
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(9, len(cands))) as ex:
+        for r in ex.map(run, cands):
+            if r is None:
+                continue
+            s, c, raw, d = r
+            print(f"    cut={c}: score={'%+d' % s if s is not None else 'ERR'}  {d}")
+            if raw is not None:
+                results.append((s, c, raw, d))
     if not results:
         return None
     results.sort(key=lambda r: -r[0])
