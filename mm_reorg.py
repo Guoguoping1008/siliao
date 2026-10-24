@@ -31,6 +31,41 @@ def safe(name):
     return re.sub(r'[<>:"/\\|?*]', "_", name).strip().rstrip(".")
 
 
+# 目录 OCR 会把页码粘进标题: "禁止在饲料和动物饮用598水中使用的药品"
+# 只修"汉字+3位以内数字+汉字"这种明显的页码残留(25家/4种/20项 这类是正常内容, 排除)
+TITLE_PAGENO_RE = re.compile(r"(?<=[\u4e00-\u9fa5])(\d{1,3})(?=[\u4e00-\u9fa5])")
+# 常见的"数量词"不算页码残留
+UNIT_WORDS = ("家", "种", "项", "个", "条", "款", "批", "级", "年", "月", "日",
+              "倍", "成", "倍", "元", "类", "类", "份", "只", "头", "天", "周", "月")
+
+
+def clean_title(title, page=None, all_pages=None):
+    """去掉标题里被 OCR 粘进去的页码。
+
+    例: "禁止在饲料和动物饮用598水中使用的药品"
+        -> "禁止在饲料和动物饮水中使用的药品"
+
+    粘进去的页码可能是**上一个文件**的页码(598), 不一定是当前文件的起始页,
+    所以要拿全书的页码集合来判断。
+    """
+    t = title.strip()
+
+    def repl(m):
+        num = m.group(1)
+        nxt = t[m.end():m.end() + 1]
+        # 后面跟量词 -> 正常内容(如 25家 / 4种 / 20项)
+        if nxt in UNIT_WORDS:
+            return m.group(0)
+        # 是已知页码 -> 页码残留
+        if all_pages and int(num) in all_pages:
+            return ""
+        if page is not None and int(num) == page:
+            return ""
+        return m.group(0)
+
+    return TITLE_PAGENO_RE.sub(repl, t).strip()
+
+
 def parse_toc(path):
     """-> [(level, title, page, docno)]"""
     lines = [l.rstrip() for l in open(path, encoding="utf-8").read().split("\n")]
@@ -62,20 +97,21 @@ def parse_toc(path):
 
 
 def build_docs(entries):
-    """-> [(level, title, page, docno, chapter, section)]"""
+    """-> [(level, title, page, docno, chapter, section)]
+
+    栈里存**所有**标题行(不管有没有页码)。
+    坑: 章/节标题本身带页码(如 "（一）新产品审定 ------15"),
+    如果只 push 无页码的, 节就丢了, 所有文件都会挂到章根下。
+    """
     docs = []
     stack = []
     for level, title, page, docno in entries:
         while stack and stack[-1][0] >= level:
             stack.pop()
-        chapter = stack[-1][1] if stack else ""
-        section = stack[-1][1] if stack else ""
-        # 找最近的一级/二级祖先
         chapter = next((t for lv, t, *_ in reversed(stack) if lv == 2), "")
         section = next((t for lv, t, *_ in reversed(stack) if lv == 3), "")
         docs.append((level, title, page, docno, chapter, section))
-        if page is None:
-            stack.append((level, title))
+        stack.append((level, title))
     return docs
 
 
@@ -111,6 +147,9 @@ def main():
     docs = build_docs(parse_toc(TOC))
     ranges = doc_ranges(docs)
 
+    # 全书已知页码集合(用于识别标题里被 OCR 粘进去的页码)
+    all_known_pages = {p for _lv, _t, p, _dn, _c, _sec in docs if p}
+
     # 扫指定目录下的页(注意: 文件名位数不统一, 001目录 用 5 位, 正文用 4 位)
     scope_dir = os.path.join(MINIMAX, scope)
     all_pages = []
@@ -124,9 +163,11 @@ def main():
     unknown = []
     for pg, src in all_pages:
         owner = None
+        owner_page = None
         for title, start, end, dn, c, s in ranges:
             if start <= pg <= end:
                 owner = (title, c, s)
+                owner_page = start
                 break
         rel = os.path.relpath(src, MINIMAX)
         # 分节标题页(内容就是下一章的章名) -> 不归给上一个文件
@@ -140,7 +181,8 @@ def main():
             and re.match(r"^[一二三四五六七八九十]+、", body)
         )
         if owner and not is_divider:
-            dst = target_dir(scope_dir, owner[1], owner[2], owner[0])
+            title = clean_title(owner[0], owner_page, all_known_pages)
+            dst = target_dir(scope_dir, owner[1], owner[2], title)
             plan.append((src, dst, rel, owner[0]))
             stats["moved"] += 1
         elif is_divider:
