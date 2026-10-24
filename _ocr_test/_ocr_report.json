@@ -1,0 +1,14 @@
+[
+ {
+  "src": "000封面\\封面00.jpg",
+  "ok": true,
+  "msg": "boxes=5 paras=2 chars=70",
+  "boxes": 5
+ },
+ {
+  "src": "000封面\\封面01.jpg",
+  "ok": true,
+  "msg": "boxes=6 paras=3 chars=49",
+  "boxes": 6
+ }
+]

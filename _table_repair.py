@@ -102,15 +102,18 @@ DEGEN_EMPTY_RATIO = 0.5
 # 质量门失败时的重试次数 (MiniMax 输出非确定)
 RETRY = 4
 
+# 提示词要求输出 **HTML 表格**, 与当前语料格式一致。
+# 坑: 语料格式会随 OCR 提示词变化(Markdown 表 <-> HTML 表), 检测器必须两种都认;
+#     而 HTML 的 colspan/rowspan 能表达合并单元格, Markdown 不能 —— 两级表头
+#     在 HTML 里天然正确, 在 Markdown 里必须手工拼接。
 TABLE_PROMPT = (
-    "请把这张中文表格扫描页转写成 Markdown 表格。"
+    "请把这张中文表格扫描页转写成 HTML 表格。"
     "要求:\n"
-    "1. 第一行是表头, 第二行是 |---|---| 分隔行\n"
-    "2. 每一行一条记录, 单元格内容用 | 分隔, 保持原表列顺序\n"
-    "3. 单元格内的换行合并成一个单元格, 不要拆成多行\n"
-    "4. 合并单元格(纵向)用空单元格表示, 不要向下填充\n"
-    "5. 页眉、页码、书名不要输出\n"
-    "6. 只输出表格本身, 不要任何解释文字"
+    "1. 用 <table border=\"1\"> 包裹, 每一行一个 <tr>, 每个单元格一个 <td>(表头用 <th>)\n"
+    "2. 保持原表列顺序, 合并单元格用 colspan/rowspan 表达\n"
+    "3. 单元格内的换行合并进同一个单元格, 不要拆成多行\n"
+    "4. 页眉、页码、书名不要输出\n"
+    "5. 只输出表格本身, 不要任何解释文字"
 )
 
 _engine = None
@@ -212,7 +215,18 @@ def find_degenerate(root=None):
             if len(raw) >= 2000 and loop_ratio(raw) >= 0.45:
                 out.append(os.path.splitext(fn)[0])
                 continue
-            # --- 缺陷 2: 空单元格撑满 ---
+            # --- 缺陷 2: 空单元格撑满 (Markdown | 与 HTML <table> 都要认) ---
+            # 坑: 语料会在「Markdown 表」与「HTML 表」之间切换(换 OCR 提示词就会变),
+            #     只认一种会误判成「0 个表格页」。
+            st = table_stats(raw)
+            if st["fmt"] == "html":
+                hrows = html_rows(raw)
+                allc = [c for r in hrows for c in r]
+                if allc and st["real_rows"] >= 2:
+                    er = sum(1 for c in allc if not c) / len(allc)
+                    if er >= DEGEN_EMPTY_RATIO:
+                        out.append(os.path.splitext(fn)[0])
+                continue
             tbl = [l for l in lines if l.startswith("|")]
             if len(tbl) < 3:
                 continue
@@ -364,6 +378,9 @@ def fix_header_col_mismatch(txt):
     对策: 表头列数不足时, **把数据行的第二行(子表头)提上来当表头**,
     并在首行保留原一级表头(补齐到相同列数)。这样两行列数一致, 语义也完整。
     """
+    # HTML 表: 两级表头靠 colspan/rowspan 表达, 天然正确, 不用改
+    if "<table" in txt.lower():
+        return txt
     lines = [l.rstrip() for l in txt.split("\n")]
     tbl_idx = [i for i, l in enumerate(lines) if l.strip().startswith("|")]
     if len(tbl_idx) < 4:
@@ -630,33 +647,87 @@ def local_reconstruct(img_path, rotated):
 
 
 def local_grid_to_md(grid):
-    """把本地重建的 grid 转成 Markdown 表格 (标注低置信)"""
+    """把本地重建的 grid 转成 HTML 表格 (与当前语料格式一致)"""
     out = []
     for i, row in enumerate(grid):
-        cells = [c.replace("|", "／").replace("\n", " ").strip() for c in row]
-        out.append("| " + " | ".join(cells) + " |")
-        if i == 0:
-            out.append("|" + "|".join(["---"] * len(row)) + "|")
+        tag = "th" if i == 0 else "td"
+        cells = [c.replace("<", "＜").replace(">", "＞").replace("\n", " ").strip()
+                 for c in row]
+        out.append("<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>")
+    return "<table border=\"1\">\n" + "\n".join(out) + "\n</table>"
+
+
+TR_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S | re.I)
+TD_RE = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.S | re.I)
+
+
+def html_rows(txt):
+    """HTML 表格的行 -> 单元格列表"""
+    out = []
+    for tr in TR_RE.findall(txt):
+        cells = [re.sub(r"<[^>]+>|\s|&nbsp;", "", c).strip()
+                 for c in TD_RE.findall(tr)]
+        out.append(cells)
+    return out
+
+
+def strip_empty_rows(txt):
+    """去掉表格里的空行 (Markdown 与 HTML 两种格式)。"""
+    if "<table" in txt.lower():
+        rows = html_rows(txt)
+        keep = [r for r in rows if any(c.strip() for c in r)]
+        if not keep:
+            return txt
+        out = []
+        for i, r in enumerate(keep):
+            out.append("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>")
+        return "<table border=\"1\">\n" + "\n".join(out) + "\n</table>"
+    lines = [l.rstrip() for l in txt.split("\n")]
+    out = []
+    for l in lines:
+        st = l.strip()
+        if st.startswith("|"):
+            cells = [c.strip() for c in st.strip("|").split("|")]
+            if cells and all(not c for c in cells):
+                continue
+        out.append(l)
     return "\n".join(out)
 
 
 def table_stats(txt):
+    """统一统计 Markdown 表 与 HTML 表。
+
+    坑: 语料会在「Markdown 表」与「HTML 表」之间切换(换 OCR 提示词就会变),
+    统计函数必须两种都认, 否则会误判成「0 个表格页」。
+    HTML 表的两级表头天然列数不同(合并单元格用 colspan), 这**不是**错位。
+    """
     lines = [l.strip() for l in txt.split("\n") if l.strip()]
-    tbl = [l for l in lines if l.startswith("|")]
+    md_tbl = [l for l in lines if l.startswith("|")]
+    hrows = html_rows(txt)
+    if hrows:
+        from collections import Counter
+        cc = Counter(len(r) for r in hrows)
+        # 用**数据行**的众数列数(跳过前两行表头)
+        dcols = Counter(len(r) for r in hrows[2:]) if len(hrows) > 2 else cc
+        allc = [c for r in hrows for c in r]
+        real_rows = sum(1 for r in hrows if any(c for c in r))
+        return dict(rows=len(hrows), real_rows=real_rows,
+                    cols=cc.most_common(1)[0][0],
+                    data_cols=dcols.most_common(1)[0][0],
+                    fmt="html")
     def isempty(l):
         return all(not c.strip() for c in l.strip().strip("|").split("|"))
-    real = [l for l in tbl if not isempty(l)]
+    real = [l for l in md_tbl if not isempty(l)]
     ncols = 0
     data_cols = 0
-    if tbl:
+    if md_tbl:
         from collections import Counter
-        ncols = Counter(len(l.split("|")) - 2 for l in tbl).most_common(1)[0][0]
-        # 数据行(跳过表头和分隔行)的众数列数
-        dcols = Counter(len(l.split("|")) - 2 for l in tbl[2:]) if len(tbl) > 2 else Counter()
+        ncols = Counter(len(l.split("|")) - 2 for l in md_tbl).most_common(1)[0][0]
+        dcols = Counter(len(l.split("|")) - 2 for l in md_tbl[2:]) if len(md_tbl) > 2 else Counter()
         if dcols:
             data_cols = dcols.most_common(1)[0][0]
-    return dict(rows=len(tbl), real_rows=len(real), cols=ncols,
-                data_cols=data_cols)
+    return dict(rows=len(md_tbl), real_rows=len(real), cols=ncols,
+                data_cols=data_cols, fmt="md")
 
 
 def clean(txt):
@@ -756,8 +827,11 @@ def main():
                     break
                 continue
             cand = strip_empty_rows(raw)
-            if not cand.lstrip().startswith("|"):
-                print(f"  [尝试{attempt}] 输出不像表格")
+            # 表格判定要同时认 Markdown(|) 与 HTML(<table>)
+            # 坑: 语料格式随 OCR 提示词变(Markdown 表 <-> HTML 表),
+            #     只认一种会把合格的 HTML 输出误判成「不像表格」。
+            if not (cand.lstrip().startswith("|") or "<table" in cand.lower()):
+                print(f"  [尝试{attempt}] 输出不像表格: {raw[:60]!r}")
                 continue
             cand = fix_header_col_mismatch(cand)
             cst = table_stats(cand)
@@ -767,9 +841,13 @@ def main():
             if cst["rows"] and cst["real_rows"] / cst["rows"] < 0.5:
                 print(f"  [尝试{attempt}] 空行率仍高({cst['real_rows']}/{cst['rows']})")
                 continue
-            if cst["cols"] and cst["data_cols"] and cst["cols"] != cst["data_cols"]:
-                print(f"  [尝试{attempt}] 列数不一致(表头{cst['cols']} vs 数据{cst['data_cols']})")
-                continue
+            # 列数一致性: 只对 Markdown 表适用。
+            # HTML 表的两级表头靠 colspan/rowspan 表达, 列数天然不同(是正确的),
+            # 用「表头列数 == 数据列数」判它会误杀。
+            if cst["fmt"] == "md":
+                if cst["cols"] and cst["data_cols"] and cst["cols"] != cst["data_cols"]:
+                    print(f"  [尝试{attempt}] 列数不一致(表头{cst['cols']} vs 数据{cst['data_cols']})")
+                    continue
             txt, st = cand, cst
             break
         if txt is None:
