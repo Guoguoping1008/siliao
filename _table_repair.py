@@ -149,6 +149,33 @@ def box_ratio(boxes):
     return float(np.median(rs)) if rs else None
 
 
+def loop_ratio(txt, n=8):
+    """检测「生成循环」: 某 n-gram 反复出现。
+
+    坑 1: 模型的生成循环不是**连续**重复, 而是 n-gram 高频散布,
+          所以要找「最高频 n-gram 的总占比」, 不能找「最长连续重复串」。
+          实测 0344: '在配合饲料中的' 出现 1972 次, 占全文 84%。
+    坑 2: 相邻 n-gram 会重叠计数, 直接 cnt*n/len 会算出 >1 的值(最大 7.98)。
+          对策: 按**不重叠**位置统计, 或把结果 clamp 到 1.0。
+          这里用「去重叠后该片段的总覆盖字符数 / 全文长度」。
+    """
+    if len(txt) < n * 2:
+        return 0.0
+    from collections import Counter
+    c = Counter(txt[i:i + n] for i in range(len(txt) - n))
+    top, cnt = c.most_common(1)[0]
+    # 该 n-gram 的**出现位置**总数(去重叠) x n / 全文长度
+    positions = set()
+    start = 0
+    while True:
+        i = txt.find(top, start)
+        if i == -1:
+            break
+        positions.add(i)
+        start = i + 1
+    return min(1.0, len(positions) * n / len(txt))
+
+
 def find_degenerate(root=None):
     """找出退化页(空单元格撑满的表格), 返回 stem 列表。
 
@@ -164,7 +191,17 @@ def find_degenerate(root=None):
             if not fn.endswith(".md"):
                 continue
             p = os.path.join(dp, fn)
-            lines = [l.strip() for l in open(p, encoding="utf-8").read().split("\n") if l.strip()]
+            raw = open(p, encoding="utf-8").read()
+            lines = [l.strip() for l in raw.split("\n") if l.strip()]
+            if not lines:
+                continue
+            # --- 缺陷 1: 生成循环 (模型卡在某 n-gram 上, 撞满 max_tokens) ---
+            # 必须在空表格检测**之前**判: 循环页常常是「1 行巨长表格」,
+            # 空行率算出来不高, 但内容全是垃圾。
+            if len(raw) >= 2000 and loop_ratio(raw) >= 0.45:
+                out.append(os.path.splitext(fn)[0])
+                continue
+            # --- 缺陷 2: 空单元格撑满 ---
             tbl = [l for l in lines if l.startswith("|")]
             if len(tbl) < 3:
                 continue
@@ -208,10 +245,16 @@ def classify_degenerate(rel):
     for b in body:
         line_keys.add(round((b[1] + b[3]) / 2 / 20))
     n_lines = len(line_keys)
+    raw_md = open(md, encoding="utf-8").read() if md and os.path.exists(md) else ""
+    lr = loop_ratio(raw_md) if raw_md else 0.0
     # 表格列数: 优先用 md 表头行的列数(可靠),
     # OCR 框的 x 聚类只做兜底(实测 0028 的 md 表头 34 列, OCR 只估出 10 列)
+    # 坑: **生成循环页**的 md 表头行是垃圾(循环文本被当成一行, 切出几千个"|"),
+    #      这时 md 的列数完全不可信, 必须用 OCR 估计。
     n_cols = n_rows and (len(tbl_head_cols) if tbl_head_cols else 0)
-    if not n_cols:
+    md_is_garbage = (lr >= 0.45) if raw_md else False
+    if md_is_garbage or not n_cols or n_cols > 200:
+        n_cols = 0
         xs = sorted(b[0] for b in body)
         if xs:
             clusters = 1
@@ -220,7 +263,10 @@ def classify_degenerate(rel):
                     clusters += 1
             n_cols = clusters
     rotated = (r is not None and r < ROTATE_RATIO)
-    if rotated and n_lines >= 20:
+    if lr >= 0.45 and len(raw_md) >= 2000:
+        # 生成循环: 优先按侧转处理(旋正后重送通常能解)
+        kind = "ROTATED_FAIL" if rotated else "MODEL_GAVE_UP"
+    elif rotated and n_lines >= 20:
         kind = "ROTATED_FAIL"
     elif n_lines >= 20:
         kind = "MODEL_GAVE_UP"      # 正立但有大量内容, 模型没读出来
@@ -230,6 +276,7 @@ def classify_degenerate(rel):
         kind = "BLANK_FORM"         # 真的是空白表单
     return dict(page=rel, kind=kind, ratio=r, n_boxes=len(boxes),
                 n_lines=n_lines, n_cols=n_cols, rotated=rotated, img=img,
+                loop_ratio=round(lr, 2),
                 cat=os.path.basename(os.path.dirname(md)) if md else "",
                 stem=stem, n_rows=n_rows, md=md)
 
@@ -458,14 +505,14 @@ def main():
         return 0
 
     results = []
-    print(f"\n{'页':26} {'框比':>6} {'框数':>5} {'文本行':>6} {'判定':>14}")
+    print(f"\n{'页':26} {'框比':>6} {'框数':>5} {'文本行':>6} {'循环':>6} {'判定':>14}")
     for rel in degen:
         info = classify_degenerate(rel)
         if not info:
             print(f"{rel:26} 缺源图")
             continue
         print(f"{rel:26} {info['ratio']:6.2f} {info['n_boxes']:5} "
-              f"{info['n_lines']:6} {info['kind']:>14}")
+              f"{info['n_lines']:6} {info.get('loop_ratio', 0):6.2f} {info['kind']:>14}")
         results.append(info)
 
     if not args.repair:
