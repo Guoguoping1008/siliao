@@ -89,14 +89,15 @@ def doc_ranges(docs):
     return out
 
 
-def target_dir(chapter, section, title):
+def target_dir(base, chapter, section, title):
+    """目标目录 = <一级目录>/<章>/<节>/<文件>"""
     parts = []
     if chapter:
         parts.append(chapter)
     if section:
         parts.append(section)
     parts.append(title)
-    return os.path.join(MINIMAX, *parts)
+    return os.path.join(base, *parts)
 
 
 def main():
@@ -139,13 +140,13 @@ def main():
             and re.match(r"^[一二三四五六七八九十]+、", body)
         )
         if owner and not is_divider:
-            dst = target_dir(owner[1], owner[2], owner[0])
+            dst = target_dir(scope_dir, owner[1], owner[2], owner[0])
             plan.append((src, dst, rel, owner[0]))
             stats["moved"] += 1
         elif is_divider:
             # 分节标题页: 物理上属于本扫描序列, 但它标记的是**下一章**。
             # 下一章的内容在另一个顶层目录(如 02制度文件), 所以这里不建
-            # "二、制度文件/" 空目录(会误导), 而是留在原目录, 改名加前缀标记。
+            # "二、制度文件/" 空目录(会误导), 而是留在原目录, 改名标记。
             newname = f"{os.path.splitext(os.path.basename(src))[0]}_{body}.md"
             dst = os.path.join(scope_dir, newname)
             plan.append((src, dst, rel, f"[分节页] {body}"))
@@ -184,11 +185,17 @@ def main():
     print("=" * 78)
     print("执行")
     print("=" * 78)
+    # 只给"目录目标"建目录; 分节页目标是**文件**, 不能 makedirs
     for dst in sorted(bydir):
+        if dst.lower().endswith(".md"):
+            continue
         os.makedirs(dst, exist_ok=True)
     for src, dst, rel, title in plan:
-        base = os.path.basename(src)
-        d = os.path.join(dst, base)
+        if dst.lower().endswith(".md"):
+            # 文件目标: 直接移到该路径
+            d = dst
+        else:
+            d = os.path.join(dst, os.path.basename(src))
         if os.path.exists(d):
             print(f"  跳过(已存在): {rel} -> {os.path.relpath(d, MINIMAX)}")
             continue
