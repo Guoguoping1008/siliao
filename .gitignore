@@ -75,10 +75,16 @@ playwright-report/
 
 # OCR / phone photos (上游原始资料,不进 git)
 raw-pic/
-raw/                 # 新版原始资料落地区(raw/<date>/<hash>.jpg 或 raw/<date>/<seq>.jpg)
+raw/                  # 新版原始资料落地区(raw/<date>/<hash>.jpg 或 raw/<date>/<seq>.jpg)
 .venv-ocr/
 .models/
-Images/              # 原始手机翻拍图 (3.2GB, 重生成)
+# 原始手机翻拍图 (3.2GB, 重生成)
+# 坑: **gitignore 的行内注释不生效** —— 写成 `Images/   # 说明` 时,
+#     整行(含 # 后的文字)都是匹配模式, 导致 Images/ 根本没被忽略,
+#     git add -A 会把 3.2GB 扫描图提交进历史(commit a7d56a8 就是这么来的),
+#     之后每次 push 都要重传 3.2GB, 走代理必然 connection reset。
+#     注释必须单独占一行。
+Images/
 data/markdown/feed-law-collection-2023/
 data/markdown/feed-trial-guideline-2023/
 
