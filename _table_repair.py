@@ -163,7 +163,18 @@ def loop_ratio(txt, n=8):
         return 0.0
     from collections import Counter
     c = Counter(txt[i:i + n] for i in range(len(txt) - n))
-    top, cnt = c.most_common(1)[0]
+    # 坑: **表格的对齐填充空格**会让 '| 序号 | 标准编号 |' 这类
+    # 纯空白+竖线的 n-gram 高频重复, 把修好的表误判成循环。
+    # 对策: 跳过「去空白后几乎没有实义字符」的 n-gram。
+    c2 = Counter()
+    for gram, cnt in c.items():
+        solid = re.sub(r"[\s|\-]", "", gram)
+        if len(solid) < max(3, n // 2):
+            continue
+        c2[gram] = cnt
+    if not c2:
+        return 0.0
+    top, cnt = c2.most_common(1)[0]
     # 该 n-gram 的**出现位置**总数(去重叠) x n / 全文长度
     positions = set()
     start = 0
@@ -458,6 +469,177 @@ def trim_blank_form(txt):
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------------------
+# 表格重建: 用文本框坐标做行列聚类 (本地兜底路线)
+# ---------------------------------------------------------------------------
+MD_HEADING = re.compile(r"^#{1,6}\s+\S")
+HEADER_NOISE = re.compile(
+    r"^(\d{1,4}|饲料法规文件|制度文件|动物防疫法|饲料和饲料添加剂管理条例|"
+    r"饲料法|法律法规文件|\(20\d\d\)|（20\d\d）)$")
+
+
+def strip_header_footer(boxes):
+    """剔除页眉(页码/书名/年份) —— 它们不是表格内容。"""
+    if not boxes:
+        return boxes
+    ys = [(b[1] + b[3]) / 2 for b in boxes]
+    ymin, ymax = min(ys), max(ys)
+    span = max(1.0, ymax - ymin)
+    out = []
+    for b in boxes:
+        yc = (b[1] + b[3]) / 2
+        rel = (yc - ymin) / span
+        txt = b[4].strip()
+        if rel < 0.08 and HEADER_NOISE.match(txt):
+            continue
+        if rel < 0.12 and re.fullmatch(r"\d{1,4}", txt):
+            continue
+        out.append(b)
+    return out
+
+
+def cluster_rows(boxes, page_h, tol_ratio=0.012):
+    """按 y 中心聚类成行。固定比例容差 —— 实测比自适应稳。"""
+    items = [(x0, y0, x1, y1, t) for x0, y0, x1, y1, t, s in boxes if t]
+    if not items:
+        return []
+    tol = page_h * tol_ratio
+    items.sort(key=lambda b: (b[1] + b[3]) / 2)
+    rows, cur = [], [items[0]]
+    cur_y = (items[0][1] + items[0][3]) / 2
+    for it in items[1:]:
+        y = (it[1] + it[3]) / 2
+        if abs(y - cur_y) <= tol:
+            cur.append(it)
+            cur_y = float(np.median([(b[1] + b[3]) / 2 for b in cur]))
+        else:
+            rows.append(cur)
+            cur, cur_y = [it], y
+    if cur:
+        rows.append(cur)
+    return rows
+
+
+def cluster_cols(rows, page_w, tol_ratio=0.018):
+    """按 x 起点聚类成列, 再合并碎片列。"""
+    xs = []
+    for r in rows:
+        for b in r:
+            xs.append(b[0])
+    if not xs:
+        return []
+    xs = sorted(xs)
+    tol = page_w * tol_ratio
+    groups, cur = [], [xs[0]]
+    for x in xs[1:]:
+        if x - cur[-1] <= tol:
+            cur.append(x)
+        else:
+            groups.append(cur)
+            cur = [x]
+    if cur:
+        groups.append(cur)
+    if len(groups) > 1:
+        maxm = max(len(g) for g in groups)
+        merged = [groups[0]]
+        for g in groups[1:]:
+            prev = merged[-1]
+            if len(g) < maxm / 3 and (g[0] - prev[-1]) < tol * 2.5:
+                prev.extend(g)
+            else:
+                merged.append(list(g))
+        groups = merged
+    return [float(np.mean(g)) for g in groups]
+
+
+def assign_col(x_center, cols):
+    return int(np.argmin([abs(x_center - c) for c in cols]))
+
+
+def merge_wrapped_rows(grid):
+    """把「上一行某列有内容、本行该列为空」的续行并入上一行。"""
+    if not grid:
+        return grid
+    out = [list(grid[0])]
+    for row in grid[1:]:
+        nonempty = sum(1 for c in row if c.strip())
+        prev = out[-1]
+        prev_nonempty = sum(1 for c in prev if c.strip())
+        if nonempty and nonempty <= 2 and prev_nonempty >= 3:
+            if row[0].strip():
+                out.append(list(row))
+            else:
+                for i, c in enumerate(row):
+                    if c.strip():
+                        prev[i] = (prev[i] + c).strip() if prev[i] else c
+        else:
+            out.append(list(row))
+    return out
+
+
+def build_table(boxes, page_w, page_h):
+    """从文本框重建 Markdown 表格(返回 grid, 列位置)"""
+    boxes = strip_header_footer(boxes)
+    rows = cluster_rows(boxes, page_h)
+    if len(rows) < 2:
+        return None, None
+    cols = cluster_cols(rows, page_w)
+    if not cols:
+        return None, None
+    grid = []
+    for r in rows:
+        cells = [""] * len(cols)
+        for b in r:
+            xc = (b[0] + b[2]) / 2
+            ci = assign_col(xc, cols)
+            cells[ci] = (cells[ci] + " " + b[4]).strip() if cells[ci] else b[4]
+        grid.append(cells)
+    return merge_wrapped_rows(grid), cols
+
+
+def local_reconstruct(img_path, rotated):
+    """本地 OCR + 坐标聚类重建表格 (API 不可用时的兜底)。
+
+    实测: API 挂掉时, 本地 RapidOCR 对侧转页能读出 20~130 个框,
+    重建出 13~25 行 x 4~15 列, **数据是对的**(机构名/化学式/含量规格
+    都对上了), 只是行分组有瑕疵(同格内换行会拆行, 表头会碎)。
+
+    局限(方法论天花板): 全局坐标聚类分不清「同格内换行」与「新记录开始」。
+    所以本地重建的结果**必须标注为低置信**, 不能和 API 结果同等对待。
+    """
+    im = Image.open(img_path).convert("RGB")
+    if rotated:
+        im = im.rotate(-90, expand=True)
+    W, H = im.size
+    scale = 1600.0 / W if W > 1600 else 1.0
+    if scale != 1.0:
+        im = im.resize((int(W * scale), int(H * scale)), Image.LANCZOS)
+    res, _ = get_engine()(np.asarray(im))
+    boxes = []
+    for box, text, score in (res or []):
+        xs = [p[0] for p in box]
+        ys = [p[1] for p in box]
+        x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+        if scale != 1.0:
+            x0, y0, x1, y1 = x0 / scale, y0 / scale, x1 / scale, y1 / scale
+        boxes.append((x0, y0, x1, y1, text.strip(), float(score)))
+    grid, cols = build_table(boxes, W, H)
+    if not grid or not cols:
+        return None, None
+    return grid, cols
+
+
+def local_grid_to_md(grid):
+    """把本地重建的 grid 转成 Markdown 表格 (标注低置信)"""
+    out = []
+    for i, row in enumerate(grid):
+        cells = [c.replace("|", "／").replace("\n", " ").strip() for c in row]
+        out.append("| " + " | ".join(cells) + " |")
+        if i == 0:
+            out.append("|" + "|".join(["---"] * len(row)) + "|")
+    return "\n".join(out)
+
+
 def table_stats(txt):
     lines = [l.strip() for l in txt.split("\n") if l.strip()]
     tbl = [l for l in lines if l.startswith("|")]
@@ -493,6 +675,8 @@ def main():
     ap.add_argument("--repair", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--local", action="store_true", help="用本地坐标聚类, 不调 API")
+    ap.add_argument("--no-api", action="store_true",
+                    help="跳过 API 直接本地重建 (API 不可用时用, 省掉重试等待)")
     ap.add_argument("--json", default=os.path.join(REPO, "_table_repair_scan.json"))
     args = ap.parse_args()
 
@@ -561,11 +745,15 @@ def main():
         #   所以门禁失败要**重试**, 不能一次不过就放弃。
         txt = None
         st = None
-        for attempt in range(1, RETRY + 1):
+        local_used = False
+        attempts = 1 if args.no_api else RETRY
+        for attempt in range(1, attempts + 1):
             try:
                 raw = clean(api_ocr(data, TABLE_PROMPT, max_tokens=16000, timeout=120))
             except Exception as e:
                 print(f"  [尝试{attempt}] API 失败: {e}")
+                if args.no_api:
+                    break
                 continue
             cand = strip_empty_rows(raw)
             if not cand.lstrip().startswith("|"):
@@ -585,8 +773,22 @@ def main():
             txt, st = cand, cst
             break
         if txt is None:
-            print(f"  {RETRY} 次尝试均未通过质量门, 放弃")
-            continue
+            # API 不可用/质量门始终不过 -> 退到本地重建(低置信)
+            print(f"  API 路径失败, 退到本地重建")
+            try:
+                grid, cols = local_reconstruct(info["img"], info["rotated"])
+            except Exception as e:
+                print(f"  本地重建也失败: {e}")
+                continue
+            if not grid:
+                print("  本地重建无结果, 放弃")
+                continue
+            txt = local_grid_to_md(grid)
+            st = table_stats(txt)
+            if st["real_rows"] < 3:
+                print(f"  本地重建实质行不足({st['real_rows']}), 放弃")
+                continue
+            local_used = True
         out = find_md(info["stem"])          # 每次重新查(索引可能已失效)
         if not out or not os.path.exists(os.path.dirname(out)):
             print("  找不到目标 md (语料树可能刚被重组), 放弃")
@@ -596,9 +798,11 @@ def main():
                 shutil.copy2(out, out + ".bak")
             with open(out, "w", encoding="utf-8") as f:
                 f.write(f"<!-- source: {os.path.relpath(info['img'], REPO).replace(chr(92), '/')} -->\n")
-                f.write(f"<!-- repaired: rotated={'yes' if info['rotated'] else 'no'}, api=minimax -->\n\n")
+                f.write(f"<!-- repaired: rotated={'yes' if info['rotated'] else 'no'}, "
+                        f"method={'local-ocr' if local_used else 'api-minimax'} -->\n\n")
                 f.write(txt + "\n")
         print(f"  表格 {st['real_rows']} 实质行 x {st['cols']} 列, "
+              f"{'[本地重建, 低置信]' if local_used else '[API]'}, "
               f"已写 {os.path.relpath(out, REPO)}")
         print("  " + txt.split("\n")[0][:170])
 
