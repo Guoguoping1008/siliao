@@ -99,12 +99,52 @@ def find_border_spike(cc, W):
     return None, ""
 
 
+def find_profile_floor(cc, W):
+    """形态 C: 无白沟、也无孤立尖峰 —— 靠**暗像素剖面的下降到底**判断。
+
+    实测 0245: 暗像素从 x=2300 的 2986 一路衰减到 x=2740 的 725,
+    之后**基本持平**(690~800) 直到对页内容重新起来。
+    那个「衰减到底后持平」的起点, 就是左页内容的右边界。
+
+    判据: 在中线附近找「往右走 80px 内 cc 的降幅 < 5%」的第一个位置
+    (即斜率归零点), 且该处 cc 已经降到局部中位数的 1.6 倍以下。
+    """
+    lo, hi = int(W * 0.30), int(W * 0.72)
+    win = 121
+    for x in range(lo, hi - 80, 4):
+        a0, a1 = x, x + 80
+        seg = cc[a0:a1]
+        if seg[0] <= 0:
+            continue
+        drop = (seg[0] - seg.min()) / seg[0]
+        # 衰减到底: 前 60px 降了 >=25%, 后 20px 基本平
+        if drop >= 0.25:
+            tail = float(np.mean(seg[-20:]))
+            mid = float(np.median(cc[max(0, x - win):min(W, x + win + 1)]))
+            if tail < mid * 1.7 and tail > 0:
+                return x, f"剖面见底 {x} (底值={tail:.0f}, 邻中位={mid:.0f})"
+    return None, ""
+
+
 def find_spine(img, verbose=False):
-    """返回 (cut_x, 说明)"""
+    """返回 (cut_x, 说明)
+
+    顺序很重要: **A 白沟 -> C 剖面见底 -> B 孤立尖峰**。
+    坑: 早先把 B 放在 C 前面, 结果 0255/0155 被 B 抢先命中了
+    **页面内部**的表格竖线(2249/3167), 而不是页边界。
+    B 的尖峰特征不足以区分「表格内竖线」和「页边界竖线」,
+    所以它只能当最后手段。
+    """
     cc, H, W = _profile(img)
+    # A) 白沟
     cut, why = find_zero_gap(cc, W)
     if cut is not None:
         return cut, why
+    # C) 剖面见底
+    cut, why = find_profile_floor(cc, W)
+    if cut is not None:
+        return cut, why
+    # B) 孤立尖峰
     cut, why = find_border_spike(cc, W)
     if cut is not None:
         return cut, why

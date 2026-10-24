@@ -263,6 +263,44 @@ def repair_page(page_img, tag, src_rel, dry_run=False):
     return body
 
 
+def repair_page_multi_cut(src_img, page_no, stem, src_rel):
+    """用「多候选切点 + OCR 反馈选优」重生成一页。
+
+    实测: 纯图像算法的书脊定位在 0255 上偏 484px(切掉了左页最后一列),
+    而 OCR 反馈能靠「列宽不齐」「标题被切」「串页页眉」三个信号把坏切点筛掉。
+    """
+    import _spine_pick
+    im = Image.open(src_img).convert("RGB")
+    W, H = im.size
+    cands, base, why = _spine_pick.gen_candidates(im)
+    print(f"  候选 {cands} (基线 {base}: {why})")
+    is_right = (page_no % 2 == 1)
+    results = []
+    for c in cands:
+        if is_right:
+            page = im.crop((c, 0, W, H))
+        else:
+            page = im.crop((0, 0, c, H))
+        if page.size[0] < 300:
+            continue
+        try:
+            raw = clean(_spine_pick.api_ocr(prep_bytes(page), _spine_pick.TABLE_PROMPT))
+        except Exception as e:
+            print(f"    cut={c}: API 失败 {e}")
+            continue
+        s, d = _spine_pick.score(raw)
+        results.append((s, c, raw, d))
+        print(f"    cut={c}: score={s:+.0f}  {d}")
+    if not results:
+        return None
+    results.sort(key=lambda r: -r[0])
+    best = results[0]
+    print(f"  -> 选中 cut={best[1]} (score={best[0]:+.0f})")
+    return (f"<!-- source: {src_rel} -->\n"
+            f"<!-- repaired: rotated=no, method=api-minimax -->\n\n"
+            f"{best[2].strip()}\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pages", default="", help="逗号分隔的 stem 列表")
@@ -270,6 +308,8 @@ def main():
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--multi-cut", action="store_true",
+                    help="多候选切点 + OCR 反馈选优(更准, 但每页要调 5~7 次 API)")
     ap.add_argument("--scan-json", default=os.path.join(REPO, "_degen_scan.json"))
     args = ap.parse_args()
 
@@ -312,18 +352,22 @@ def main():
     for stem, folder, page, rel in uniq:
         src = pidx[(folder, page)]
         md = midx[stem]
+        src_rel = os.path.relpath(src, REPO).replace("\\", "/")
         print(f"\n=== {stem}  ({rel}) ===")
         print(f"  源图 {src}")
-        left, right, cut, why = make_pages(src, page)
-        # page 是奇数 -> 右半; 偶数 -> 左半
-        is_right = (page % 2 == 1)
-        img = right if is_right else left
-        print(f"  书脊切点 x={cut} ({why}), 取{'右' if is_right else '左'}半 "
-              f"{img.size[0]}x{img.size[1]}")
         if args.dry_run:
+            left, right, cut, why = make_pages(src, page)
+            print(f"  书脊切点 x={cut} ({why})")
             continue
-        body = repair_page(img, stem, os.path.relpath(src, REPO).replace("\\", "/"),
-                           args.dry_run)
+        if args.multi_cut:
+            body = repair_page_multi_cut(src, page, stem, src_rel)
+        else:
+            left, right, cut, why = make_pages(src, page)
+            is_right = (page % 2 == 1)
+            img = right if is_right else left
+            print(f"  书脊切点 x={cut} ({why}), 取{'右' if is_right else '左'}半 "
+                  f"{img.size[0]}x{img.size[1]}")
+            body = repair_page(img, stem, src_rel, args.dry_run)
         if not body:
             print("  放弃")
             continue
