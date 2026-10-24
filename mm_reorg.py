@@ -115,9 +115,41 @@ def build_docs(entries):
     return docs
 
 
+def section_of(docs, idx):
+    """docs[idx] 这条如果是 ### 级, 它自己就是"节"(它的子条目挂在它下面)。"""
+    lv, t = docs[idx][0], docs[idx][1]
+    if lv == 3:
+        return t
+    return docs[idx][5]
+
+
 def doc_ranges(docs):
-    """独立文件(####级且有页码) -> [(标题, 起, 止, 文号, 章, 节)]"""
-    files = [(t, p, dn, c, s) for lv, t, p, dn, c, s in docs if lv == 4 and p is not None]
+    """独立文件 -> [(标题, 起, 止, 文号, 章, 节)]
+
+    坑: 有的 ### 条目本身就是整部文件(下面没有 #### 子条目),
+    比如「（一）中华人民共和国畜牧法」。这种要当文件处理,
+    不能当分类(否则它下面的页没有归属)。
+
+    坑2: ### 条目的"节"是**它自己**的标题(它的 #### 子条目挂在它下面),
+    不是父级的节。判断"有没有子条目"时要拿自己的标题去比。
+    """
+    # 每个 ### 有没有 #### 子条目: 用 ### 自己的标题当 key
+    has_child = set()
+    for i, (lv, t, p, dn, c, s) in enumerate(docs):
+        if lv == 4:
+            has_child.add(section_of(docs, i))
+
+    # 独立文件 = #### 级且有页码 的, 加上 ### 级且无子条目且有页码 的
+    # 必须保持**目录里的原始顺序**, 否则 end = 下一个文件的起页-1 会算错
+    files = []
+    for i, (lv, t, p, dn, c, s) in enumerate(docs):
+        if p is None:
+            continue
+        if lv == 4:
+            files.append((t, p, dn, c, section_of(docs, i)))
+        elif lv == 3 and t not in has_child:
+            # 本身就是整部文件 -> 它自己不是"节", 节的归属用父级
+            files.append((t, p, dn, c, s))
     out = []
     for k, (t, p, dn, c, s) in enumerate(files):
         end = (files[k + 1][1] - 1) if k + 1 < len(files) else 10 ** 9
