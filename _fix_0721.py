@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""重生成 0721 —— 页面是**正文 + 2 个「专栏」方框**, 原 md 把整页塞进一个表。
+"""重生成 0721 —— 页面是**纯正文 + 2 个「专栏」方框**, 方框是**文本框**不是表格。
 
 【页面映射(先读页码确认)】
 Images/02制度文件/0721.jpg = 书第 720(左) + 721(右)
@@ -12,20 +12,19 @@ Images/02制度文件/0721.jpg = 书第 720(左) + 721(右)
   <tr><th colspan="2">专栏3 畜禽养殖标准化示范创建</th></tr>
   <tr><td>以《国家畜禽遗传资源目录》中的生猪、奶牛…</td></tr>
   <tr><td>提升设施装备水平。制定主要畜禽品种规模化养殖…</td></tr>   <- 这两段是**正文**
-  ...
 问题: **正文段落也被当成了表格的一行**, 而且 2 个专栏 + 4 段正文混在一个表里,
       完全看不出版面结构。
 
-【页721 的真实结构】
-  正文 3 段(小养殖户融入现代生产体系… / 推行全面标准化生产方式… / 实施不同畜品种…)
-  专栏 3 畜禽养殖标准化示范创建   <- **有框线的方框**: 标题行 + 内容行
+【页721 的真实结构(放大确认过)】
+  正文 2 段(小养殖户融入现代生产体系 / 推行全面标准化生产方式)
+  专栏 3 畜禽养殖标准化示范创建   <- **一个矩形框 + 标题下一条横线**,
+                                    **内部没有任何竖线**, 是**文本框**不是表格
   正文 2 段(提升设施装备水平 / 促进牧区生产方式转型升级)
   专栏 4 推进肉牛肉羊生产发展五年行动  <- 同上
 
 【专栏怎么表示】
-专栏在扫描件上**确实有框线**, 是「标题行 + 内容行」的 2 行 1 列方框。
-按图保留成**各自独立的一张小表**(colspan=1), 正文用段落。
-绝不能把正文段落也塞进表里。
+专栏**没有单元格网格**(无竖向分隔线, 只有外框 + 标题下一条横线),
+所以**不是表格**。用「标题 + 段落」表示, 不建 <table>。
 """
 import os
 import re
@@ -102,12 +101,16 @@ def tr(cells):
 
 
 def box(title, body):
-    """专栏方框: 标题行 + 内容行, 1 列 2 行。"""
+    """专栏方框 —— **不是表格**, 用标题 + 段落。
+
+    坑: 专栏在扫描件上**有外框**, 但框内**没有任何竖向分隔线**,
+    只有「外框 + 标题下一条横线」—— 这是**文本框(text frame)**, 不是单元格网格。
+    建成 <table> 会凭空造出不存在的行/列结构。
+    """
     return "\n".join([
-        "<table border=\"1\">",
-        tr([td(title, "th")]),
-        tr([td(body)]),
-        "</table>",
+        "### %s" % title,
+        "",
+        body,
         "",
     ])
 
@@ -115,7 +118,7 @@ def box(title, body):
 def build():
     out = [
         "<!-- source: Images/02制度文件/0721.jpg (split: 0721, 右半, cut=%d) -->" % CUT,
-        "<!-- repaired: rotated=no, method=api-minimax, form=prose+box, multi-table -->",
+        "<!-- repaired: rotated=no, method=api-minimax, form=prose, no-table -->",
         "",
         P1,
         "",
@@ -133,26 +136,9 @@ def build():
 
 def check(txt):
     errs = []
-    tabs = re.findall(r"<table.*?</table>", txt, re.S)
-    # 2 个专栏 = 2 张表
-    if len(tabs) != 2:
-        return ["表数 %d != 2" % len(tabs)]
-    for i, tb in enumerate(tabs, 1):
-        raws = re.findall(r"<tr[^>]*>(.*?)</tr>", tb, re.S)
-        if len(raws) != 2:
-            errs.append("专栏%d 行数 %d != 2" % (i, len(raws)))
-        for j, r in enumerate(raws):
-            n = len(re.findall(r"<t[dh][^>]*>", r, re.I))
-            if n != 1:
-                errs.append("专栏%d 第%d行 %d格(应1)" % (i, j + 1, n))
-    # 专栏标题必须在表内
-    for k in (Z3_TITLE, Z4_TITLE):
-        if k not in tabs[0] and k not in tabs[1]:
-            errs.append("专栏标题不在表内: " + k[:14])
-    # 正文段落不能被塞进表里
-    for k in (P1, P4, P5):
-        if k in tabs[0] or k in tabs[1]:
-            errs.append("正文被塞进了表里: " + k[:14])
+    # 这一页**没有表格** —— 专栏是文本框
+    if "<table" in txt:
+        errs.append("页721 没有表格(专栏是文本框), 不该有 <table>")
     for k in ("小养殖户融入现代生产体系",
               "推行全面标准化生产方式",
               "提升设施装备水平",
@@ -164,6 +150,10 @@ def check(txt):
               "建设一批动物疫病净化场、无规定动物疫病区和生物安全隔离区"):
         if k not in txt:
             errs.append("缺: " + k[:22])
+    # 专栏标题要独立成标题行
+    for k in (Z3_TITLE, Z4_TITLE):
+        if ("\n### %s\n" % k) not in txt:
+            errs.append("专栏标题没独立成行: " + k[:14])
     if len(txt.encode("utf-8")) < 2400:
         errs.append("内容过短(%d 字节)" % len(txt.encode("utf-8")))
     return errs
@@ -176,7 +166,7 @@ def main():
         print("!! 质量门未过: %s" % "; ".join(errs[:8]))
         return 1
     open(OUT, "w", encoding="utf-8").write(txt)
-    print("OK 0721 -> %s (%d 字节, 2 专栏框 + 4 段正文)" %
+    print("OK 0721 -> %s (%d 字节, 0 表, 2 专栏 + 4 段正文)" %
           (os.path.relpath(OUT, REPO), len(txt.encode("utf-8"))))
     return 0
 
