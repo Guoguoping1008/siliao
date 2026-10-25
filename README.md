@@ -55,13 +55,20 @@ siliao/
 | 指标 | 当前值 | 来源 |
 |---|---|---|
 | 检索 recall@10(minimax 语料, 50 用例) | **76.0%** | evals/eval_minimax.py |
-| 检索 MRR(minimax 语料) | **0.544** | evals/eval_minimax.py |
-| ├ 业务 query(20 条自然语言问句) | recall@10 **75.0%** / MRR 0.488 | 同上 |
-| └ 语料派生 query(30 条正文片段) | recall@10 **76.7%** / MRR 0.581 | 同上 |
+| 检索 recall@20 | **68.0%** | 同上 |
+| 检索 MRR | **0.647** | 同上 |
+| ├ 业务 query(20 条自然语言问句) | recall@10 **80.0%** / MRR **0.717** | 同上 |
+| └ 语料派生 query(30 条正文片段) | recall@10 **73.3%** / MRR 0.600 | 同上 |
+| negative 严格精度 | **100%** (0/4 真命中) | 同上 |
 | 检索对比:重构前(长 query 直接 MATCH) | recall@10 25%(业务 query) | ADR-003 |
+| 检索对比:纯 FTS5(不接 bge) | MRR 0.544 / 业务 MRR 0.488 | EVAL_NO_BGE=1 |
 | 前端单元测试 | 34/34 通过 | vitest,4 个测试文件 |
+| 前端 e2e 测试 | 9/9 通过 | Playwright,CI 自动装 Chromium |
 | 前端体积 | 197.51KB / 62.76KB gzip(主 chunk) | web/dist |
 | 检索延迟 | D1 FTS5 ~5-15ms;gram 路径 2 批 D1 batch | 边缘节点 |
+
+> **bge 语义层**(可选,本地跑 `build/proxy/bge_server.py`):
+> 业务 query 的 MRR 从 0.488 → **0.717**(+47%)——这是纯 FTS5 拿不到的语义近义召回。
 
 ## 快速开始(本地)
 
@@ -84,11 +91,18 @@ cd ../..
 python build/export/push_minimax_r2.py            # local
 python build/export/push_minimax_r2.py --remote   # 真 Cloudflare
 
-# 5. 起 Worker
+# 5. (可选)起 bge 语义服务 —— 不起则自动退化为纯 FTS5
+cd ..
+HF_HUB_OFFLINE=1 BGE_HOST=0.0.0.0 BGE_PORT=8080 \
+  BGE_CACHE=$PWD/evals/bge_m3_cache.json \
+  BGE_ARTICLES=$PWD/evals/articles_cache.json \
+  python build/proxy/bge_server.py &
+
+# 6. 起 Worker(BGE_SERVER_URL 要填**本机 LAN IP**, 127.0.0.1 在 miniflare 沙箱里指不到宿主)
 cd query/worker
 npx wrangler dev --local --port 8788 --ip 127.0.0.1
 
-# 6. 起前端(默认走 mock;VITE_USE_MOCK=false 走真 worker)
+# 7. 起前端(默认走 mock;VITE_USE_MOCK=false 走真 worker)
 cd ../../web
 npm run dev
 ```

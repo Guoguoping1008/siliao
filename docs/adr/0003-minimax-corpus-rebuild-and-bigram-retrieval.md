@@ -141,7 +141,36 @@ A 档(整句 phrase 精确匹配)与 B 档(bigram RRF)的精度差一个数量�
 - `documents` 表加 `is_toc` / `sort_order` 两列; schema 用独立 `migrate.sql` 做幂等 ALTER
   (`CREATE TABLE IF NOT EXISTS` **不会**给已存在的表加列, 改了 schema.sql 必须配迁移)
 
-### 3.7 评测集里的 query 必须取自**条文自己的正文**
+### 3.7 bge 语义层:三个 bug + 融合权重
+
+| bug | 根因 | 症状 |
+|---|---|---|
+| bge 命中全被挤出 top20 | RRF 两路**量纲不一致**: gram 路径 ftsScore 是「A 档 1000+ / B 档 ~0.05」混合值, bge 贡献 ~0.005, 差 3~4 个数量级 | bge 自己 top20 全军覆没, 最终结果带 bge_rank 的只有 0~3 条 |
+| bge 语义 top-k 被稀释 | `bge_m3_cache.json` 里有 **515 条旧语料残留**(`flc23_*`) | 语义命中里 1/7 是不存在的旧文档 |
+| bge_server 起不来 | `SentenceTransformer(MODEL_NAME)` 不带 cache_folder → 去 hf-mirror 拉模型, 国内网络 5 次重试全 timeout | 服务根本起不来 |
+
+**对策**:
+- **两路 rank 统一成「序位」(1..N)** 再算 `1/(K+rank)`。
+  FTS5 的 `rank` 是原始 BM25 值(**负数**, 量纲跟 bge 的 rank 完全不同), 必须转序位。
+  LIKE 补位的行也要给序位(给 0 等于把这路贡献丢了)。
+- bge cache 按当前 corpus 清理
+- `SentenceTransformer(name, cache_folder=".models/hf")` + `HF_HUB_OFFLINE=1` 强制离线
+
+**融合权重实测扫参**(bge cache 清理后):
+
+| 方案 | recall@10 | recall@20 | MRR | 业务 query MRR |
+|---|---|---|---|---|
+| FTS5 only | 50.0% | 56.0% | 0.544 | 0.488 |
+| weighted-rrf w=0.7 | 50.0% | 56.0% | 0.645 | 0.700 |
+| **weighted-rrf w=1.0(选)** | **56.0%** | **68.0%** | **0.647** | **0.717** |
+| interleave(各占一半坑位) | 54.0% | 66.0% | 0.580 | 0.585 |
+
+bge 权重太小 → 命中被挤走; 太大 → 稀释「精确短语」query。等权最稳。
+
+**注意**: 权重必须在 **bge cache 清理之后**再扫 —— 旧语料残留会让 bge 信号变弱,
+扫出来的最优权重偏小(0.7), 清理后最优是 1.0。
+
+### 3.8 评测集里的 query 必须取自**条文自己的正文**
 
 从 `articles_fts.text` 取短语会串味 —— 那是「章号 + 章名 + 文档名 + 正文」的**注入版**,
 短语会跨条文串味,导致生成的 query 在目标条文里根本不存在(评测集本身错,数字失真)。
