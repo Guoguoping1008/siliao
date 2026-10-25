@@ -143,6 +143,21 @@ jobs:
         run: python build/export/ingest_minimax.py
       - name: 跑 minimax retrieval eval
         run: python evals/eval_minimax.py
+      - name: 断言 recall 不退化
+        # 门禁: recall@10 跌破 70% 就让 CI 红。
+        # 基线 76%(ADR-003); 换语料/改检索逻辑时这个门禁会挡住退化。
+        run: |
+          python - <<'EOF'
+          import re, sys, pathlib
+          md = pathlib.Path("evals/minimax_retrieval_report.md").read_text(encoding="utf-8")
+          m = re.search(r"recall@10\s*\|\s*\*\*([\d.]+)%\*\*", md)
+          if not m:
+              sys.exit("解析 recall@10 失败")
+          val = float(m.group(1))
+          print(f"recall@10 = {val}%")
+          if val < 70.0:
+              sys.exit(f"recall@10 {val}% < 70% 基线, 检索退化")
+          EOF
       - name: 上传 eval 报告
         if: always()
         uses: actions/upload-artifact@v4
