@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -176,12 +177,45 @@ def gram_search(con: sqlite3.Connection, grams: list[str], raw_query: str = "") 
     return out[:20]
 
 
+# ---------- bge 语义路(可选) ----------
+# Worker 通过 fetch BGE_SERVER_URL 拿 bge 召回; 这里直连同一个服务。
+# EVAL_NO_BGE=1 时只测 FTS5 路径。
+BGE_URL = os.environ.get("BGE_SERVER_URL", "http://127.0.0.1:8080")
+USE_BGE = os.environ.get("EVAL_NO_BGE", "") != "1"
+_BGE_AVAILABLE: bool | None = None
+
+
+def bge_search(q: str, top_k: int = 20) -> list[str]:
+    """调 bge_server 的 /v1/search。服务不可达时返回空(退化为纯 FTS5)。"""
+    global _BGE_AVAILABLE
+    if _BGE_AVAILABLE is False:
+        return []
+    import urllib.request
+    try:
+        body = json.dumps({"query": q, "top_k": top_k}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{BGE_URL}/v1/search", data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.loads(r.read())
+        _BGE_AVAILABLE = True
+        return [h["article_id"] for h in data.get("hits", [])]
+    except Exception:
+        _BGE_AVAILABLE = False
+        return []
+
+
 def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
     """复刻 Worker 的 searchArticles 主路径。
 
     - query 切出多个 term (长自然语言问题) → gram_search (bigram + RRF + 标题加权)
     - 否则 → 单次 FTS5 MATCH
     - 两者都补 LIKE 兜底
+    - **可选** bge 语义路(RRF 融合, 与 Worker 同权)
+
+    ⚠️ 融合口径与 Worker 一致: 两路都按**序位**算 1/(K+rank), 再加权相加。
+       量纲不一致时 bge 会被 FTS5 压死(实测 bge 自己的 top20 全被挤出)。
     """
     fts_query = escape_fts(q)
     if not fts_query:
@@ -191,13 +225,13 @@ def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
     grams = query_term_grams(q)
     use_gram = len(grams) > 1
 
-    hits: list[str] = []
+    fts_ordered: list[str] = []
     seen: set[str] = set()
 
     if use_gram:
         for aid in gram_search(con, grams, q):
             if aid not in seen:
-                hits.append(aid)
+                fts_ordered.append(aid)
                 seen.add(aid)
     else:
         try:
@@ -210,11 +244,12 @@ def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
             rows = []
         for (aid,) in rows:
             if aid not in seen:
-                hits.append(aid)
+                fts_ordered.append(aid)
                 seen.add(aid)
 
     # LIKE 兜底: 仅当 FTS5 已有命中且不足 20 时启用(与 Worker 一致)
-    if len(hits) > 0 and len(hits) < 20 and re.search(r"[\u4e00-\u9fff]", q):
+    cjk = re.compile("[\u4e00-\u9fff]")
+    if len(fts_ordered) > 0 and len(fts_ordered) < 20 and cjk.search(q):
         rows = con.execute(
             "SELECT article_id FROM articles_fts "
             "WHERE title LIKE ?1 OR text LIKE ?1 ORDER BY instr(text, ?2) LIMIT ?3",
@@ -222,12 +257,29 @@ def search(con: sqlite3.Connection, q: str, top_k: int = 20) -> list[str]:
         ).fetchall()
         for (aid,) in rows:
             if aid not in seen:
-                hits.append(aid)
+                fts_ordered.append(aid)
                 seen.add(aid)
 
-    return hits[:top_k]
+    # bge 语义路
+    bge_ordered = bge_search(q) if USE_BGE else []
+    if not bge_ordered:
+        return fts_ordered[:top_k]
 
-
+    # RRF 融合: 两路都按序位算 1/(K+rank)
+    # ⚠️ BGE_W = 1.0(与 FTS 等权):
+    #   - bge 权重太小 → 命中被 FTS5 挤出 top20(实测带 bge_rank 的只剩 0~3 条)
+    #   - 实测扫参(bge cache 清理掉旧语料残留后):
+    #     FTS5 only → recall@10 50.0% / MRR 0.544 / 业务 MRR 0.488
+    #     w=0.7    → recall@10 50.0% / MRR 0.645 / 业务 MRR 0.700
+    #     w=1.0    → recall@10 56.0% / MRR 0.647 / 业务 MRR 0.717(选)
+    K = 60
+    BGE_W = 1.0
+    fused: dict[str, float] = {}
+    for i, aid in enumerate(fts_ordered, 1):
+        fused[aid] = fused.get(aid, 0.0) + 1.0 / (K + i)
+    for i, aid in enumerate(bge_ordered, 1):
+        fused[aid] = fused.get(aid, 0.0) + BGE_W / (K + i)
+    return sorted(fused, key=lambda a: -fused[a])[:top_k]
 # ---------- 评测集 ----------
 
 def build_eval_set(con: sqlite3.Connection, n: int = 30) -> list[dict]:

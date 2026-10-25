@@ -84,13 +84,33 @@ _startup_time = time.time()
 
 
 def get_model():
-    """延迟加载 bge-m3 模型"""
+    """延迟加载 bge-m3 模型
+
+    ⚠️ 必须指定 **本地缓存目录**(cache_folder) —— 否则 sentence_transformers
+       会去 hf-mirror.com 拉模型, 而国内网络下 hf-mirror 经常连不上
+       (实测: 5 次重试全 timeout, 服务起不来)。
+       模型已在 .models/hf/ 里(embed_articles.py 早就下好了),
+       用 cache_folder 指过去即可, 完全离线可用。
+
+       也支持 HF_HUB_OFFLINE=1 强制离线。
+    """
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
-        print(f"[bge] loading {MODEL_NAME} (首次启动会下载 ~2.27GB)...", flush=True)
+        cache_dir = os.environ.get("BGE_CACHE_DIR") or str(
+            Path(__file__).resolve().parent.parent.parent / ".models" / "hf"
+        )
+        print(f"[bge] loading {MODEL_NAME} (cache_folder={cache_dir})...", flush=True)
         t0 = time.time()
-        _model = SentenceTransformer(MODEL_NAME)
+        kwargs = {"cache_folder": cache_dir, "device": "cpu"}
+        if os.environ.get("HF_HUB_OFFLINE") == "1":
+            kwargs["local_files_only"] = True
+        try:
+            _model = SentenceTransformer(MODEL_NAME, **kwargs)
+        except Exception as e:
+            print(f"[bge] load failed with cache_folder, retrying offline: {e}", flush=True)
+            kwargs["local_files_only"] = True
+            _model = SentenceTransformer(MODEL_NAME, **kwargs)
         print(f"[bge] loaded in {time.time() - t0:.1f}s, "
               f"dim={_model.get_sentence_embedding_dimension()}", flush=True)
     return _model

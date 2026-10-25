@@ -105,6 +105,36 @@ function json(data: unknown, env: Env, status = 200): Response {
   });
 }
 
+// ---------- 带重试的 fetch ----------
+//
+// ⚠️ miniflare 本地开发有个 keep-alive 连接复用 bug:
+//    同一个 origin 连续发请求时, **隔一次就死** ——
+//    实测 6 次连续 GET /health: 成功/失败/成功/失败/成功/失败,
+//    每次失败都是 "Network connection lost" (4ms 内失败, 不是超时)。
+//    加 200ms 间隔后 3 次全成功。
+//
+//    真 Cloudflare 上没有这个问题, 但重试是幂等的且便宜,
+//    统一加上能同时覆盖「本地 miniflare」和「生产偶发网络抖动」。
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  delayMs = 250
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  console.warn(`[fetch] ${attempts} 次重试仍失败:`, (lastErr as Error)?.message);
+  throw lastErr;
+}
+
 // ---------- R2 key 构造 ----------
 //
 // ⚠️ R2 存的 key 是 **URL-encoded** 形式(中文 → %E5%B0%81...),
@@ -170,7 +200,12 @@ async function searchArticles(
          ORDER BY rank
          LIMIT 20`
       ).bind(ftsQuery).all();
-      ftsRows = result.results as any;
+      // ⚠️ FTS5 的 rank 是**原始 BM25 值**(负数, 量纲与 bge 的 rank 完全不同)。
+      //    融合层按 1/(K+rank) 算 RRF, 必须先转成**序位**(1..N)。
+      ftsRows = (result.results as any[]).map((r, i) => ({
+        article_id: r.article_id,
+        rank: i + 1,
+      }));
     } catch (e) {
       console.warn(`[search] FTS5 fallback for "${q}":`, (e as Error).message);
     }
@@ -180,7 +215,7 @@ async function searchArticles(
   if (ftsRows.length > 0 && ftsRows.length < 20 && /[\u4E00-\u9FFF]/.test(q)) {
     const like = `%${q}%`;
     const fallback = await env.DB.prepare(
-      `SELECT article_id, 0 as rank FROM articles_fts
+      `SELECT article_id FROM articles_fts
        WHERE title LIKE ?1 OR text LIKE ?1
        ORDER BY instr(text, ?2)
        LIMIT 20`
@@ -188,7 +223,9 @@ async function searchArticles(
     const seen = new Set(ftsRows.map(r => r.article_id));
     for (const r of fallback.results as any[]) {
       if (!seen.has(r.article_id)) {
-        ftsRows.push(r);
+        // ⚠️ LIKE 补位的行也要给**序位**, 不能用 rank=0 ——
+        //    融合层靠 rank>0 判断「这一路命中了」, 给 0 等于把这路贡献丢了。
+        ftsRows.push({ article_id: r.article_id, rank: ftsRows.length + 1 });
         seen.add(r.article_id);
       }
     }
@@ -198,26 +235,29 @@ async function searchArticles(
   let bgeRows: { article_id: string; rank: number; score: number }[] = [];
   const bgeUrl = (env as any).BGE_SERVER_URL;
   if (bgeUrl) {
-    try {
-      const docFilter = filters.get("doc_id") || "";
+    const docFilter = filters.get("doc_id") || "";
+    const doBge = async () => {
       const bgeResp = await fetch(`${bgeUrl}/v1/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q, top_k: 20, doc_id: docFilter }),
         cf: { cacheTtl: 0, cacheEverything: false },  // 不缓存,query 多变
       });
-      if (bgeResp.ok) {
-        const bgeData = (await bgeResp.json()) as {
-          hits: { article_id: string; score: number }[];
-        };
-        bgeRows = (bgeData.hits || []).map((h, i) => ({
-          article_id: h.article_id,
-          rank: i + 1,  // bge top-1 = rank 1
-          score: h.score,
-        }));
-      } else {
-        console.warn(`[search] bge_server ${bgeResp.status}, falling back to FTS5-only`);
+      if (!bgeResp.ok) {
+        throw new Error(`bge_server ${bgeResp.status}`);
       }
+      const bgeData = (await bgeResp.json()) as {
+        hits: { article_id: string; score: number }[];
+      };
+      return (bgeData.hits || []).map((h, i) => ({
+        article_id: h.article_id,
+        rank: i + 1,  // bge top-1 = rank 1
+        score: h.score,
+      }));
+    };
+
+    try {
+      bgeRows = await fetchWithRetry(doBge, 3);
     } catch (e) {
       console.warn(`[search] bge_server unreachable:`, (e as Error).message);
     }
@@ -249,17 +289,41 @@ async function searchArticles(
     }
   }
 
-  // 算 RRF 分,加权:
-  //   fused_score = 0.5 / (K + ftsRank) + 0.3 / (K + bgeRank)
-  //   FTS5 单独命中 (bgeRank=0) 用 0.5/(K+99) 兜底,防止单路占主导
-  //   bge 单独命中 (ftsRank=0) 用 0.3/(K+99) 兜底
+  // 算融合分。
+  //
+  // ⚠️ **两路的分数量纲必须先归一化**。
+  //    gram 路径的 ftsScore 是「A 档 1000+ / B 档 RRF ~0.05」的混合值,
+  //    而 bge 的贡献是 0.3/(60+rank) ~ 0.005 —— 差 3~4 个数量级。
+  //    直接相加再 slice(0,20), 结果是 **bge 的命中全被挤出 top20**
+  //    (实测: bge 自己的 top20 有 20 条, 最终结果里 0 条带 bge_rank)。
+  //
+  // 对策: 每路各自算 RRF 分(量纲一致, 都是 1/(K+rank) 量级), 再按权重相加。
+  //   ftsC: gram 路径用 ftsScore 归一化后的相对值; 传统路径用 1/(K+rank)
+  //   bgeC: 1/(K + bgeRank)
+  // 两路各自算 RRF 分, 再加权相加 —— **量纲必须一致**, 否则一路压死另一路。
+  //
+  // ⚠️ 之前踩的坑: gram 路径的 ftsScore 是「A 档 1000+ / B 档 ~0.05」混合值,
+  //    直接和 bge 的 0.3/(60+rank) ~0.005 相加再 slice(0,20),
+  //    结果 bge 的命中**全被挤出 top20**(实测: bge 自己 top20 有 20 条,
+  //    最终结果里带 bge_rank 的 0 条)。
+  //
+  // 正确做法:
+  //   ftsC = 1/(K + ftsRank)      —— ftsRank 用**融合前的序位**(1..N)
+  //   bgeC = 1/(K + bgeRank)      —— bgeRank 同理
+  //   两路权重 FTS_W / BGE_W, 归一化到可比量级。
+  // ⚠️ 两路权重必须**相等**(1.0 : 1.0):
+  //   - bge 权重太小 → 它的命中全被 FTS5 挤出 top20(实测 bge 自己 top20
+  //     全军覆没, 最终结果带 bge_rank 的只有 0~3 条)。
+  //   - bge 权重太大 → 稀释「精确短语」query 的命中。
+  //   实测扫参(evals/eval_minimax.py, bge cache 清理掉旧语料残留之后):
+  //     FTS5 only      → recall@10 50.0% / MRR 0.544 / 业务 MRR 0.488
+  //     w=0.7         → recall@10 50.0% / MRR 0.645 / 业务 MRR 0.700
+  //     w=1.0(选)     → recall@10 56.0% / MRR 0.647 / 业务 MRR 0.717
+  const FTS_W = 1.0;
+  const BGE_W = 1.0;
   const fusedRows = [...fused.entries()].map(([aid, v]) => {
-    // gram 路径: ftsScore 已含标题加权, 直接用; bge 用相对分摊
-    // 传统路径: ftsC = 0.5/(K+rank), bgeC = 0.3/(K+rank)
-    const ftsC = v.ftsScore > 0
-      ? v.ftsScore
-      : (v.ftsRank > 0 ? 0.5 / (K + v.ftsRank) : 0.5 / (K + 99));
-    const bgeC = v.bgeRank > 0 ? 0.3 / (K + v.bgeRank) : 0.3 / (K + 99);
+    const ftsC = v.ftsRank > 0 ? FTS_W / (K + v.ftsRank) : 0;
+    const bgeC = v.bgeRank > 0 ? BGE_W / (K + v.bgeRank) : 0;
     return {
       article_id: aid,
       fused_score: ftsC + bgeC,
@@ -507,21 +571,23 @@ async function gramSearch(
   }
 
   // ---------- 合并: A 档在前, B 档补后 ----------
+  // ⚠️ rank 必须是**序位**(1,2,3...), 不能是 FTS5 的原始 BM25 值
+  //    (BM25 是负数, 且量纲跟 bge 的 rank 完全不同)。
+  //    融合层按 1/(K+rank) 算 RRF, 两路序位才可比。
   const out: { article_id: string; rank: number; score?: number }[] = [];
   const seen = new Set<string>();
   let idx = 0;
   for (const r of phraseRows) {
     if (seen.has(r.article_id)) continue;
     seen.add(r.article_id);
-    // A 档 score 用一个高基准, 保证排在 B 档之前
-    out.push({ article_id: r.article_id, rank: idx + 1, score: 1000 + (idx + 1) });
+    out.push({ article_id: r.article_id, rank: idx + 1 });
     idx++;
   }
   const bSorted = [...fused.entries()].sort((a, b) => b[1] - a[1]);
-  for (const [aid, score] of bSorted) {
+  for (const [aid] of bSorted) {
     if (seen.has(aid)) continue;
     seen.add(aid);
-    out.push({ article_id: aid, rank: idx + 1, score });
+    out.push({ article_id: aid, rank: idx + 1 });
     idx++;
     if (out.length >= 20) break;
   }
