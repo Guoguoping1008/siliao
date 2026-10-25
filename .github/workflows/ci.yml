@@ -21,12 +21,22 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      # mockData 通过 import.meta.glob 加载 data/index/minimax/ 下的
+      # 逐条 markdown —— 这些是 gitignore 的可重生成产物, CI 必须先跑摄入。
+      - name: 生成索引产物(mockData 数据源)
+        run: |
+          cd ..
+          python build/export/ingest_minimax.py
+          cd web
       - run: npm test
 
   # ===== 前端 build =====
@@ -38,12 +48,20 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: 生成索引产物(mockData 数据源)
+        run: |
+          cd ..
+          python build/export/ingest_minimax.py
+          cd web
       - run: npx tsc --noEmit
       - run: npm run build
       - name: 上传 dist 供后续 job 用
@@ -62,12 +80,20 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: 生成索引产物(mockData 数据源)
+        run: |
+          cd ..
+          python build/export/ingest_minimax.py
+          cd web
       - name: 装 Chromium
         run: npx playwright install --with-deps chromium
       - name: 跑 e2e
@@ -113,16 +139,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: 生成 seed.sql
-        run: python build/export/seed_d1.py data/markdown/feed-law-2026/articles.json data/markdown/feed-law-2026/chapters.json
-      - name: 跑 retrieval eval
-        run: python evals/eval_retrieval.py
-      - name: 跑 faithfulness eval
-        run: python evals/eval_qa_faithfulness.py
+      - name: 生成索引产物 + seed.sql
+        run: python build/export/ingest_minimax.py
+      - name: 跑 minimax retrieval eval
+        run: python evals/eval_minimax.py
       - name: 上传 eval 报告
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
-          path: evals/retrieval_report.md
+          path: |
+            evals/minimax_retrieval_report.md
+            evals/minimax_retrieval_report.jsonl
           retention-days: 30

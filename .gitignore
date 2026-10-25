@@ -94,6 +94,14 @@ data/markdown/feed-law-collection-2023-full/
 # LLM 结构化中间产物 (chapter_splitter_v2 输出 + pages_struct/)
 markdown/
 
+# minimax 语料索引产物 (build/export/ingest_minimax.py 生成, 可重生成)
+# 只忽略逐条 markdown(3674 个文件), 保留 json 清单(前端 import.meta.glob 依赖)
+data/index/minimax/articles/
+data/index/minimax/chapters/
+
+# bge embedding 缓存 (重算: python build/export/embed_articles.py)
+evals/bge_m3_cache_old.json.bak
+
 # RAG 灌库 SQL (重生成)
 build/export/seed_pages_m3.sql
 

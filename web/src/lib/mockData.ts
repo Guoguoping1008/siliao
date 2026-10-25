@@ -1,8 +1,13 @@
 /**
- * Mock 后端 — 从切分器产物动态加载
+ * Mock 后端 —— 从 ingest_minimax.py 的产物动态加载
  *
- * 数据来源: data/markdown/<doc_id>/chapters.json + articles.json
- * (build/ocr/chapter_splitter.py 跑出来的产物)
+ * 数据来源: data/index/minimax/{documents,chapters,articles}.json
+ * (build/export/ingest_minimax.py 从 minimax/ 目录树切出来的产物)
+ *
+ * 新语料与旧语料(data/markdown/<doc_id>/*)的结构差异:
+ *   - 旧: 一个 doc 一个目录, 各带 chapters.json / articles.json / *.md
+ *   - 新: **全部文档共用一份** documents.json / chapters.json / articles.json
+ *         (196 份文件, 529 章, 3145 条), markdown 文件名带 hash 后缀
  *
  * 切换到真实后端:  VITE_USE_MOCK=false npm run dev
  */
@@ -12,149 +17,176 @@ import type {
   Entity,
 } from "./api"
 
-// Vite: build 时把所有 markdown doc 的元数据打包进来
-// 路径: web/src/lib/ → ../../../data/markdown/*/...
-// 用 eager:true 直接拿到对象(而不是返回 Promise)
-const chapterModules = import.meta.glob(
-  "../../../data/markdown/*/chapters.json",
-  { eager: true }
-) as Record<string, { default: RawChapter[] }>
+// Vite: build 时把索引产物打包进 bundle
+// 路径: web/src/lib/ → ../../../data/index/minimax/...
+// ⚠️ glob 必须**精确列出**要打包的文件, 不能用 "*.json" ——
+//    否则会把 articles.json(含全文, 4.9MB)一起 eager 打进 bundle。
+//    实测: 用 *.json 时 mockData chunk 8.2MB; 精确列 3 个文件后降到 ~1.5MB。
+const indexModules = {
+  ...import.meta.glob(
+    "../../../data/index/minimax/documents.json",
+    { eager: true }
+  ),
+  ...import.meta.glob(
+    "../../../data/index/minimax/chapters.json",
+    { eager: true }
+  ),
+  ...import.meta.glob(
+    "../../../data/index/minimax/articles.light.json",
+    { eager: true }
+  ),
+} as Record<string, { default: unknown }>
 
-const articleModules = import.meta.glob(
-  "../../../data/markdown/*/articles.json",
-  { eager: true }
-) as Record<string, { default: RawArticle[] }>
+// 搜索语料: **懒加载**单文件。
+// ⚠️ 不能 eager —— 3.2MB 语料 eager 打包会让 mockData chunk 涨到 3.8MB
+//    (932KB gzip), 首屏就下载整个语料。懒加载后是独立 chunk,
+//    只有真正搜索时才拉。
+const corpusModules = import.meta.glob(
+  "../../../data/index/minimax/search-corpus.json"
+) as Record<string, () => Promise<{ default: { article_id: string; text: string }[] }>>
+
+// markdown 模块,按需懒加载 (文件名带 hash 后缀)
+const markdownModules = import.meta.glob(
+  "../../../data/index/minimax/articles/*.md",
+  { eager: false, query: "?raw", import: "default" }
+) as Record<string, () => Promise<string>>
+
+const chapterMdModules = import.meta.glob(
+  "../../../data/index/minimax/chapters/*.md",
+  { eager: false, query: "?raw", import: "default" }
+) as Record<string, () => Promise<string>>
+
+interface RawDocument {
+  doc_id: string
+  title: string
+  dir_name: string
+  scope: string
+  scope_id: string
+  section: string | null
+  section_id: string | null
+  doc_number: string
+  page_count: number
+  article_count: number
+  is_toc: boolean
+  article_ids: string[]
+}
 
 interface RawChapter {
   chapter_id: string
+  doc_id: string
   number: string
   title: string
+  kind: "section" | "chapter"
+  sort_order: number
+  article_count: number
   article_ids: string[]
-  start_line: number
-  end_line: number
+  doc_number: string
+  source: string
 }
 
 interface RawArticle {
   article_id: string
   chapter_id: string
+  doc_id: string
   number: string
   title: string
-  text: string
-  start_line: number
-  end_line: number
+  heading: string
+  chapter_number: string
+  chapter_title: string
+  kind: string
 }
 
-function docIdFromPath(path: string): string {
-  // ../../data/markdown/feed-law-2026/chapters.json  →  feed-law-2026
-  const m = path.match(/\/markdown\/([^/]+)\//)
-  return m ? m[1] : ""
-}
-
-// 派生 documents 列表(从 chapters 数 + articles 数)
-// title 从 data/raw/<doc_id>.md 的第一非空行读取(法规原文里的标题)
-// 排除 .sample.md 占位文件
-const rawDocModules = import.meta.glob(
-  "../../../data/raw/!(*.sample).md",
-  { eager: false, query: "?raw", import: "default" }
-) as Record<string, () => Promise<string>>
-
-function rawMdPathFor(docId: string) {
-  return Object.keys(rawDocModules).find(p => p.endsWith(`/${docId}.md`)) ?? null
-}
-
-const DOCUMENTS: Document[] = Object.keys(chapterModules).map(path => {
-  const docId = docIdFromPath(path)
-  const chapters = chapterModules[path].default
-  const articles = articleModules[
-    path.replace("/chapters.json", "/articles.json")
-  ]?.default ?? []
-  return {
-    doc_id: docId,
-    title: docId,            // 占位:首页渲染前若需要更友好标题,见 hydrateDocumentTitles
-    chapter_count: chapters.length,
-    article_count: articles.length,
+function pick<T>(name: string): T[] {
+  const key = Object.keys(indexModules).find(p => p.endsWith(`/${name}.json`))
+  if (!key) {
+    console.warn(`[mockData] 索引清单缺失: ${name}.json`)
+    return []
   }
-})
+  return (indexModules[key].default as T[]) ?? []
+}
 
-// 异步给 title 注水:从 raw 文件读第一行,渲染前 await
-const docTitleCache: Record<string, string> = {}
-async function hydrateDocumentTitles(docs: Document[]): Promise<Document[]> {
-  for (const d of docs) {
-    if (docTitleCache[d.doc_id]) {
-      d.title = docTitleCache[d.doc_id]
-      continue
-    }
-    const p = rawMdPathFor(d.doc_id)
-    if (!p) continue
-    const text = await rawDocModules[p]()
-    const firstLine = text.split("\n").map(l => l.trim()).find(l => l && !l.startsWith("<!--"))
-    if (firstLine && firstLine.length <= 50) docTitleCache[d.doc_id] = firstLine
-    if (docTitleCache[d.doc_id]) d.title = docTitleCache[d.doc_id]
+const RAW_DOCUMENTS: RawDocument[] = pick<RawDocument>("documents")
+const RAW_CHAPTERS: RawChapter[] = pick<RawChapter>("chapters")
+// 用轻量清单(不含 text) —— 完整 articles.json 有 4.8MB,
+// eager 打包会把整个语料塞进 bundle(实测 mockData chunk 3.6MB)。
+// 正文从 articles/*.md 按需加载。
+const RAW_ARTICLES: RawArticle[] = pick<RawArticle>("articles.light")
+
+// 搜索语料: article_id → 全文 (懒加载单文件 + 内存缓存)
+let CORPUS_BY_ID: Map<string, string> | null = null
+let corpusPromise: Promise<Map<string, string>> | null = null
+
+function loadCorpus(): Promise<Map<string, string>> {
+  if (corpusPromise) return corpusPromise
+  const path = Object.keys(corpusModules)[0]
+  if (!path) {
+    corpusPromise = Promise.resolve(new Map())
+    return corpusPromise
   }
-  return docs
-}
-
-// 派生 chapters(扁平 + sort_order)
-const CHAPTERS: ChapterDetail[] = Object.keys(chapterModules).flatMap(path => {
-  const docId = docIdFromPath(path)
-  return chapterModules[path].default.map((c, idx): ChapterDetail => ({
-    chapter_id: c.chapter_id,
-    doc_id: docId,
-    number: c.number,
-    title: c.title,
-    article_count: c.article_ids.length,
-    sort_order: idx + 1,
-    markdown: "",  // 由 markdownModules 现场加载,见 getChapter
-  }))
-})
-
-// markdown 模块,按需懒加载
-const markdownModules = import.meta.glob(
-  "../../../data/markdown/*/chapters/*.md",
-  { eager: false, query: "?raw", import: "default" }
-) as Record<string, () => Promise<string>>
-
-// article markdown 也按需
-const articleMdModules = import.meta.glob(
-  "../../../data/markdown/*/articles/*.md",
-  { eager: false, query: "?raw", import: "default" }
-) as Record<string, () => Promise<string>>
-
-function markdownPathFor(docId: string, chapterId: string) {
-  const want = `../../../data/markdown/${docId}/chapters/${chapterId}.md`
-  return Object.keys(markdownModules).find(p => p === want) ?? null
-}
-
-function articleMdPathFor(docId: string, articleId: string) {
-  const want = `../../../data/markdown/${docId}/articles/${articleId}.md`
-  return Object.keys(articleMdModules).find(p => p === want) ?? null
-}
-
-// 派生 articles
-const ARTICLES: ArticleDetail[] = Object.keys(articleModules).flatMap(path => {
-  const docId = docIdFromPath(path)
-  const chaptersById = new Map<string, RawChapter>()
-  for (const c of (chapterModules[
-    path.replace("/articles.json", "/chapters.json")
-  ]?.default ?? [])) {
-    chaptersById.set(c.chapter_id, c)
-  }
-  return articleModules[path].default.map((a): ArticleDetail => {
-    const ch = chaptersById.get(a.chapter_id)
-    return {
-      article_id: a.article_id,
-      chapter_id: a.chapter_id,
-      doc_id: docId,
-      number: a.number,
-      chapter_number: ch?.number,
-      chapter_title: ch?.title,
-      markdown: "",  // 按需加载
-    }
+  corpusPromise = corpusModules[path]().then(mod => {
+    const list = (mod as any)?.default ?? []
+    const m = new Map<string, string>()
+    for (const r of list) m.set(r.article_id, r.text)
+    CORPUS_BY_ID = m
+    return m
   })
+  return corpusPromise
+}
+
+// 直接按文件名建索引, 避免运行时重算 hash
+const ARTICLE_MD_BY_ID: Record<string, string> = {}
+for (const p of Object.keys(markdownModules)) {
+  const fname = p.split("/").pop() ?? ""
+  const id = fname.replace(/\.md$/, "").replace(/__[0-9a-f]{8}$/, "")
+  ARTICLE_MD_BY_ID[id] = p
+}
+const CHAPTER_MD_BY_ID: Record<string, string> = {}
+for (const p of Object.keys(chapterMdModules)) {
+  const fname = p.split("/").pop() ?? ""
+  const id = fname.replace(/\.md$/, "").replace(/__[0-9a-f]{8}$/, "")
+  CHAPTER_MD_BY_ID[id] = p
+}
+
+// ---------- 派生视图 ----------
+
+const DOCUMENTS: Document[] = RAW_DOCUMENTS.map(d => ({
+  doc_id: d.doc_id,
+  title: d.title,
+  doc_number: d.doc_number || undefined,
+  issuer: d.scope,
+  effective_date: undefined,
+  chapter_count: RAW_CHAPTERS.filter(c => c.doc_id === d.doc_id).length,
+  article_count: d.article_count,
+}))
+
+const CHAPTERS: ChapterDetail[] = RAW_CHAPTERS.map(c => ({
+  chapter_id: c.chapter_id,
+  doc_id: c.doc_id,
+  number: c.number,
+  title: c.title,
+  article_count: c.article_count,
+  sort_order: c.sort_order,
+  markdown: "",
+}))
+
+const ARTICLE_BY_ID = new Map<string, RawArticle>(RAW_ARTICLES.map(a => [a.article_id, a]))
+const CHAPTER_BY_ID = new Map<string, RawChapter>(RAW_CHAPTERS.map(c => [c.chapter_id, c]))
+
+const ARTICLES: ArticleDetail[] = RAW_ARTICLES.map(a => {
+  const ch = CHAPTER_BY_ID.get(a.chapter_id)
+  return {
+    article_id: a.article_id,
+    chapter_id: a.chapter_id,
+    doc_id: a.doc_id,
+    number: a.number,
+    title: a.title,
+    chapter_number: a.chapter_number || ch?.number,
+    chapter_title: a.chapter_title || ch?.title,
+    markdown: "",
+  }
 })
 
 // Entities: 切分器不产出实体,这里用 mockData 的种子 + 简单关键词匹配。
-// 后续 GraphRAG 跑完后,改成从 data/index/entities.json 加载。
 const ENTITIES: Entity[] = [
   {
     entity_id: "ent_001",
@@ -176,21 +208,51 @@ const ENTITIES: Entity[] = [
   },
 ]
 
-// excerpt: 实际 markdown 加载时计算
-function excerptOf(md: string): string {
+// 正文缓存 —— mock 模式下 search 要扫 3145 条, 不缓存的话每次 5s+
+const mdCache = new Map<string, string>()
+
+async function getArticleMd(articleId: string): Promise<string> {
+  const cached = mdCache.get(articleId)
+  if (cached !== undefined) return cached
+  const path = ARTICLE_MD_BY_ID[articleId]
+  if (!path) {
+    mdCache.set(articleId, "")
+    return ""
+  }
+  const md = await markdownModules[path]()
+  mdCache.set(articleId, md)
   return md
+}
+
+// excerpt: 实际 markdown 加载时计算
+//
+// ⚠️ excerpt 必须是**围绕 query 截取**, 不能是正文开头的前 200 字 ——
+//    否则搜「饲料添加剂」命中的是一条讲「生产许可」的条文,
+//    excerpt 里根本没有 query 词, 用户点进去才发现不对(实测 202 页表格文档)。
+//    做法: 找 query 在正文里的首次出现位置, 从那里往前后各取一段。
+function excerptOf(md: string, query?: string): string {
+  const body = md
     .split("\n")
-    .filter(l => !l.startsWith("<!--") && !l.startsWith("#"))
+    .filter(l => !l.startsWith("<!--"))
     .join(" ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 200)
+
+  if (!query) return body.slice(0, 200)
+
+  const idx = body.toLowerCase().indexOf(query.toLowerCase())
+  if (idx < 0) return body.slice(0, 200)
+
+  const half = 100
+  const start = Math.max(0, idx - half)
+  const end = Math.min(body.length, idx + query.length + half)
+  return (start > 0 ? "…" : "") + body.slice(start, end).trim() + (end < body.length ? "…" : "")
 }
 
 export const mockApi = {
   async listDocuments(): Promise<Document[]> {
     await new Promise(r => setTimeout(r, 50))
-    return hydrateDocumentTitles(DOCUMENTS)
+    return DOCUMENTS
   },
 
   async listChapters(docId: string): Promise<Chapter[]> {
@@ -205,8 +267,8 @@ export const mockApi = {
     await new Promise(r => setTimeout(r, 50))
     const base = CHAPTERS.find(c => c.doc_id === docId && c.chapter_id === chapterId)
     if (!base) throw new Error(`chapter not found: ${chapterId}`)
-    const mdPath = markdownPathFor(docId, chapterId)
-    const markdown = mdPath ? await markdownModules[mdPath]() : ""
+    const mdPath = CHAPTER_MD_BY_ID[chapterId]
+    const markdown = mdPath ? await chapterMdModules[mdPath]() : ""
     return { ...base, markdown }
   },
 
@@ -214,8 +276,7 @@ export const mockApi = {
     await new Promise(r => setTimeout(r, 50))
     const art = ARTICLES.find(a => a.article_id === articleId)
     if (!art) throw new Error(`article not found: ${articleId}`)
-    const mdPath = articleMdPathFor(art.doc_id, articleId)
-    const markdown = mdPath ? await articleMdModules[mdPath]() : ""
+    const markdown = await getArticleMd(articleId)
     return { ...art, markdown }
   },
 
@@ -223,17 +284,21 @@ export const mockApi = {
     await new Promise(r => setTimeout(r, 80))
     const query = q.toLowerCase().trim()
     if (!query) return []  // 空 query 短路(对齐 api.ts 的 searchArticles 行为)
+
+    // ⚠️ 搜索必须走 **search-corpus.json**(单文件, 一次 import)。
+    //    不能遍历 import.meta.glob 的 3145 个逐条 markdown —— 每个 import()
+    //    都要过 Vite 模块解析器, 实测单次 search >5s(测试直接超时)。
+    const corpus = await loadCorpus()
     const hits: SearchHit[] = []
     for (const art of ARTICLES) {
-      const mdPath = articleMdPathFor(art.doc_id, art.article_id)
-      const text = mdPath ? (await articleMdModules[mdPath]()).toLowerCase() : ""
-      if (!text) continue
+      const md = corpus.get(art.article_id) ?? ""
+      if (!md) continue
+      const text = md.toLowerCase()
       if (text.includes(query)) {
-        const raw = mdPath ? await articleMdModules[mdPath]() : ""
         hits.push({
           ...art,
-          excerpt: excerptOf(raw),
-          relevance: (text.match(new RegExp(query, "g")) || []).length,
+          excerpt: excerptOf(md, query),
+          relevance: (text.match(new RegExp(escapeRe(query), "g")) || []).length,
         })
       }
     }
@@ -245,18 +310,22 @@ export const mockApi = {
     const ent = ENTITIES.find(e => e.name === name)
     if (!ent) throw new Error(`entity not found: ${name}`)
     const ids = new Set<string>()
-    // 扫所有 article 的 markdown,匹配 entity 关键词
     const keywords = (ent.description ?? "")
-      .replace(/[^\w\u4E00-\u9FFF]+/g, " ")
+      .replace(/[^\w一-鿿]+/g, " ")
       .split(/\s+/)
       .filter(s => s.length >= 4)
+    // 走 search-corpus(单文件), 不要遍历 3145 个动态 import
+    const corpus = await loadCorpus()
     for (const art of ARTICLES) {
-      const mdPath = articleMdPathFor(art.doc_id, art.article_id)
-      const md = mdPath ? await articleMdModules[mdPath]() : ""
-      if (keywords.some(k => md.includes(k))) ids.add(art.article_id)
+      const md = corpus.get(art.article_id) ?? ""
+      if (md && keywords.some(k => md.includes(k))) ids.add(art.article_id)
     }
     const arts = ARTICLES.filter(a => ids.has(a.article_id))
       .map(({ markdown, ...rest }) => rest)
     return { entity: ent, articles: arts }
   },
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }

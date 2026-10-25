@@ -46,6 +46,10 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// 纯中文 2 字 query 的判定。
+// ⚠️ 正则字面量里写 CJK 范围容易被工具链转义破坏, 用 \u 转义写死。
+const CJK_2CHAR_RE = /^[\u4E00-\u9FFF]{2}$/;
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
@@ -117,17 +121,28 @@ async function searchArticles(
   const ftsQuery = escapeFts(q.trim());
   if (!ftsQuery) return { hits: [], query: q };
 
-  let ftsRows: { article_id: string; rank: number }[] = [];
-  try {
-    const result = await env.DB.prepare(
-      `SELECT article_id, rank FROM articles_fts
-       WHERE articles_fts MATCH ?1
-       ORDER BY rank
-       LIMIT 20`
-    ).bind(ftsQuery).all();
-    ftsRows = result.results as any;
-  } catch (e) {
-    console.warn(`[search] FTS5 fallback for "${q}":`, (e as Error).message);
+  // ⚠️ 长 query (自然语言问题) 直接 MATCH 必然 0 命中:
+  //    trigram 要求 query 是正文的**连续子串**, 而 "饲料添加剂审定需要提交什么材料"
+  //    这种句子在法规里根本不存在。对策: bigram 切分 → 每 gram 单独查 → RRF 融合。
+  //    详见 queryTermGrams() 的注释。
+  const grams = queryTermGrams(q.trim());
+  const useGramSearch = grams.length > 1;
+
+  let ftsRows: { article_id: string; rank: number; score?: number }[] = [];
+  if (useGramSearch) {
+    ftsRows = await gramSearch(env, grams, q.trim());
+  } else {
+    try {
+      const result = await env.DB.prepare(
+        `SELECT article_id, rank FROM articles_fts
+         WHERE articles_fts MATCH ?1
+         ORDER BY rank
+         LIMIT 20`
+      ).bind(ftsQuery).all();
+      ftsRows = result.results as any;
+    } catch (e) {
+      console.warn(`[search] FTS5 fallback for "${q}":`, (e as Error).message);
+    }
   }
 
   // LIKE 补位 (仅当 FTS5 已有 ≥1 命中)
@@ -182,12 +197,15 @@ async function searchArticles(
   // RRF 融合: score = sum( 1 / (k + rank_i) ) for each retriever i
   // k=60 是原 RRF 论文推荐值
   const K = 60;
-  const fused = new Map<string, { ftsRank: number; bgeRank: number; bgeScore: number }>();
+  const fused = new Map<string, { ftsRank: number; bgeRank: number; bgeScore: number; ftsScore: number }>();
   for (const r of ftsRows) {
     fused.set(r.article_id, {
       ftsRank: r.rank,
       bgeRank: 0,
       bgeScore: 0,
+      // gram 路径已经在内部做过 RRF + 标题加权, score 直接复用;
+      // 传统路径 score = undefined, 走下面的 rank 公式。
+      ftsScore: r.score ?? 0,
     });
   }
   for (const r of bgeRows) {
@@ -196,7 +214,7 @@ async function searchArticles(
       ex.bgeRank = r.rank;
       ex.bgeScore = r.score;
     } else {
-      fused.set(r.article_id, { ftsRank: 0, bgeRank: r.rank, bgeScore: r.score });
+      fused.set(r.article_id, { ftsRank: 0, bgeRank: r.rank, bgeScore: r.score, ftsScore: 0 });
     }
   }
 
@@ -205,7 +223,11 @@ async function searchArticles(
   //   FTS5 单独命中 (bgeRank=0) 用 0.5/(K+99) 兜底,防止单路占主导
   //   bge 单独命中 (ftsRank=0) 用 0.3/(K+99) 兜底
   const fusedRows = [...fused.entries()].map(([aid, v]) => {
-    const ftsC = v.ftsRank > 0 ? 0.5 / (K + v.ftsRank) : 0.5 / (K + 99);
+    // gram 路径: ftsScore 已含标题加权, 直接用; bge 用相对分摊
+    // 传统路径: ftsC = 0.5/(K+rank), bgeC = 0.3/(K+rank)
+    const ftsC = v.ftsScore > 0
+      ? v.ftsScore
+      : (v.ftsRank > 0 ? 0.5 / (K + v.ftsRank) : 0.5 / (K + 99));
     const bgeC = v.bgeRank > 0 ? 0.3 / (K + v.bgeRank) : 0.3 / (K + 99);
     return {
       article_id: aid,
@@ -221,6 +243,7 @@ async function searchArticles(
   const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
   const meta = await env.DB.prepare(
     `SELECT a.article_id, a.chapter_id, a.doc_id, a.number, a.title as atitle,
+            a.r2_object_key,
             c.title as chapter_title, c.number as chapter_number
      FROM articles a
      LEFT JOIN chapters c ON c.chapter_id = a.chapter_id
@@ -231,7 +254,11 @@ async function searchArticles(
   const fusedById = new Map(fusedRows.map(r => [r.article_id, r]));
   const excerptById = new Map<string, string>();
   await Promise.all((meta.results as any[]).map(async (m) => {
-    const key = `${m.doc_id}/articles/${m.article_id}.md`;
+    // R2 key: <doc_id>/articles/<r2_object_key> (文件名存在 DB, 不从 article_id 推导)
+    const objKey = m.r2_object_key;
+    const key = objKey && objKey.includes("/")
+      ? objKey
+      : `${m.doc_id}/articles/${objKey}`;
     const obj = await env.INDEX_BUCKET.get(key);
     const text = obj ? (await obj.text()).slice(0, 600) : "";
     excerptById.set(m.article_id, text);
@@ -270,18 +297,230 @@ async function searchArticles(
   return { hits: filtered, query: q };
 }
 
+// ---------- 长 query 的 bigram 检索 ----------
+//
+// 问题: trigram 分词器要求 query 是正文的**连续子串**。
+//   "饲料添加剂审定需要提交什么材料" 这种自然语言问题在法规里不存在 → 0 命中。
+//   实测: 10 条业务长 query 全部 0 命中。
+//
+// 对策: bigram 切分 → 每个 gram 单独 FTS5 查询 → RRF 融合。
+//   bigram ("饲料"/"料添"/"添加"/...) 是中文里最小的有意义单元,
+//   比固定 4 字窗口准("要提交什" 这种碎片没有检索价值)。
+//
+// 为什么每个 gram 要单独查而不是拼成一个大 OR 表达式:
+//   - 拼 OR → 命中集爆炸(实测 723~1793 条), BM25 无法区分"命中所有 gram"
+//     和"只命中一个 gram" 的文档
+//   - 单独查 → 每个 gram 有自己的 BM25 rank, RRF 融合时"命中多个 gram"
+//     的文档自然排前面(实测新兽药注册办法 top4 全来自该文档)
+//
+// 为什么 2 字 gram 也要 padding:
+//   trigram 需要 3 个连续字符, 2 字 gram 直接 MATCH 必然 0 命中。
+//   用 escapeFts 的后缀集合扩展成 3 字 phrase。
+//
+// 标题加权 (TITLE_BOOST):
+//   查询往往直接点名法规("新兽药注册办法" 就是文件名)。
+//   标题命中是强信号, 权重 3x。
+
+const TITLE_BOOST = 3.0;
+const GRAM_TOP_N = 30;
+const RRF_K = 60;
+
+// 中文停用 bigram —— 这些是虚词组合, 检索价值低
+const STOP_BIGRAMS = new Set([
+  "什么", "如何", "哪些", "是否", "需要", "应该", "可以", "进行", "相关",
+  "规定", "的话", "一个", "我们", "他们", "这个", "那个", "因为", "所以",
+  "但是", "如果", "以及", "对于", "关于", "怎样", "多少", "为何", "什么",
+  "有无", "是否", "几个", "哪些", "如何", "哪种", "什么",
+]);
+
+/**
+ * 把 query 切成检索用的 term 列表。
+ * - 中文段 → 重叠 bigram (2 字)
+ * - 英文/数字 → 整词 (≥2 字符)
+ * - 去停用词 + 去重保序
+ */
+function queryTermGrams(q: string): string[] {
+  const out: string[] = [];
+  const push = (s: string) => {
+    if (!s) return;
+    if (out.includes(s)) return;
+    out.push(s);
+  };
+
+  for (const w of q.match(/[A-Za-z0-9]+/g) ?? []) {
+    if (w.length >= 2) push(w);
+  }
+  for (const seg of q.match(/[\u4E00-\u9FFF]+/g) ?? []) {
+    if (seg.length === 1) {
+      push(seg);
+      continue;
+    }
+    for (let i = 0; i < seg.length - 1; i++) {
+      const bg = seg.slice(i, i + 2);
+      if (STOP_BIGRAMS.has(bg)) continue;
+      push(bg);
+    }
+  }
+  return out;
+}
+
+/** gram → FTS5 MATCH 表达式 (2 字要 padding 成 3 字 phrase) */
+function gramExpr(gram: string): string {
+  if (gram.length === 2) {
+    const SUFFIXES = [" ", "\u7684", "\u6761", "\u89c4", "\u5b9a", "\u5236",
+                      "\u6cd5", "\u7406", "\u7ae0", "\u5e94", "\u548c"];
+    return SUFFIXES.map((suf) => `"${gram}${suf}"`).join(" OR ");
+  }
+  return `"${gram}"`;
+}
+
+/**
+ * 分档检索: **phrase 优先 + bigram RRF 兜底**
+ *
+ * A 档(高精度): query 整句当 phrase 查。
+ *   query 是正文的连续片段时精确命中, BM25 rank 天然最靠前。
+ *   实测: "本条例所称饲料" 整句 MATCH 命中 rank 1, 但纯 bigram 路径排不进 top20。
+ *
+ * B 档(高召回): bigram 逐个查 + RRF 融合 + 标题加权。
+ *   query 是自然语言问句时整句必然 0 命中, 只有 B 档能出结果。
+ *
+ * ⚠️ 两档**不能混在一个分数池里比**:
+ *   phrase 命中(精确)vs 只命中一个常见 bigram 的文档, 精度差一个数量级。
+ *   实测混池时 phrase 命中的目标被挤到 top20 外; 分档后全部回到 rank 1。
+ */
+async function gramSearch(
+  env: Env,
+  grams: string[],
+  rawQuery: string
+): Promise<{ article_id: string; rank: number; score?: number }[]> {
+  const queries = grams.map(gramExpr);
+
+  // ---------- A 档: 整句 phrase ----------
+  let phraseRows: { article_id: string; rank: number }[] = [];
+  if (rawQuery.length >= 3) {
+    try {
+      const r = await env.DB.prepare(
+        `SELECT article_id, rank FROM articles_fts
+         WHERE articles_fts MATCH ?1
+         ORDER BY rank
+         LIMIT ?2`
+      ).bind(`"${rawQuery.replace(/"/g, "")}"`, GRAM_TOP_N).all();
+      phraseRows = r.results as any;
+    } catch (e) {
+      console.warn("[search] phrase match failed:", (e as Error).message);
+    }
+  }
+
+  // ---------- B 档: bigram RRF ----------
+  // gram → (article_id → rank)
+  const bodyRanks = new Map<string, Map<string, number>>();
+  const titleRanks = new Map<string, Map<string, number>>();
+
+  const stmts = queries.map((expr) =>
+    env.DB.prepare(
+      `SELECT article_id, rank FROM articles_fts
+       WHERE articles_fts MATCH ?1
+       ORDER BY rank
+       LIMIT ?2`
+    ).bind(expr, GRAM_TOP_N)
+  );
+
+  let results: any[] = [];
+  try {
+    results = await env.DB.batch(stmts as any);
+  } catch (e) {
+    console.warn("[search] gram batch failed:", (e as Error).message);
+    return [];
+  }
+
+  for (let i = 0; i < results.length; i++) {
+    const rows = (results[i] as any)?.results ?? [];
+    for (const r of rows) {
+      const aid = r.article_id;
+      if (!bodyRanks.has(aid)) bodyRanks.set(aid, new Map());
+      bodyRanks.get(aid)!.set(grams[i], r.rank);
+    }
+  }
+
+  // 标题路径: 单独查 title 列非空的行
+  const titleStmts = queries.map((expr) =>
+    env.DB.prepare(
+      `SELECT article_id, rank FROM articles_fts
+       WHERE articles_fts MATCH ?1 AND title != ''
+       ORDER BY rank
+       LIMIT ?2`
+    ).bind(expr, GRAM_TOP_N)
+  );
+  let titleResults: any[] = [];
+  try {
+    titleResults = await env.DB.batch(titleStmts as any);
+  } catch (e) {
+    console.warn("[search] title gram batch failed:", (e as Error).message);
+  }
+  for (let i = 0; i < titleResults.length; i++) {
+    const rows = (titleResults[i] as any)?.results ?? [];
+    for (const r of rows) {
+      const aid = r.article_id;
+      if (!titleRanks.has(aid)) titleRanks.set(aid, new Map());
+      titleRanks.get(aid)!.set(grams[i], r.rank);
+    }
+  }
+
+  const fused = new Map<string, number>();
+  for (const [aid, ranks] of bodyRanks) {
+    let s = 0;
+    for (const r of ranks.values()) s += 1 / (RRF_K + r);
+    fused.set(aid, s);
+  }
+  for (const [aid, ranks] of titleRanks) {
+    let s = 0;
+    for (const r of ranks.values()) s += 1 / (RRF_K + r);
+    fused.set(aid, (fused.get(aid) ?? 0) + TITLE_BOOST * s);
+  }
+
+  // ---------- 合并: A 档在前, B 档补后 ----------
+  const out: { article_id: string; rank: number; score?: number }[] = [];
+  const seen = new Set<string>();
+  let idx = 0;
+  for (const r of phraseRows) {
+    if (seen.has(r.article_id)) continue;
+    seen.add(r.article_id);
+    // A 档 score 用一个高基准, 保证排在 B 档之前
+    out.push({ article_id: r.article_id, rank: idx + 1, score: 1000 + (idx + 1) });
+    idx++;
+  }
+  const bSorted = [...fused.entries()].sort((a, b) => b[1] - a[1]);
+  for (const [aid, score] of bSorted) {
+    if (seen.has(aid)) continue;
+    seen.add(aid);
+    out.push({ article_id: aid, rank: idx + 1, score });
+    idx++;
+    if (out.length >= 20) break;
+  }
+  return out.slice(0, 20);
+}
+
 // FTS5 trigram 对 query 不要求 phrase 包裹(只要 ≥3 字子串匹配即可)
 // 但要做基本清理:去控制字符、长度截断、避免用户输入里有 FTS5 语法符号
-// 2 字中文 query 自动加 padding 后缀,让 trigram 命中更可靠
+//
+// ⚠️ trigram 分词器要求**连续 3 个字符**, 所以 2 字中文 query 必然 0 命中。
+//    对策: 给 2 字 query 补后缀, 扩成多个 3 字 phrase 用 OR 连接。
+//
+//    后缀字符集里**必须包含空格**: 章节名注入文本时是 "第一章 总则 标题...",
+//    "总则 " (含尾随空格) 才是真实存在的 3-gram。
+//    只用汉字后缀时 "总则" 这类**章节名 query 会 0 命中**(实测 0 → 165)。
+//
+//    另外每个 phrase 必须**加引号**: 否则空格会被当成 FTS5 的 AND/OR 运算符,
+//    整个 MATCH 表达式语义错乱。
 function escapeFts(s: string): string {
   if (!s) return "";
   const cleaned = s.replace(/[\x00-\x1f]/g, " ").trim().slice(0, 64);
   if (!cleaned) return "";
   // 仅对纯中文 2 字 query 加 padding,避免破坏英文/数字 query
-  if (/^[\u4E00-\u9FFF]{2}$/.test(cleaned)) {
-    // 用 OR 组合多个 padded query(都 OR 进 FTS5 表达式)
-    const padded = ["制", "的", "条", "法", "理"].map(suf => `${cleaned}${suf}`).join(" OR ");
-    return padded;
+  if (CJK_2CHAR_RE.test(cleaned)) {
+    const SUFFIXES = [" ", "的", "条", "规", "定", "制", "法", "理", "章", "应", "和"];
+    const phrases = SUFFIXES.map((suf) => `"${cleaned}${suf}"`);
+    return phrases.join(" OR ");
   }
   return cleaned;
 }
@@ -314,8 +553,12 @@ async function getChapter(docId: string, chId: string, env: Env) {
   ).bind(docId, chId).first();
   if (!row) return { error: "chapter_not_found" };
 
-  // R2 key 约定: <doc_id>/chapters/<chapter_id>.md
-  const key = `${docId}/chapters/${chId}.md`;
+  // R2 key 约定: <doc_id>/chapters/<r2_object_key>
+  // r2_object_key 存的是**文件名**(不是完整 key), Worker 拼 doc_id 前缀。
+  const objKey = (row as any).r2_object_key;
+  const key = objKey && objKey.includes("/")
+    ? objKey
+    : `${docId}/chapters/${objKey}`;
   const obj = await env.INDEX_BUCKET.get(key);
   const markdown = obj ? await obj.text() : "";
   return { chapter: row, markdown };
@@ -330,9 +573,12 @@ async function getArticle(artId: string, env: Env) {
   ).bind(artId).first();
   if (!row) return { error: "article_not_found" };
 
-  // R2 key 约定: <doc_id>/articles/<article_id>.md
+  // R2 key 约定: <doc_id>/articles/<r2_object_key>
   const docId = (row as any).doc_id;
-  const key = `${docId}/articles/${artId}.md`;
+  const objKey = (row as any).r2_object_key;
+  const key = objKey && objKey.includes("/")
+    ? objKey
+    : `${docId}/articles/${objKey}`;
   const obj = await env.INDEX_BUCKET.get(key);
   return { article: row, markdown: obj ? await obj.text() : "" };
 }
