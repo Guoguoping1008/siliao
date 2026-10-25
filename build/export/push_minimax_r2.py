@@ -40,39 +40,48 @@ IDX = REPO / "data" / "index" / "minimax"
 BUCKET = "siliao-index"
 
 
+def short_doc_id(doc_id: str) -> str:
+    """R2 key 的 doc 段 —— 必须短。
+
+    实测 miniflare/R2 对 object name 有约 320 字节的上限(UTF-8 字节数):
+    doc_id 是路径 slug, 中文一字 3 字节, 形态 A 的 doc_id 会重复两遍目录名,
+    最长 205 字节, 加上 "/articles/" + 长文件名就超限 →
+    "put: The specified object name is not valid. (10020)"。
+    与 ingest_minimax.py 的 short_doc_id 必须一致。
+    """
+    import hashlib as _hl
+    return "d" + _hl.sha1(doc_id.encode("utf-8")).hexdigest()[:10]
+
+
 def build_task_list(index_dir: Path, limit: int | None = None) -> list[tuple[str, Path]]:
     """
     读 articles.json / chapters.json, 产出 [(r2_key, 本地文件路径), ...]。
-    r2_key = <doc_id>/articles|r2_object_key
+    r2_key = <short_doc_id>/articles/<fname>
     """
+    import hashlib as _hl
+    import re as _re
+
     tasks: list[tuple[str, Path]] = []
 
     arts = json.loads((index_dir / "articles.json").read_text(encoding="utf-8"))
     for a in arts:
-        r2_key = a.get("r2_object_key") or f"{a['article_id']}.md"
-        fname = r2_key if r2_key.endswith(".md") else r2_key + ".md"
-        # ingest 写盘用的 safe_name: <stem>__<hash8>.md
-        h = __import__("hashlib").sha1(a["article_id"].encode("utf-8")).hexdigest()[:8]
-        import re as _re
+        h = _hl.sha1(a["article_id"].encode("utf-8")).hexdigest()[:8]
         stem = _re.sub(r'[\\/:*?"<>|]+', "_", a["article_id"])[:120].strip("_")
-        local = index_dir / "articles" / f"{stem}__{h}.md"
+        fname = f"{stem}__{h}.md"
+        local = index_dir / "articles" / fname
         if not local.exists():
             continue
-        tasks.append((f"{a['doc_id']}/articles/{fname}", local))
+        tasks.append((f"{short_doc_id(a['doc_id'])}/articles/{fname}", local))
 
     chaps = json.loads((index_dir / "chapters.json").read_text(encoding="utf-8"))
     for c in chaps:
-        if c.get("kind") == "section":
-            continue  # 节级章节没有独立正文
-        r2_key = c.get("r2_object_key") or f"{c['chapter_id']}.md"
-        fname = r2_key if r2_key.endswith(".md") else r2_key + ".md"
-        h = __import__("hashlib").sha1(c["chapter_id"].encode("utf-8")).hexdigest()[:8]
-        import re as _re
+        h = _hl.sha1(c["chapter_id"].encode("utf-8")).hexdigest()[:8]
         stem = _re.sub(r'[\\/:*?"<>|]+', "_", c["chapter_id"])[:120].strip("_")
-        local = index_dir / "chapters" / f"{stem}__{h}.md"
+        fname = f"{stem}__{h}.md"
+        local = index_dir / "chapters" / fname
         if not local.exists():
             continue
-        tasks.append((f"{c['doc_id']}/chapters/{fname}", local))
+        tasks.append((f"{short_doc_id(c['doc_id'])}/chapters/{fname}", local))
 
     if limit:
         tasks = tasks[:limit]

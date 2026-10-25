@@ -254,7 +254,7 @@ async function searchArticles(
   const fusedById = new Map(fusedRows.map(r => [r.article_id, r]));
   const excerptById = new Map<string, string>();
   await Promise.all((meta.results as any[]).map(async (m) => {
-    // R2 key: <doc_id>/articles/<r2_object_key> (文件名存在 DB, 不从 article_id 推导)
+    // R2 key: r2_object_key 存完整 key(含短 doc 前缀)
     const objKey = m.r2_object_key;
     const key = objKey && objKey.includes("/")
       ? objKey
@@ -553,8 +553,9 @@ async function getChapter(docId: string, chId: string, env: Env) {
   ).bind(docId, chId).first();
   if (!row) return { error: "chapter_not_found" };
 
-  // R2 key 约定: <doc_id>/chapters/<r2_object_key>
-  // r2_object_key 存的是**文件名**(不是完整 key), Worker 拼 doc_id 前缀。
+  // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀),
+  // 例如 "d1a2b3c4d5/chapters/xxx__abc12345.md"。
+  // doc_id 段必须短 —— R2 object name 上限约 320 字节(UTF-8), 长中文 slug 会超。
   const objKey = (row as any).r2_object_key;
   const key = objKey && objKey.includes("/")
     ? objKey
@@ -573,7 +574,7 @@ async function getArticle(artId: string, env: Env) {
   ).bind(artId).first();
   if (!row) return { error: "article_not_found" };
 
-  // R2 key 约定: <doc_id>/articles/<r2_object_key>
+  // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀)
   const docId = (row as any).doc_id;
   const objKey = (row as any).r2_object_key;
   const key = objKey && objKey.includes("/")

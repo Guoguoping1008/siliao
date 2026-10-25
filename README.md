@@ -1,69 +1,67 @@
 # 农业饲料法规在线知识库
 
-> 基于《中国农业饲料法规 2026 版》搭建的 RAG 知识库;按章节切分,支持扫描版 OCR 增量更新。
+> 基于《中国农业饲料法规 2026 版》扫描件 OCR 全量重建的 RAG 知识库。
+> 语料: `minimax/` 1021 页 → 196 份法规 / 529 章 / 3145 条文。
 
 ## 形态
 
 - Web App(响应式),Cloudflare Pages 免费托管
-- 检索引擎:D1 FTS5(trigram) + LIKE 兜底(章节级召回 recall@10 = 95.7%,MRR = 0.957)
-- LLM:DeepSeek-V3 · Embedding:bge-large-zh-v1.5(本地,plan B 接外部)
+- 检索引擎:D1 FTS5(trigram) **phrase 优先 + bigram RRF + 标题加权**
+- LLM:DeepSeek-V3 · Embedding:bge-m3(本地,plan B 接外部)
 - RAG 问答流式输出,带引用校验(LLM 编造引用自动标红)
 
 ## 目录结构
 
 ```
 siliao/
+├── minimax/              # OCR 成品语料树(章/节/文件 三层, 1021 页) —— 事实源
 ├── data/
-│   ├── raw/              # 原始法规(.md,样本)
-│   ├── markdown/         # OCR 产物 + 章节切分
-│   └── index/            # GraphRAG 索引产物(待启用)
+│   ├── index/minimax/    # 摄入产物: articles.json / chapters.json / documents.json + 逐条 md
+│   ├── raw/              # 旧样本语料(已废)
+│   └── markdown/         # 旧切分器产物(已废)
 ├── build/
-│   ├── ingest.sh         # OCR + 章节切分入口
-│   ├── ocr/              # MinerU + chapter_splitter
+│   ├── ocr/              # OCR 流水线
+│   ├── export/
+│   │   ├── ingest_minimax.py    # minimax/ → 索引产物 + seed.sql
+│   │   ├── push_minimax_r2.py   # 推 R2(local wrangler / remote S3 API)
+│   │   ├── embed_articles.py    # bge-m3 embedding
+│   │   └── seed_d1.py           # 旧语料灌库(保留)
 │   ├── graphrag/         # 实体/关系抽取(待启用)
-│   ├── export/           # flatten + seed_d1 + push_to_r2
-│   ├── proxy/            # bge_server.py + openai_to_minimax.py
-│   └── run_all.sh        # 一条命令完成 ingest → seed → push
+│   └── proxy/            # bge_server.py + openai_to_minimax.py
 ├── query/worker/         # Cloudflare Workers + wrangler.toml
 ├── web/                  # Vite + React 18 + Tailwind
-├── evals/                # retrieval.jsonl + faithfulness.jsonl
-├── docs/
-│   ├── INDEX.md          # 法规目录登记
-│   ├── adr/              # 架构决策记录
-│   └── deploy_runbook.md # CF 部署操作员手册
-└── .github/
-    ├── workflows/ci.yml       # PR/push: build + typecheck + eval
-    ├── workflows/deploy.yml   # main: Pages + Worker 自动部署
-    └── dependabot.yml         # 每周依赖升级 PR
+├── evals/                # eval_minimax.py + retrieval/faithfulness 用例
+├── docs/adr/             # 架构决策记录
+└── .github/workflows/    # CI: typecheck + test + build + eval
 ```
 
 ## 阶段进度
 
 - [x] A·项目骨架
-- [x] B·章节切分器(chapter_splitter.py)
-- [x] C·GraphRAG 配置(待跑,需要 DeepSeek key)
+- [x] B·章节切分器(旧语料)
 - [x] D·灌库脚本(seed_d1 + push_to_r2)
-- [x] E·Workers FTS5 + 完整路由
-- [x] F·前端 Vite + React + Tailwind(深色/移动端/快捷键)
-- [x] G·Eval 体系(retrieval 28 用例 + faithfulness 5 用例)
+- [x] E·Workers 路由(检索/章节/条文/实体/QA SSE)
+- [x] F·前端 Vite + React + Tailwind
+- [x] G·Eval 体系
 - [x] 端到端部署链路打通(本地 miniflare 验证)
+- [x] **OCR 全量 1021 页 → minimax/ 语料树**
+- [x] **语料重建: 196 文档 / 529 章 / 3145 条文**
+- [x] **检索重构: phrase 优先 + bigram RRF + 标题加权**
+- [ ] bge-m3 语义层在新语料上重算(后台任务进行中)
 - [ ] 真 Cloudflare 上线(等 wrangler login)
-- [x] **M3 多模态 OCR 1005 页跑通(516/516, 1030 md)**,SQL 已生成待 apply
 
 ## 性能基线
 
 | 指标 | 当前值 | 来源 |
 |---|---|---|
-| 检索 recall@10(单语料 feed-law-2026) | **95.7%** (22/23) | evals/retrieval.jsonl (历史基线) |
-| 检索 recall@10(跨语料合并,649 articles,86 用例) | **86.2%** (69/78, recall ≥ 50% 阈值) | evals/retrieval.jsonl (H: FTS5-agreement 门禁 + bge sim 缩放) |
-| 检索 MRR(跨语料) | **0.649** | evals/eval_retrieval.py |
-| 检索 recall@20(跨语料) | 90.7% | evals/retrieval.jsonl |
-| 检索 negative 精度(跨语料) | **100%** (8/8) | 语料外 query 召回控制 (H 收紧) |
-| RAG faithfulness | **100%** (5/5) | 引用 + 未找到兜底校验 |
-| 前端单元测试 | 33/33 通过,94% line coverage | vitest,4 个测试文件 |
-| 前端 e2e 测试 | 9 个 spec(Mock 模式) | Playwright,CI 自动装 Chromium |
-| 前端体积 | 197.51KB / 62.76KB gzip | web/build |
-| 检索延迟 | D1 FTS5 ~5-15ms | 边缘节点 |
+| 检索 recall@10(minimax 语料, 50 用例) | **76.0%** | evals/eval_minimax.py |
+| 检索 MRR(minimax 语料) | **0.544** | evals/eval_minimax.py |
+| ├ 业务 query(20 条自然语言问句) | recall@10 **75.0%** / MRR 0.488 | 同上 |
+| └ 语料派生 query(30 条正文片段) | recall@10 **76.7%** / MRR 0.581 | 同上 |
+| 检索对比:重构前(长 query 直接 MATCH) | recall@10 25%(业务 query) | ADR-003 |
+| 前端单元测试 | 34/34 通过 | vitest,4 个测试文件 |
+| 前端体积 | 197.51KB / 62.76KB gzip(主 chunk) | web/dist |
+| 检索延迟 | D1 FTS5 ~5-15ms;gram 路径 2 批 D1 batch | 边缘节点 |
 
 ## 快速开始(本地)
 
@@ -72,40 +70,41 @@ siliao/
 cd web && npm install
 cd ../query/worker && npm install
 
-# 2. 跑章节切分(已有样本)
+# 2. 摄入: minimax/ → 索引产物 + seed.sql
 cd ../..
-python build/export/seed_d1.py \
-    data/markdown/feed-law-2026/articles.json \
-    data/markdown/feed-law-2026/chapters.json
+python build/export/ingest_minimax.py
 
 # 3. 起 Worker(miniflare 本地 D1 + R2)
 cd query/worker
 npx wrangler d1 execute siliao-db --local --file ./schema.sql
 npx wrangler d1 execute siliao-db --local --file ../../build/export/seed.sql
-for f in ../../data/markdown/feed-law-2026/articles/*.md \
-         ../../data/markdown/feed-law-2026/chapters/*.md; do
-  rel="${f#../../data/markdown/feed-law-2026/}"
-  (npx wrangler r2 object put "siliao-index/feed-law-2026/${rel}" --file "${f}" --local >/dev/null 2>&1)
-done
-npx wrangler dev --local --port 8788 &
 
-# 4. 起前端(默认走 mock,VITE_USE_MOCK=false 走真 worker)
+# 4. 推 R2(3674 个对象, local 走 wrangler; 线上走 S3 API)
+cd ../..
+python build/export/push_minimax_r2.py            # local
+python build/export/push_minimax_r2.py --remote   # 真 Cloudflare
+
+# 5. 起 Worker
+cd query/worker
+npx wrangler dev --local --port 8788 --ip 127.0.0.1
+
+# 6. 起前端(默认走 mock;VITE_USE_MOCK=false 走真 worker)
 cd ../../web
 npm run dev
 ```
 
 ## 真部署
 
-见 `docs/deploy_runbook.md`(11 步操作员手册)。
+见 `docs/deploy_runbook.md` 与 `docs/adr/0003-minimax-corpus-rebuild-and-bigram-retrieval.md`。
 
-## 计划文档
+## 技术决策
 
-完整实施计划:`.hermes/plans/2026-08-02_090000-cn-feed-law-rag.md`
-技术决策:`docs/adr/0001-fts5-trigram-search.md`
+- `docs/adr/0001-fts5-trigram-search.md` —— 检索后端选型
+- `docs/adr/0003-minimax-corpus-rebuild-and-bigram-retrieval.md` —— **语料重建 + 检索路径重构**
 
 ## 后续增量
 
-- 法规新版本:丢进 `data/raw/` 跑 `build/run_all.sh <doc_id>`
-- 扫描版:必须先 MinerU,后面流程相同
-- bge 语义召回:已接入 eval hybrid(evals/bge_m3_cache.json, sim 缩放加成);生产 Worker 边缘未接,bge_server 跑外部(见 `build/proxy/`)
+- 新一版法规:放进 `minimax/` 对应目录 → 重跑 `ingest_minimax.py` → 重灌 D1/R2
+- bge 语义召回:`evals/bge_m3_cache.json` 需为新语料重算(`build/export/embed_articles.py`),
+  生产 Worker 通过 `BGE_SERVER_URL` 访问外部 bge 服务(见 `build/proxy/`)
 - GraphRAG 真跑:需 DeepSeek API Key

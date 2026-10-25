@@ -587,6 +587,17 @@ def main() -> int:
 
     # R2 key 映射表: article_id / chapter_id → R2 object key
     r2_keys: dict[str, str] = {}
+    r2_doc_ids: dict[str, str] = {}
+
+    # ⚠️ R2 key 的 doc_id 段必须**短**。
+    #    实测 miniflare/R2 对 object name 有 ~320 字节的上限(UTF-8 字节数):
+    #    doc_id 是路径 slug, 中文一字 3 字节, 形态 A 的 doc_id 重复两遍目录名
+    #    最长到 205 字节, 加上 "/articles/" + 长文件名就超限 →
+    #    "put: The specified object name is not valid. (10020)"。
+    #    对策: R2 key 用 doc_id 的 sha1 前 10 位做短前缀, 完整 doc_id 仍存在 D1。
+    #    (DB 里存的是 r2_object_key, Worker 按它拼 key —— 两边一致即可。)
+    def short_doc_id(doc_id: str) -> str:
+        return "d" + hashlib.sha1(doc_id.encode("utf-8")).hexdigest()[:10]
 
     # 条文正文 (推 R2)
     for a in articles:
@@ -596,6 +607,7 @@ def main() -> int:
         fname = safe_name(a["article_id"])
         (out / "articles" / f"{fname}.md").write_text(body, encoding="utf-8")
         r2_keys[a["article_id"]] = fname + ".md"
+        r2_doc_ids[a["doc_id"]] = short_doc_id(a["doc_id"])
 
     # 章节正文: 汇总该章下条文
     for ch in chapters:
@@ -664,7 +676,7 @@ def main() -> int:
     )
 
     # ---------- 5. seed.sql ----------
-    write_seed_sql(documents, chapters, articles, r2_keys)
+    write_seed_sql(documents, chapters, articles, r2_keys, r2_doc_ids)
 
     print(f"[OK] documents={len(documents)} chapters={len(chapters)} articles={len(articles)}")
     print(f"     out: {out}")
@@ -681,6 +693,7 @@ def write_seed_sql(
     chapters: list[dict],
     articles: list[dict],
     r2_keys: dict[str, str],
+    r2_doc_ids: dict[str, str],
 ) -> None:
     """生成 D1 seed SQL。
 
@@ -704,11 +717,14 @@ def write_seed_sql(
         )
 
     for c in chapters:
+        # r2_object_key 存**完整 R2 key**(含短 doc 前缀), Worker 直接取用
+        ck = r2_keys.get(c["chapter_id"], c["chapter_id"] + ".md")
+        ck_full = f"{r2_doc_ids.get(c['doc_id'], 'd')}/chapters/{ck}"
         lines.append(
             "INSERT INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) VALUES("
             f"'{esc(c['chapter_id'])}', '{esc(c['doc_id'])}', '{esc(c['number'])}', "
             f"'{esc(c['title'])}', {c['article_count']}, {c['sort_order']}, "
-            f"'{esc(r2_keys.get(c['chapter_id'], c['chapter_id'] + '.md'))}');"
+            f"'{esc(ck_full)}');"
         )
 
     # 目录/封面文档的 doc_id → 它们的条文不进 FTS 索引
@@ -716,11 +732,14 @@ def write_seed_sql(
 
     for a in articles:
         title = a["title"] or ""
+        # r2_object_key 存**完整 R2 key**(含短 doc 前缀), Worker 直接取用
+        ak = r2_keys.get(a["article_id"], a["article_id"] + ".md")
+        ak_full = f"{r2_doc_ids.get(a['doc_id'], 'd')}/articles/{ak}"
         lines.append(
             "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) VALUES("
             f"'{esc(a['article_id'])}', '{esc(a['chapter_id'])}', '{esc(a['doc_id'])}', "
             f"'{esc(a['number'])}', '{esc(title)}', "
-            f"'{esc(r2_keys.get(a['article_id'], a['article_id'] + '.md'))}');"
+            f"'{esc(ak_full)}');"
         )
 
         # ⚠️ 目录页(001目录)与封面(000封面)不进全文索引 ——
