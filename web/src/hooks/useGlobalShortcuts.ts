@@ -37,7 +37,7 @@ export function useGlobalShortcuts(opts: { onEscape?: () => void } = {}) {
       }
       if (Date.now() - lastG.current < 2000) {
         if (e.key === "h") navigate("/")
-        if (e.key === "d") navigate("/doc/feed-law-2026")
+        if (e.key === "d") navigate("/#library")
         if (e.key === "s") navigate("/search")
         lastG.current = 0
       }

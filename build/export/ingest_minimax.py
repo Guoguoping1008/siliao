@@ -601,9 +601,10 @@ def main() -> int:
 
     # 条文正文 (推 R2)
     for a in articles:
+        # ⚠️ 保持原文的 markdown 结构(含 `### 第一条` 这样的标题行),
+        #    不要额外拼章节名前缀 —— 前端 MarkdownView 会把 `###` 渲染成标题,
+        #    拼上去会出现「第一条 第一条」重复。
         body = a["text"]
-        if a["chapter_number"]:
-            body = f"{a['chapter_number']} {a['chapter_title']}\n\n{body}"
         fname = safe_name(a["article_id"])
         (out / "articles" / f"{fname}.md").write_text(body, encoding="utf-8")
         r2_keys[a["article_id"]] = fname + ".md"
@@ -615,7 +616,13 @@ def main() -> int:
         for aid in ch["article_ids"]:
             a = art_index[aid]
             label = a["number"] or a["heading"] or a["title"]
-            parts.append(f"### {label}\n\n{a['text']}")
+            # ⚠️ **不要重复加标题**: 条文正文(text)本身就已经以 `### 第一条` 开头
+            #    (ingest 切条文时保留了原文的 markdown 标题行)。
+            #    再拼一个 `### {label}` 会渲染成「第一条 第一条」重复。
+            body = a["text"]
+            if not body.lstrip().startswith("#"):
+                body = f"### {label}\n\n{body}"
+            parts.append(body)
         # ⚠️ 节级章节(kind=section)也要有正文 —— 前端点开章节不能是空白页。
         #    它汇总的是本节下所有条文的正文(含各章级子章节的条文)。
         fname = safe_name(ch["chapter_id"])
@@ -625,6 +632,20 @@ def main() -> int:
         r2_keys[ch["chapter_id"]] = fname + ".md"
 
     # 紧凑格式: 前端 eager 打包, indent 会让体积翻倍
+    # 文档排序: **法规正文在前, 目录/封面在后**。
+    # 理由: 前端首页直接按 documents.json 顺序展示卡片,
+    #       若目录/封面排在前面, 用户第一眼看到的是「000封面」这类无用条目。
+    #       排序键: (is_toc, scope 序号, 文件序号)
+    def doc_sort_key(d: dict) -> tuple:
+        import re as _re
+        scope_m = _re.match(r"(\d+)", d.get("scope", "") or "")
+        scope_no = int(scope_m.group(1)) if scope_m else 999
+        dir_m = _re.match(r"(\d+)", d.get("dir_name", "") or "")
+        dir_no = int(dir_m.group(1)) if dir_m else 999
+        return (1 if d.get("is_toc") else 0, scope_no, dir_no, d.get("doc_id", ""))
+
+    documents.sort(key=doc_sort_key)
+
     (out / "documents.json").write_text(
         json.dumps(documents, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
     )

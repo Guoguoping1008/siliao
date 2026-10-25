@@ -97,9 +97,13 @@ export function MarkdownView({ source, chapterId }: Props) {
       {blocks.map((b, i) => {
         const key = `${b.type}-${i}`
         const cn = "leading-relaxed"
-        if (b.type === "h1") return <h1 key={key} id={b.id} className="text-2xl font-bold mt-6 mb-3 text-slate-900 dark:text-slate-100">{b.text}</h1>
-        if (b.type === "h2") return <h2 key={key} id={b.id} className="text-xl font-semibold mt-5 mb-2 text-slate-900 dark:text-slate-100">{b.text}</h2>
-        if (b.type === "h3") return <h3 key={key} id={b.id} className="text-lg font-semibold mt-4 mb-2 text-slate-900 dark:text-slate-100">{b.text}</h3>
+        // ⚠️ markdown 标题**降一级**渲染 (h1→h2, h2→h3, h3→h4)。
+        //    原因: 页面本身已经有 <h1>(页面标题), markdown 里的 `#` 再渲染成
+        //    <h1> 会出现两个 h1 —— 既是 HTML 语义问题, 也让
+        //    `getByRole("heading", { level: 1 })` 在 e2e 里 strict mode 冲突。
+        if (b.type === "h1") return <h2 key={key} id={b.id} className="text-2xl font-bold mt-6 mb-3 text-slate-900 dark:text-slate-100">{b.text}</h2>
+        if (b.type === "h2") return <h3 key={key} id={b.id} className="text-xl font-semibold mt-5 mb-2 text-slate-900 dark:text-slate-100">{b.text}</h3>
+        if (b.type === "h3") return <h4 key={key} id={b.id} className="text-lg font-semibold mt-4 mb-2 text-slate-900 dark:text-slate-100">{b.text}</h4>
         if (b.type === "li") return <li key={key} className={`${cn} ml-6 list-disc text-slate-700 dark:text-slate-300`}>{b.text}</li>
         return <p key={key} id={b.id} className={`${cn} mb-3 text-slate-700 dark:text-slate-300 ${b.id ? "scroll-mt-32" : ""}`}>{b.text}</p>
       })}

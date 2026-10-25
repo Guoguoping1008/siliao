@@ -29,6 +29,16 @@ export default defineConfig({
     video: "retain-on-failure",
   },
 
+  // 自动起 vite dev —— 不要依赖手工起服务, 否则本地/CI 都会出现
+  // 「测试莫名全挂」的情况(实测: 没起服务时 3 个用例假失败,
+  // 表现为「找不到章节链接」「搜索框没聚焦」)。
+  webServer: {
+    command: "npm run dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+
   projects: [
     {
       name: "chromium",

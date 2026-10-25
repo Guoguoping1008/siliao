@@ -15,7 +15,10 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { path: "/", label: "首页", icon: "🏠" },
-  { path: "/doc/feed-law-2026", label: "目录", icon: "📖" },
+  // ⚠️ 「目录」不要硬编码某个 doc_id —— 语料换过(old feed-law-2026 已不存在),
+  //    硬编码会让导航指向 404, 而且 e2e 里 `a[href^='/doc/']` 会误选到
+  //    这个导航链接而不是真正的法规卡片。
+  { path: "/#library", label: "目录", icon: "📖" },
   { path: "/search", label: "搜索", icon: "🔍" },
   { path: "/qa", label: "AI 问答", icon: "💬" },
   { path: "/entity/农业农村部", label: "实体", icon: "🏛" },

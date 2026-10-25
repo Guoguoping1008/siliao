@@ -149,15 +149,20 @@ for (const p of Object.keys(chapterMdModules)) {
 
 // ---------- 派生视图 ----------
 
-const DOCUMENTS: Document[] = RAW_DOCUMENTS.map(d => ({
-  doc_id: d.doc_id,
-  title: d.title,
-  doc_number: d.doc_number || undefined,
-  issuer: d.scope,
-  effective_date: undefined,
-  chapter_count: RAW_CHAPTERS.filter(c => c.doc_id === d.doc_id).length,
-  article_count: d.article_count,
-}))
+// ⚠️ 目录/封面文档**不进前端文档列表** —— 它们不是法规正文,
+//    首页第一屏全是「000封面」「目录」没有意义。
+//    (DB 里仍然保留, 可追溯; 只是不展示。)
+const DOCUMENTS: Document[] = RAW_DOCUMENTS
+  .filter(d => !d.is_toc)
+  .map(d => ({
+    doc_id: d.doc_id,
+    title: d.title,
+    doc_number: d.doc_number || undefined,
+    issuer: d.scope,
+    effective_date: undefined,
+    chapter_count: RAW_CHAPTERS.filter(c => c.doc_id === d.doc_id).length,
+    article_count: d.article_count,
+  }))
 
 const CHAPTERS: ChapterDetail[] = RAW_CHAPTERS.map(c => ({
   chapter_id: c.chapter_id,

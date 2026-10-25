@@ -26,8 +26,16 @@ test.describe("搜索 & AI 问答", () => {
     await expect(page.getByRole("heading", { name: /AI 问答/ })).toBeVisible()
     await page.locator("input[type=text]").fill("饲料添加剂审定")
     await page.getByRole("button", { name: /提问/ }).click()
-    // mock 流式答案(约 1 秒写完,逐字)
-    await expect(page.getByText(/Mock 模式/)).toBeVisible({ timeout: 5_000 })
+
+    // ⚠️ 不要只断言「Mock 模式」—— 那句文案在页脚上**一直都在**,
+    //    断言它等于什么都没测。真正要断言的是:
+    //    1) 状态栏显示检索到 N 条证据(N > 0, 说明 mock 真的走了检索)
+    //    2) 证据区渲染出条文卡片
+    const status = page.getByText(/当前 \d+ 条证据/)
+    await expect(status).toBeVisible({ timeout: 15_000 })
+    await expect(status).toContainText(/当前 [1-9]\d* 条证据/)
+    // 证据区有内容
+    await expect(page.getByText(/检索证据\(/)).toBeVisible({ timeout: 10_000 })
   })
 
   test("实体页:农业农村部能打开", async ({ page }) => {

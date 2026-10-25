@@ -235,15 +235,19 @@ export const api = {
     }
   ): () => void {
     if (USE_MOCK) {
-      // mock 模式下不真接 LLM,直接拼一段固定 answer 模拟 streaming
-      mockStreamFallback(question, handlers)
-      return () => undefined
+      // mock 模式下不真接 LLM,走检索 + 模板答案模拟 streaming
+      return mockStreamFallback(question, handlers)
     }
     return consumeQAStream(question, handlers)
   },
 }
 
 // Mock 模式下的 RAG streaming 模拟:无 LLM,直接基于检索结果拼一段模板答案
+//
+// ⚠️ 必须**真的走检索**(mockApi.search),不能塞空 retrieval ——
+//    之前硬编码 `retrieval: []`, 结果 QA 页永远显示「当前 0 条证据」,
+//    引用区也不渲染, e2e 只能断言一句「Mock 模式」文案, 测不到真东西。
+//    现在 mock 模式会: 检索 → 把命中条文的摘要当答案逐字吐出 → 给引用。
 function mockStreamFallback(
   question: string,
   handlers: {
@@ -252,23 +256,71 @@ function mockStreamFallback(
     onDone?: (e: any) => void
     onError?: (e: any) => void
   }
-) {
-  // 异步执行,避免阻塞调用方
-  setTimeout(() => {
-    handlers.onMeta?.({ question, retrieval: [] })
-    const text = `Mock 模式:未配置 LLM API Key,无法生成答案。请在生产模式下(VITE_USE_MOCK=false)提问 "${question}"`
+): () => void {
+  let aborted = false
+  // 逐字输出的定时器句柄, 供 abort 清理
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const run = async () => {
+    let retrieval: SearchHit[] = []
+    try {
+      const { mockApi } = await import("./mockData")
+      retrieval = await mockApi.search(question)
+    } catch (e) {
+      handlers.onError?.({ message: (e as Error).message })
+      return
+    }
+    if (aborted) return
+
+    handlers.onMeta?.({ question, retrieval })
+
+    // 用检索到的条文摘要拼答案(前 3 条), 让引用 [1][2][3] 有实际内容可指
+    const top = retrieval.slice(0, 3)
+    const parts: string[] = []
+    if (top.length === 0) {
+      parts.push(`未找到与「${question}」相关的条文。`)
+    } else {
+      parts.push(`Mock 模式(无 LLM):根据检索到的 ${top.length} 条相关条文,要点如下。`)
+      top.forEach((h, i) => {
+        const label = h.chapter_title || h.title || h.article_number || ""
+        const excerpt = (h.excerpt || "").slice(0, 160)
+        parts.push(`[${i + 1}] ${label} ${excerpt}`)
+      })
+    }
+    const text = parts.join("\n\n")
+
     let i = 0
     const tick = () => {
+      if (aborted) return
       if (i >= text.length) {
-        handlers.onDone?.({ citations: [] })
+        handlers.onDone?.({
+          citations: top.map((h, idx) => ({
+            ref: idx + 1,
+            article_id: h.article_id,
+            chapter_id: h.chapter_id,
+            doc_id: h.doc_id,
+            chapter_number: h.chapter_number,
+            chapter_title: h.chapter_title,
+            article_number: h.article_number,
+            excerpt: h.excerpt,
+            valid: true,
+          })),
+        })
         return
       }
       handlers.onChunk?.({ delta: text[i] })
       i++
-      setTimeout(tick, 12)
+      timer = setTimeout(tick, 12)
     }
     tick()
-  }, 0)
+  }
+
+  void run()
+
+  return () => {
+    aborted = true
+    if (timer) clearTimeout(timer)
+  }
 }
 
 // 用 fetch + ReadableStream 订阅 SSE(EventSource 不支持 POST body)

@@ -38,7 +38,7 @@ export function HomePage() {
         </div>
       </header>
 
-      <section className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
+      <section id="library" className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
         <h2 className="text-lg font-semibold mb-4">法规库</h2>
         <AsyncState
           loading={loading}
