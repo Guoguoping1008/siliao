@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS documents (
   effective_date TEXT,
   source_url   TEXT,
   version      TEXT DEFAULT 'v1',
+  -- is_toc: 1 = 目录/封面页(不是法规正文, 不进 FTS, 列表排后面)
+  is_toc       INTEGER DEFAULT 0,
+  sort_order   INTEGER DEFAULT 0,
   created_at   TEXT DEFAULT (datetime('now'))
 );
 

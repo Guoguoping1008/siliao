@@ -56,6 +56,10 @@ export default {
 
     const url = new URL(req.url);
     const path = url.pathname;
+    // ⚠️ url.pathname **不做 percent-decode** —— 中文 article_id 会带着
+    //    %E5%B0%81... 的编码形式进来。路由捕获到的参数必须 decodeURIComponent,
+    //    否则查 D1 一条都查不到(症状: 所有条文/章节详情都 not_found)。
+    //    decodeURIComponent 对已解码的普通 ASCII id 也是安全的(无 % 就原样返回)。
 
     try {
       if (path === "/api/search" || path === "/api/search/") {
@@ -65,9 +69,14 @@ export default {
       const mDocChs = path.match(/^\/api\/documents\/([^/]+)\/chapters$/);
       if (mDocChs) return json(await listChapters(mDocChs[1], env), env);
       const mChap = path.match(/^\/api\/chapter\/([^/]+)\/([^/]+)$/);
-      if (mChap) return json(await getChapter(mChap[1], mChap[2], env), env);
+      if (mChap) {
+        return json(
+          await getChapter(decodeURIComponent(mChap[1]), decodeURIComponent(mChap[2]), env),
+          env
+        );
+      }
       const mArt = path.match(/^\/api\/article\/([^/]+)$/);
-      if (mArt) return json(await getArticle(mArt[1], env), env);
+      if (mArt) return json(await getArticle(decodeURIComponent(mArt[1]), env), env);
       const mEnt = path.match(/^\/api\/entity\/(.+)$/);
       if (mEnt) return json(await getEntity(decodeURIComponent(mEnt[1]), env), env);
       if (path === "/api/qa" && req.method === "POST") {
@@ -90,6 +99,24 @@ function json(data: unknown, env: Env, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json", ...CORS },
   });
+}
+
+// ---------- R2 key 构造 ----------
+//
+// ⚠️ R2 存的 key 是 **URL-encoded** 形式(中文 → %E5%B0%81...),
+//    而 D1 里 r2_object_key 存的是**原始中文**。
+//    直接用原始中文 key 去 get() 会 404 —— miniflare 不会自动 encode。
+//    实测: 2180 个对象在 R2 里, 但 excerpt 全是空。
+//
+// 对策: 统一走 r2Key() 编码后再取。
+// R2 真实环境(Cloudflare)对 key 的编码要求比 miniflare 宽松,
+// 但 encodeURIComponent 对纯 ASCII key 是幂等的, 两边都能用。
+function r2Key(objKey: string | null | undefined, fallbackDocId: string, kind: "articles" | "chapters"): string {
+  if (!objKey) return `${fallbackDocId}/${kind}/`;
+  // 已经是完整 key(含 "/")就直接用
+  const key = objKey.includes("/") ? objKey : `${fallbackDocId}/${kind}/${objKey}`;
+  // 逐段 encode, 但保留 "/" 分隔符
+  return key.split("/").map(encodeURIComponent).join("/");
 }
 
 // ---------- 检索(FTS5 + bge-m3 hybrid) ----------
@@ -254,11 +281,8 @@ async function searchArticles(
   const fusedById = new Map(fusedRows.map(r => [r.article_id, r]));
   const excerptById = new Map<string, string>();
   await Promise.all((meta.results as any[]).map(async (m) => {
-    // R2 key: r2_object_key 存完整 key(含短 doc 前缀)
-    const objKey = m.r2_object_key;
-    const key = objKey && objKey.includes("/")
-      ? objKey
-      : `${m.doc_id}/articles/${objKey}`;
+    // R2 key: 必须 encode(见 r2Key 的注释)
+    const key = r2Key(m.r2_object_key, m.doc_id, "articles");
     const obj = await env.INDEX_BUCKET.get(key);
     const text = obj ? (await obj.text()).slice(0, 600) : "";
     excerptById.set(m.article_id, text);
@@ -527,11 +551,16 @@ function escapeFts(s: string): string {
 
 // ---------- 文档列表 ----------
 async function listDocuments(env: Env) {
+  // ⚠️ 排序不能靠 created_at —— 灌库时所有文档的 created_at 相同(SQLite
+  //    同秒插入), ORDER BY created_at DESC 的顺序是**插入顺序的逆序**,
+  //    会把「目录/封面」顶到最前面(实测首页第一屏全是 000封面)。
+  //    改成: 目录/封面排后面, 其余按 doc_id 排(编号前缀保证法规顺序稳定)。
   const rows = await env.DB.prepare(
     `SELECT d.doc_id, d.title, d.doc_number, d.issuer, d.effective_date,
             (SELECT COUNT(*) FROM chapters c WHERE c.doc_id = d.doc_id) as chapter_count,
             (SELECT COUNT(*) FROM articles a WHERE a.doc_id = d.doc_id) as article_count
-     FROM documents d ORDER BY d.created_at DESC`
+     FROM documents d
+     ORDER BY d.is_toc ASC, d.sort_order ASC, d.doc_id ASC`
   ).all();
   return { documents: rows.results };
 }
@@ -556,10 +585,7 @@ async function getChapter(docId: string, chId: string, env: Env) {
   // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀),
   // 例如 "d1a2b3c4d5/chapters/xxx__abc12345.md"。
   // doc_id 段必须短 —— R2 object name 上限约 320 字节(UTF-8), 长中文 slug 会超。
-  const objKey = (row as any).r2_object_key;
-  const key = objKey && objKey.includes("/")
-    ? objKey
-    : `${docId}/chapters/${objKey}`;
+  const key = r2Key((row as any).r2_object_key, docId, "chapters");
   const obj = await env.INDEX_BUCKET.get(key);
   const markdown = obj ? await obj.text() : "";
   return { chapter: row, markdown };
@@ -567,8 +593,13 @@ async function getChapter(docId: string, chId: string, env: Env) {
 
 // ---------- 条文详情 ----------
 async function getArticle(artId: string, env: Env) {
+  // ⚠️ 不要写 `a.*, ..., a.doc_id` —— doc_id 在 a.* 里已经有了,
+  //    重复列名会让 D1 **静默返回空结果集**(不报错, .first() 就是 null),
+  //    症状是所有条文详情都 article_not_found。
   const row = await env.DB.prepare(
-    `SELECT a.*, c.title as chapter_title, c.number as chapter_number, a.doc_id
+    `SELECT a.article_id, a.chapter_id, a.doc_id, a.number, a.title,
+            a.r2_object_key, a.vector_id,
+            c.title as chapter_title, c.number as chapter_number
      FROM articles a LEFT JOIN chapters c ON c.chapter_id = a.chapter_id
      WHERE a.article_id=?1`
   ).bind(artId).first();
@@ -576,10 +607,7 @@ async function getArticle(artId: string, env: Env) {
 
   // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀)
   const docId = (row as any).doc_id;
-  const objKey = (row as any).r2_object_key;
-  const key = objKey && objKey.includes("/")
-    ? objKey
-    : `${docId}/articles/${objKey}`;
+  const key = r2Key((row as any).r2_object_key, docId, "articles");
   const obj = await env.INDEX_BUCKET.get(key);
   return { article: row, markdown: obj ? await obj.text() : "" };
 }

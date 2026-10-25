@@ -699,6 +699,14 @@ def main() -> int:
     # ---------- 5. seed.sql ----------
     write_seed_sql(documents, chapters, articles, r2_keys, r2_doc_ids)
 
+    # ---------- 6. D1 表结构迁移(老库补列) ----------
+    # 必须在生成 seed.sql 之后、用户 apply 之前跑 ——
+    # 否则 INSERT 会因缺列失败。
+    try:
+        ensure_documents_columns()
+    except Exception as e:
+        print(f"[migrate] 跳过(不影响 seed.sql 生成): {e}")
+
     print(f"[OK] documents={len(documents)} chapters={len(chapters)} articles={len(articles)}")
     print(f"     out: {out}")
     print(f"     seed: {SEED_SQL}")
@@ -730,11 +738,13 @@ def write_seed_sql(
 
     doc_title_by_id = {d["doc_id"]: d["title"] for d in documents}
 
-    for d in documents:
+    for sort_idx, d in enumerate(documents):
+        # is_toc: 目录/封面 —— 不进 FTS, 列表排后面
+        # sort_order: 灌库时的展示顺序(法规在前)
         lines.append(
-            "INSERT INTO documents(doc_id, title, doc_number, issuer, version) VALUES("
+            "INSERT INTO documents(doc_id, title, doc_number, issuer, version, is_toc, sort_order) VALUES("
             f"'{esc(d['doc_id'])}', '{esc(d['title'])}', '{esc(d['doc_number'])}', "
-            f"'{esc(d['scope'])}', 'minimax-2026');"
+            f"'{esc(d['scope'])}', 'minimax-2026', {1 if d.get('is_toc') else 0}, {sort_idx});"
         )
 
     for c in chapters:
@@ -790,6 +800,38 @@ def write_seed_sql(
     SEED_SQL.parent.mkdir(parents=True, exist_ok=True)
     SEED_SQL.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"     sql: {len(lines)} statements")
+
+
+def ensure_documents_columns() -> None:
+    """
+    确保 D1 的 documents 表有 is_toc / sort_order 两列。
+
+    ⚠️ `CREATE TABLE IF NOT EXISTS` **不会**给已存在的表加列 ——
+       schema.sql 改了表结构后, 老库里还是缺这两列,
+       seed.sql 的 INSERT 会报 "table documents has no column named is_toc"。
+    对策: 灌库前先查 PRAGMA table_info, 缺哪列补哪列。
+    (迁移语句在 query/worker/migrate.sql, 这里是自动版)
+    """
+    import sqlite3
+    import subprocess
+
+    worker = REPO / "query" / "worker"
+    wrangler = worker / "node_modules" / ".bin" / "wrangler.cmd"
+
+    def d1(cmd: str) -> str:
+        r = subprocess.run(
+            [str(wrangler), "d1", "execute", "siliao-db", "--local", "--command", cmd],
+            cwd=worker, capture_output=True, text=True, timeout=120,
+        )
+        return r.stdout or ""
+
+    out = d1("PRAGMA table_info(documents)")
+    if "is_toc" not in out:
+        print("[migrate] documents.is_toc 缺失, 补列...")
+        d1("ALTER TABLE documents ADD COLUMN is_toc INTEGER DEFAULT 0")
+    if "sort_order" not in out:
+        print("[migrate] documents.sort_order 缺失, 补列...")
+        d1("ALTER TABLE documents ADD COLUMN sort_order INTEGER DEFAULT 0")
 
 
 if __name__ == "__main__":
