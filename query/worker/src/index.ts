@@ -67,7 +67,11 @@ export default {
       }
       if (path === "/api/documents") return json(await listDocuments(env), env);
       const mDocChs = path.match(/^\/api\/documents\/([^/]+)\/chapters$/);
-      if (mDocChs) return json(await listChapters(mDocChs[1], env), env);
+      // ⚠️ 必须 decode —— url.pathname 不做 percent-decode,
+      //    中文 doc_id 会带 %E5%81... 进 D1, 查不到任何章节。
+      if (mDocChs) {
+        return json(await listChapters(decodeURIComponent(mDocChs[1]), env), env);
+      }
       const mChap = path.match(/^\/api\/chapter\/([^/]+)\/([^/]+)$/);
       if (mChap) {
         return json(
