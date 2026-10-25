@@ -127,7 +127,21 @@ A 档(整句 phrase 精确匹配)与 B 档(bigram RRF)的精度差一个数量�
 **教训**:换语料不只是换数据 —— **硬编码语料 id/标题的测试和 UI 会集体假失败**。
 测试应断言**结构性事实**(列表有内容、标题非空、markdown 渲染出段落),不断言具体条文文本。
 
-### 3.6 评测集里的 query 必须取自**条文自己的正文**
+### 3.6 Worker 的 3 个 API 层 bug(旧语料时代没暴露, 换中文长 id 才炸)
+
+| bug | 根因 | 症状 |
+|---|---|---|
+| 条文/章节详情全 not_found | `url.pathname` **不做 percent-decode**, 中文 article_id 带着 `%E5%81...` 进 D1 | 查不到任何条文 |
+| 搜索 excerpt 全空 | R2 存的 key 是 **URL-encoded**, D1 存原始中文, miniflare 不自动 encode | 2180 个对象在 R2 里却取不到 |
+| 文档列表顺序乱 | `ORDER BY created_at DESC`, 但同秒插入 → 顺序是插入序的逆序 | 首页第一屏全是「000封面」 |
+
+**对策**:
+- 路由捕获后统一 `decodeURIComponent()`
+- 统一走 `r2Key(objKey, docId, kind)` —— 逐段 encode 再取
+- `documents` 表加 `is_toc` / `sort_order` 两列; schema 用独立 `migrate.sql` 做幂等 ALTER
+  (`CREATE TABLE IF NOT EXISTS` **不会**给已存在的表加列, 改了 schema.sql 必须配迁移)
+
+### 3.7 评测集里的 query 必须取自**条文自己的正文**
 
 从 `articles_fts.text` 取短语会串味 —— 那是「章号 + 章名 + 文档名 + 正文」的**注入版**,
 短语会跨条文串味,导致生成的 query 在目标条文里根本不存在(评测集本身错,数字失真)。
