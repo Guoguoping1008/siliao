@@ -142,3 +142,12 @@ Account ID: `1b938cc261b000a03554b506985daabb`
 | Pages | siliao-web | siliao-web.pages.dev |
 | Vectorize | feed-law-index | (已绑定, 暂未启用) |
 | Pages secret | API_BASE | https://siliao-api.guoguoping.workers.dev |
+
+## 五、CI 状态(2026-10-26)
+
+| Workflow | 状态 | 说明 |
+|---|---|---|
+| CI | ✅ 5/5 绿 | Web vitest 34/34 · e2e 9/9 · typecheck+build · Worker typecheck · Eval(门禁 recall@10 ≥70%, 实测 76.0%) |
+| Deploy | ⛔ 卡在凭据 | 仓库 0 个 secret,见「一之二」 |
+
+Deploy 修好 secret 之后就会自动跑,不用手动。
