@@ -1,0 +1,60 @@
+# bge-m3 语义检索服务 —— 生产部署镜像
+#
+# 为什么要容器化:
+#   服务器自带 python3.6(CentOS 7), 而 sentence-transformers 需要 3.9+,
+#   torch 也要匹配的 wheel。装系统 Python 会污染这台跑着其他业务的生产机。
+#   容器隔离, 镜像自带 3.11。
+#
+# 模型来源: hf-mirror.com(国内可达; huggingface.co 直连不通)
+#   build 时预下载进镜像, 运行时完全离线, 不依赖出网。
+#
+# 构建(在服务器上):
+#   docker build -t siliao-bge:1.0 .
+# 运行:
+#   docker run -d --name siliao-bge --restart unless-stopped \
+#     -p 127.0.0.1:8080:8080 \
+#     -v /opt/bge/data:/data \
+#     -e BGE_CACHE=/data/bge_m3_cache.json \
+#     -e BGE_ARTICLES=/data/articles_cache.json \
+#     siliao-bge:1.0
+
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_ENDPOINT=https://hf-mirror.com \
+    HF_HUB_DISABLE_XET=1 \
+    HF_HUB_DOWNLOAD_TIMEOUT=180 \
+    TOKENIZERS_PARALLELISM=false \
+    OMP_NUM_THREADS=4
+
+# build-essential: torch/sentence-transformers 可能有需要编译的依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# torch CPU 版(不要拉 CUDA,服务器没 GPU 且镜像会大一倍)
+RUN pip install --index-url https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+        "numpy<2" \
+    && pip install --index-url https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+        torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --index-url https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+        sentence-transformers httpx numpy
+
+WORKDIR /app
+COPY bge_server.py /app/bge_server.py
+
+# 预下载模型(约 2.2GB)到镜像内, 运行时不再出网
+RUN python -c "\
+from sentence_transformers import SentenceTransformer; \
+SentenceTransformer('BAAI/bge-m3', cache_folder='/opt/models'); \
+print('model ready')"
+
+# 语料缓存(向量 + 文章文本)在部署时用 -v 挂进去, 不进镜像
+VOLUME ["/data"]
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD curl -sf http://127.0.0.1:8080/health || exit 1
+
+CMD ["python", "/app/bge_server.py"]
