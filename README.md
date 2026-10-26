@@ -3,10 +3,23 @@
 > 基于《中国农业饲料法规 2026 版》扫描件 OCR 全量重建的 RAG 知识库。
 > 语料: `minimax/` 1021 页 → 196 份法规 / 529 章 / 3145 条文。
 
+## 🟢 生产环境(2026-10-26 上线)
+
+| 组件 | 地址 |
+|---|---|
+| 前端 | **https://siliao-web.pages.dev** |
+| API | https://siliao-api.guoguoping.workers.dev |
+| API 代理 | https://siliao-web.pages.dev/api/* (Pages Functions) |
+
+D1 已灌满 196 文档 / 529 章 / 3145 条文。
+**3 项待人工开通**:R2 桶(原文正文/excerpt)、DeepSeek key(生成段)、
+bge 公网 endpoint(语义召回,当前生产跑纯 FTS5)。
+详见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
+
 ## 形态
 
 - Web App(响应式),Cloudflare Pages 免费托管
-- 检索引擎:D1 FTS5(trigram) **phrase 优先 + bigram RRF + 标题加权**
+- 检索引擎:D1 FTS5(trigram) **phrase 优先 + bigram RRF + 标题加权** ⊕ bge-m3 语义层
 - LLM:DeepSeek-V3 · Embedding:bge-m3(本地,plan B 接外部)
 - RAG 问答流式输出,带引用校验(LLM 编造引用自动标红)
 

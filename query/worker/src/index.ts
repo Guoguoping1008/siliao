@@ -19,7 +19,9 @@
  */
 
 export interface Env {
-  INDEX_BUCKET: R2Bucket;
+  // ⚠️ INDEX_BUCKET 可选: 本账户 R2 尚未开通, binding 在 wrangler.toml 里
+  //    是注释掉的。没有 R2 时检索照常工作(D1 FTS5), 只是条文/章节正文取不到。
+  INDEX_BUCKET?: R2Bucket;
   DB: D1Database;
   VECTOR: VectorizeIndex;
   AI: Ai;
@@ -351,7 +353,7 @@ async function searchArticles(
   await Promise.all((meta.results as any[]).map(async (m) => {
     // R2 key: 必须 encode(见 r2Key 的注释)
     const key = r2Key(m.r2_object_key, m.doc_id, "articles");
-    const obj = await env.INDEX_BUCKET.get(key);
+    const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
     const text = obj ? (await obj.text()).slice(0, 600) : "";
     excerptById.set(m.article_id, text);
   }));
@@ -656,7 +658,7 @@ async function getChapter(docId: string, chId: string, env: Env) {
   // 例如 "d1a2b3c4d5/chapters/xxx__abc12345.md"。
   // doc_id 段必须短 —— R2 object name 上限约 320 字节(UTF-8), 长中文 slug 会超。
   const key = r2Key((row as any).r2_object_key, docId, "chapters");
-  const obj = await env.INDEX_BUCKET.get(key);
+  const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
   const markdown = obj ? await obj.text() : "";
   return { chapter: row, markdown };
 }
@@ -678,7 +680,7 @@ async function getArticle(artId: string, env: Env) {
   // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀)
   const docId = (row as any).doc_id;
   const key = r2Key((row as any).r2_object_key, docId, "articles");
-  const obj = await env.INDEX_BUCKET.get(key);
+  const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
   return { article: row, markdown: obj ? await obj.text() : "" };
 }
 

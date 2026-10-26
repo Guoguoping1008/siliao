@@ -7,6 +7,9 @@
  * 通过环境变量 VITE_USE_MOCK 切换 (默认 mock=true,方便离线开发)
  */
 
+// ⚠️ 生产构建必须显式 VITE_USE_MOCK=false —— 否则线上页面会加载
+//    mock 语料(3.2MB)并展示离线数据, 看起来"能用"但其实没连 Worker。
+//    用 import.meta.env.VITE_USE_MOCK 在 build 时内联, 运行时改不了。
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 // ---------- 类型 ----------
