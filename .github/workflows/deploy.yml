@@ -34,11 +34,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: query/worker/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
+      # ⚠️ 前置检查: secret 没配就直接说清楚, 别让 wrangler 拿着空 token
+      #    去 Cloudflare API 报一句看不懂的 400。
+      - name: 检查 Cloudflare 凭据
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::仓库缺少 Cloudflare secrets。请在 Settings → Secrets and"
+            echo "::error::variables → Actions 新建这两个(仓库需 admin 权限):"
+            echo "::error::  CLOUDFLARE_API_TOKEN   (Dashboard → My Profile → API Tokens →"
+            echo "::error::   Edit Cloudflare Workers, 模板 'Edit Cloudflare Workers')"
+            echo "::error::  CLOUDFLARE_ACCOUNT_ID  (Dashboard 右下角, 形如 1b938cc261b000a03554b506985daabb)"
+            exit 1
+          fi
+          echo "✅ Cloudflare 凭据已配置"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # ⚠️ 2026-10-26: 不用 cloudflare/wrangler-action@v3 —— 它在
       #    "配置 wrangler" 这一步就挂了(装 wrangler + 登录鉴权, v3 对
       #    新版 wrangler 4.x 的兼容性有问题), 报错信息还被吞在 action 里。
@@ -49,6 +65,18 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: 校验部署结果
+        # 部署完必须回读一次 —— 退出码 0 不等于 Worker 真的活了
+        run: |
+          curl -sf --retry 5 --retry-delay 3 --retry-all-errors \
+            "https://siliao-api.guoguoping.workers.dev/api/documents" \
+            -o /tmp/docs.json
+          python -c "
+          import json
+          n = len(json.load(open('/tmp/docs.json'))['documents'])
+          print(f'✅ 生产 API 活着, {n} 份文档')
+          assert n > 100, f'文档数异常: {n}'
+          "
 
   # ===== 前端 Pages 部署 =====
   pages:
@@ -59,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - uses: actions/setup-python@v5

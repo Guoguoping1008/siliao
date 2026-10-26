@@ -57,6 +57,28 @@ Cloudflare 边缘连不到本机 LAN IP, 所以生产目前跑的是**纯 FTS5**
 
 ---
 
+## 一之二、配置 GitHub Actions 自动部署(一次性)
+
+`deploy.yml` 需要两个仓库 secret, **现在还没配**(2026-10-26 实测:
+`GET /repos/Guoguoping1008/siliao/actions/secrets` 返回 0 个,
+workflow 里 `CLOUDFLARE_API_TOKEN:` 是空的 → 部署必挂)。
+
+需要 **repo admin 权限**的人操作:
+
+1. Cloudflare API Token:
+   Dashboard → My Profile → API Tokens → **Create Token**
+   → 模板选 **Edit Cloudflare Workers**(含 Workers Scripts:Edit / D1:Edit / R2:Edit)
+   → 复制 token
+2. Account ID: Dashboard 右下角, 形如 `1b938cc261b000a03554b506985daabb`
+3. 存进 GitHub:
+   `gh secret set CLOUDFLARE_API_TOKEN` / `gh secret set CLOUDFLARE_ACCOUNT_ID`
+   (或 Settings → Secrets and variables → Actions → New repository secret)
+
+配好后 `deploy.yml` 会自动: 部署 Worker → 灌 Pages → **回读生产 API 校验**。
+
+未配之前: 手动发布照常可用(见下一节), 只是 CI 的 Deploy job 会红,
+并且会打印明确提示而不是玄学错误。
+
 ## 二、日常发布
 
 ```bash
