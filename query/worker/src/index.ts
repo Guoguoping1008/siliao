@@ -25,6 +25,11 @@ export interface Env {
   DB: D1Database;
   VECTOR: VectorizeIndex;
   AI: Ai;
+  // LLM 配置。**provider 无关** —— DeepSeek / MiniMax / 任何 OpenAI 兼容端点。
+  // 优先读 LLM_*, 回退到旧的 DEEPSEEK_*(兼容存量部署)。
+  LLM_API_BASE?: string;
+  LLM_MODEL?: string;
+  LLM_API_KEY?: string;
   DEEPSEEK_API_BASE: string;
   DEEPSEEK_MODEL: string;
 }
@@ -135,6 +140,23 @@ async function fetchWithRetry<T>(
   }
   console.warn(`[fetch] ${attempts} 次重试仍失败:`, (lastErr as Error)?.message);
   throw lastErr;
+}
+
+// ---------- LLM 端点解析(provider 无关) ----------
+//
+// ⚠️ MiniMax 的 OpenAI 兼容端点是 `https://api.minimaxi.com/v1/chat/completions`,
+//    鉴权与响应格式和 DeepSeek 完全一致(Authorization: Bearer <key>,
+//    响应 {choices:[{message:{content}}]}), 可以直接换 base_url + model。
+//
+//    注意 MiniMax 的 `model` 名和 DeepSeek 不同:
+//      DeepSeek: "deepseek-chat"
+//      MiniMax : "MiniMax-M3"(或 abab6.5s-chat 等)
+//    所以 model 必须一起改, 不能只改 base_url。
+function llmConfig(env: Env): { base: string; model: string; key: string } {
+  const base = env.LLM_API_BASE || env.DEEPSEEK_API_BASE;
+  const model = env.LLM_MODEL || env.DEEPSEEK_MODEL;
+  const key = env.LLM_API_KEY || (env as any).DEEPSEEK_API_KEY || "";
+  return { base, model, key };
 }
 
 // ---------- R2 key 构造 ----------
@@ -751,14 +773,15 @@ async function ragQA(q: string, env: Env) {
   const t0 = Date.now();
   const { systemPrompt, userPrompt } = buildRagPrompt(q, hits.hits);
 
-  const resp = await fetch(`${env.DEEPSEEK_API_BASE}/chat/completions`, {
+  const llm = llmConfig(env);
+  const resp = await fetch(`${llm.base}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${(env as any).DEEPSEEK_API_KEY ?? ""}`,
+      Authorization: `Bearer ${llm.key}`,
     },
     body: JSON.stringify({
-      model: env.DEEPSEEK_MODEL,
+      model: llm.model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -807,14 +830,15 @@ function ragQAStream(q: string, env: Env): Response {
 
         // 2. LLM streaming
         const { systemPrompt, userPrompt } = buildRagPrompt(q, hits.hits);
-        const resp = await fetch(`${env.DEEPSEEK_API_BASE}/chat/completions`, {
+        const llm = llmConfig(env);
+        const resp = await fetch(`${llm.base}/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${(env as any).DEEPSEEK_API_KEY ?? ""}`,
+            Authorization: `Bearer ${llm.key}`,
           },
           body: JSON.stringify({
-            model: env.DEEPSEEK_MODEL,
+            model: llm.model,
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
@@ -836,30 +860,48 @@ function ragQAStream(q: string, env: Env): Response {
 
         // 3. 透传上游 SSE,提取 delta
         let fullAnswer = "";
+        // OpenAI/MiniMax SSE:每行 `data: { "choices": [{ "delta": { "content": "..." }}] }`
+        const emitDelta = (line: string) => {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) return;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === "[DONE]") return;
+          try {
+            const obj = JSON.parse(payload);
+            const delta = obj.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullAnswer += delta;
+              controller.enqueue(encoder.encode(formatSSE("chunk", { delta })));
+            }
+          } catch {
+            // ignore malformed line
+          }
+        };
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          // DeepSeek/OpenAI SSE:每行 `data: { "choices": [{ "delta": { "content": "..." }}] }`
-          for (const line of buf.split("\n")) {
-            if (!line.startsWith("data:")) continue;
-            const payload = line.slice(5).trim();
-            if (payload === "[DONE]") continue;
-            try {
-              const obj = JSON.parse(payload);
-              const delta = obj.choices?.[0]?.delta?.content;
-              if (delta) {
-                fullAnswer += delta;
-                controller.enqueue(encoder.encode(formatSSE("chunk", { delta })));
-              }
-            } catch {
-              // ignore malformed line
+          if (done) {
+            // 收尾: flush decoder + 解析残留
+            buf += decoder.decode();
+            for (const line of buf.split("\n")) {
+              emitDelta(line);
             }
+            break;
           }
-          buf = "";
+          buf += decoder.decode(value, { stream: true });
+          // ⚠️ **不能每轮把 buf 清空** —— TCP 分片跟 SSE 帧边界不对齐,
+          //    一个帧可能跨多个 read, 一个 read 也可能含多帧。
+          //    旧代码 `buf = ""` 会丢掉所有没读完整的行, 表现为
+          //    「只收到 1 个 chunk, 答案被截断」(MiniMax 的帧比 DeepSeek 大, 必现)。
+          //    正确做法: 只消费**完整的行**(以 \n 结尾), 余下的留在 buf 里等下一轮。
+          let nlIdx: number;
+          while ((nlIdx = buf.indexOf("\n")) !== -1) {
+            const line = buf.slice(0, nlIdx);
+            buf = buf.slice(nlIdx + 1);
+            emitDelta(line);
+          }
         }
 
         // 4. 校验引用,推送 done

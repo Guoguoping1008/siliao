@@ -10,7 +10,7 @@
 | D1 数据库 | `siliao-db` / `e406e21e-e770-4c97-822a-57178c347aa6` | ✅ 已灌 3145 条文 |
 | R2 桶 | `siliao-index` | ⛔ **未开通**(见下) |
 | bge 语义层 | `https://ns.hbnongfengyuan.cn` | ✅ **已上线**(见下) |
-| DeepSeek | `deepseek-chat` | ⛔ key 未设(见下) |
+| LLM (MiniMax) | `MiniMax-Text-01` | ✅ 已接入 |
 
 ---
 
@@ -35,14 +35,35 @@ npx wrangler deploy
 
 不做的后果: 检索照常能出结果, 但 `/api/article` 的正文是空串, 搜索结果的 excerpt 是空。
 
-### 1.2 设置 DeepSeek key(阻塞 QA 生成)
+### 1.2 LLM key ✅ 已用 MiniMax 顶上(2026-10-26)
+
+**DeepSeek 的 key 余额不足**(实测 `402 Insufficient Balance`), 所以 LLM 换成了
+MiniMax —— 它的 **OpenAI 兼容端点**与 DeepSeek 完全同协议:
+
+| | DeepSeek | MiniMax |
+|---|---|---|
+| base | `https://api.deepseek.com/v1` | `https://api.minimaxi.com/v1` |
+| 端点 | `/chat/completions` | `/chat/completions` ✅ 同路径 |
+| 鉴权 | `Authorization: Bearer <key>` | 同 ✅ |
+| 响应 | `{choices:[{message:{content}}]}` | 同 ✅ |
+| 流式 | `data: {choices:[{delta:{content}}]}` | 同 ✅(但不发 `[DONE]`) |
+
+**Worker 里已改成 provider 无关**: `llmConfig()` 优先读 `LLM_*`,
+回退 `DEEPSEEK_*` —— 换 provider 只改 3 个配置值, 不动代码。
 
 ```bash
 cd query/worker
-echo "sk-你的key" | npx wrangler secret put DEEPSEEK_API_KEY
+echo "<minimax key>" | npx wrangler secret put LLM_API_KEY
 ```
 
-不做的后果: `/api/qa` 的**检索段正常**(SSE 先吐 `meta` + 8 条证据), 但生成段返 401。
+**模型选择**: 用 `MiniMax-Text-01`(干净输出)。
+⚠️ 不要用 `MiniMax-M3` —— 它会把 `` 思考过程塞进 `delta.content`,
+直接泄漏到用户看到的答案里。`abab6.5s-chat` 已下线(404)。
+
+**不做的后果**: `/api/qa` 检索段正常(SSE 先吐 `meta` + 8 条证据), 生成段返 401。
+
+**DeepSeek 充值后切回去**: 删掉 `wrangler.toml` 里的 `LLM_API_BASE`/`LLM_MODEL`
+两行即可(自动回退 `DEEPSEEK_*`), 或者直接把 `LLM_API_BASE` 改成 DeepSeek 的地址。
 
 ### 1.3 bge 语义层上生产 ✅ 已完成(2026-10-26)
 

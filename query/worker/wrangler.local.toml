@@ -48,6 +48,11 @@ remote = false
 
 # 环境变量(非秘密)
 [vars]
+# LLM provider 无关(Worker 里 llmConfig() 优先读 LLM_*)
+# 当前用 MiniMax —— 它的 OpenAI 兼容端点与 DeepSeek 同协议。
+# 切回 DeepSeek: 把下面两行删掉即可(自动回退 DEEPSEEK_*)
+LLM_API_BASE = "https://api.minimaxi.com/v1"
+LLM_MODEL = "MiniMax-Text-01"
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 DEEPSEEK_MODEL = "deepseek-chat"
 # ⚠️ DEEPSEEK_API_KEY 是 secret(不在 [vars] 里)。2026-10-26 部署时尚未设置,

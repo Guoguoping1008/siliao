@@ -14,14 +14,15 @@
 D1 已灌满 196 文档 / 529 章 / 3145 条文。
 **bge 语义层已上线**(`https://ns.hbnongfengyuan.cn`,Docker 容器 + nginx 反代),
 生产跑的是 FTS5 + bge hybrid。
-**2 项待人工开通**:R2 桶(原文正文/excerpt)、DeepSeek key(生成段)。
+**LLM 已接入 MiniMax**(OpenAI 兼容端点,DeepSeek key 余额不足故切换)。
+**1 项待人工开通**:R2 桶(原文正文/excerpt —— 这是当前答案质量的唯一瓶颈)。
 详见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
 
 ## 形态
 
 - Web App(响应式),Cloudflare Pages 免费托管
 - 检索引擎:D1 FTS5(trigram) **phrase 优先 + bigram RRF + 标题加权** ⊕ bge-m3 语义层
-- LLM:DeepSeek-V3 · Embedding:bge-m3(本地,plan B 接外部)
+- LLM:MiniMax-Text-01(provider 无关,兼容 DeepSeek) · Embedding:bge-m3(公网自建)
 - RAG 问答流式输出,带引用校验(LLM 编造引用自动标红)
 
 ## 目录结构
