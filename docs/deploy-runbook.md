@@ -9,7 +9,7 @@
 | API 代理 (Pages Functions) | https://siliao-web.pages.dev/api/* | ✅ 已上线 |
 | D1 数据库 | `siliao-db` / `e406e21e-e770-4c97-822a-57178c347aa6` | ✅ 已灌 3145 条文 |
 | R2 桶 | `siliao-index` | ⛔ **未开通**(见下) |
-| bge 语义层 | 本机 `192.168.3.65:8080` | ⛔ 边缘连不到(见下) |
+| bge 语义层 | `https://ns.hbnongfengyuan.cn` | ✅ **已上线**(见下) |
 | DeepSeek | `deepseek-chat` | ⛔ key 未设(见下) |
 
 ---
@@ -44,16 +44,48 @@ echo "sk-你的key" | npx wrangler secret put DEEPSEEK_API_KEY
 
 不做的后果: `/api/qa` 的**检索段正常**(SSE 先吐 `meta` + 8 条证据), 但生成段返 401。
 
-### 1.3 bge 语义层上生产(可选, 提升召回)
+### 1.3 bge 语义层上生产 ✅ 已完成(2026-10-26)
 
-Cloudflare 边缘连不到本机 LAN IP, 所以生产目前跑的是**纯 FTS5**。两个方案:
+**部署位置**: `47.108.112.118`(已有的 prod 服务器), Docker 容器 `siliao-bge:1.0`,
+nginx 反代, 公网入口 `https://ns.hbnongfengyuan.cn`。
 
-- **A. 部署到公网**: 把 `build/proxy/bge_server.py` 放到 VPS / Cloud Container,
-  用 HTTPS endpoint 填进 `wrangler.toml` 的 `BGE_SERVER_URL`
-- **B. 换 Workers AI**: 用 `@cf/baai/bge-large-zh` 替换, 无需自建服务(注意维度和
-  当前 1024 维 bge-m3 不一致, 要重跑 embedding)
+**为什么复用 ns.hbnongfengyuan.cn**:
+- 该子域 DNS 已解析到本机, 证书有效到 2026-12-22(SAN: ns + www.ns)
+- 原站点反代 `127.0.0.1:9999`, 该端口空置(原业务已下线返回 502)
+- → 直接改指向 bge, **不动 DNS、不签新证书**
 
-量化收益(本地同语料实测): recall@20 56% → 68%, MRR 0.544 → 0.647, 业务 query MRR +47%。
+**关键坑**:
+- `bge_server.py` 默认推导 `Path(__file__).parent.parent.parent/'.models'/'hf'`。
+  容器里 `__file__` = `/app/bge_server.py` → 推导出 `/.models/hf`(不存在),
+  报 `couldn't find them in the cached files`。**必须显式设
+  `BGE_CACHE_DIR=/opt/models`**(模型 build 时烤进镜像的位置)。
+- 服务器自带 python3.6(CentOS 7), sentence-transformers 要 3.9+ → 必须容器化。
+- 该服务器在国内, **DNS 被污染**: `*.workers.dev` 会解析到假 IP,
+  但 `api.cloudflare.com` 正常。所以服务器调 Cloudflare API 用域名,
+  调 workers.dev 要走 IP。
+- 中国网络下 `huggingface.co` 不通, 必须 `HF_ENDPOINT=https://hf-mirror.com`
+  (镜像里已 bake 死, 运行时完全离线)。
+
+**实测收益**(经公网 endpoint 跑评测集):
+
+| 指标 | 纯 FTS5 | 生产 hybrid | 变化 |
+|---|---|---|---|
+| recall@10 | 76.0% | 76.0% | — |
+| **recall@20** | 56.0% | **68.0%** | **+12pt** |
+| **MRR** | 0.544 | **0.647** | **+19%** |
+| **业务 query MRR** | 0.488 | **0.717** | **+47%** |
+| negative 严格精度 | 100% | 100% | — |
+
+**运维**:
+```bash
+ssh prod
+docker logs -f siliao-bge                    # 日志
+docker restart siliao-bge                    # 重启
+docker exec siliao-bge python -c "..."       # 进容器排查
+# nginx 配置: /usr/local/nginx/conf/conf.d/ns.hbnongfengyuan.cn.conf
+# 语料缓存:  /opt/bge/data/{bge_m3_cache.json, articles_cache.json}
+# 容器绑 127.0.0.1:8080, 只经 nginx 对外, 只开 /v1/search 与 /health
+```
 
 ---
 

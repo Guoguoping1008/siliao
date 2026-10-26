@@ -59,14 +59,16 @@ DEEPSEEK_MODEL = "deepseek-chat"
 #
 # 未配/不可达时,Workers 自动退化为纯 FTS5 + LIKE,不破生产。
 #
-# ⚠️ 生产(Cloudflare 边缘)连不到本机 LAN IP —— bge 请求会失败,
-#    Worker 自动 fallback 到纯 FTS5(功能正常, 只是少了语义召回:
-#    业务 query MRR 0.647 → 0.544)。
-#    要在生产拿到 hybrid 效果, 需要:
-#      1) 把 bge_server 部署到公网(VPS / Cloud Container), 用 HTTPS endpoint
-#      2) 或改用 Workers AI 的 bge 模型
-#    眼下先用纯 FTS5 上线, 不阻塞发布。
-BGE_SERVER_URL = ""
+# ⚠️ 生产(Cloudflare 边缘)连不到本机 LAN IP —— 必须指向公网 endpoint。
+#
+# 2026-10-26: bge 服务已部署到公网服务器(47.108.112.118), Docker 容器
+#   siliao-bge:1.0, nginx 反代, 复用 ns.hbnongfengyuan.cn 的证书
+#   (DNS 已指向该机, 证书有效到 2026-12-22)。
+#
+# 该 endpoint 只暴露 /v1/search 与 /health, 挡住 /v1/embeddings。
+# Worker 调不通时会自动 fallback 到纯 FTS5(不破生产, 只是少了语义召回:
+#   业务 query MRR 0.647 → 0.544)。
+BGE_SERVER_URL = "https://ns.hbnongfengyuan.cn"
 
 # 部署观测
 [observability]

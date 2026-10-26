@@ -12,8 +12,9 @@
 | API 代理 | https://siliao-web.pages.dev/api/* (Pages Functions) |
 
 D1 已灌满 196 文档 / 529 章 / 3145 条文。
-**3 项待人工开通**:R2 桶(原文正文/excerpt)、DeepSeek key(生成段)、
-bge 公网 endpoint(语义召回,当前生产跑纯 FTS5)。
+**bge 语义层已上线**(`https://ns.hbnongfengyuan.cn`,Docker 容器 + nginx 反代),
+生产跑的是 FTS5 + bge hybrid。
+**2 项待人工开通**:R2 桶(原文正文/excerpt)、DeepSeek key(生成段)。
 详见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
 
 ## 形态
@@ -60,19 +61,19 @@ siliao/
 - [x] **OCR 全量 1021 页 → minimax/ 语料树**
 - [x] **语料重建: 196 文档 / 529 章 / 3145 条文**
 - [x] **检索重构: phrase 优先 + bigram RRF + 标题加权**
-- [ ] bge-m3 语义层在新语料上重算(后台任务进行中)
-- [ ] 真 Cloudflare 上线(等 wrangler login)
+- [x] **bge-m3 语义层在新语料上重算 + 部署到公网**(生产 hybrid 已生效)
+- [x] **真 Cloudflare 上线**(2026-10-26)
 
 ## 性能基线
 
-| 指标 | 当前值 | 来源 |
-|---|---|---|
-| 检索 recall@10(minimax 语料, 50 用例) | **76.0%** | evals/eval_minimax.py |
-| 检索 recall@20 | **68.0%** | 同上 |
-| 检索 MRR | **0.647** | 同上 |
-| ├ 业务 query(20 条自然语言问句) | recall@10 **80.0%** / MRR **0.717** | 同上 |
-| └ 语料派生 query(30 条正文片段) | recall@10 **73.3%** / MRR 0.600 | 同上 |
-| negative 严格精度 | **100%** (0/4 真命中) | 同上 |
+| 指标 | 纯 FTS5 | 生产 hybrid | 来源 |
+|---|---|---|---|
+| 检索 recall@10(minimax 语料, 50 用例) | 76.0% | **76.0%** | evals/eval_minimax.py |
+| 检索 recall@20 | 56.0% | **68.0%** | 同上 |
+| 检索 MRR | 0.544 | **0.647** | 同上 |
+| ├ 业务 query(20 条自然语言问句) | recall@10 75.0% / MRR 0.488 | recall@10 **80.0%** / MRR **0.717** | 同上 |
+| └ 语料派生 query(30 条正文片段) | recall@10 76.7% / MRR 0.581 | recall@10 73.3% / MRR 0.600 | 同上 |
+| negative 严格精度 | **100%** (0/4 真命中) | **100%** | 同上 |
 | 检索对比:重构前(长 query 直接 MATCH) | recall@10 25%(业务 query) | ADR-003 |
 | 检索对比:纯 FTS5(不接 bge) | MRR 0.544 / 业务 MRR 0.488 | EVAL_NO_BGE=1 |
 | 前端单元测试 | 34/34 通过 | vitest,4 个测试文件 |
