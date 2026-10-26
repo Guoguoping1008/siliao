@@ -39,17 +39,16 @@ jobs:
           cache-dependency-path: query/worker/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
-      - name: 配置 wrangler
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: query/worker
-          # secret 在 wrangler secret put 命令里设,不在这里
-          # ⚠️ 2026-10-26: 不要加 --non-interactive —— wrangler 4.127 不认这个
-          #    flag, 会直接报 "Unknown argument"。wrangler-action 自己会传
-          #    --non-interactive 给内部命令,不能在这里再叠。
-          command: deploy
+      # ⚠️ 2026-10-26: 不用 cloudflare/wrangler-action@v3 —— 它在
+      #    "配置 wrangler" 这一步就挂了(装 wrangler + 登录鉴权, v3 对
+      #    新版 wrangler 4.x 的兼容性有问题), 报错信息还被吞在 action 里。
+      #    改成直接用 npx + 环境变量鉴权, 报错直白可见。
+      - name: 部署 Worker
+        run: npx wrangler@4 deploy
+        working-directory: query/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # ===== 前端 Pages 部署 =====
   pages:
