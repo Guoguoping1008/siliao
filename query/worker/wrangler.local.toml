@@ -1,0 +1,78 @@
+name = "siliao-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# R2: 法规原文 + GraphRAG 索引产物
+#
+# ⚠️ 2026-10-26: 本账户的 R2 **尚未开通**(API 返 403 "Please enable R2
+#    through the Cloudflare Dashboard"), bucket 建不出来。
+#    → **远端部署**时这段必须注释掉, 否则 wrangler deploy 直接失败。
+#    → **本地开发**时要打开, 否则 excerpt / 原文正文全是空的。
+#
+#    所以: 保留一份 wrangler.local.toml(本地用, R2 开着),
+#    部署前用 `wrangler deploy -c wrangler.local.toml` 会冲突 ——
+#    因此正确做法是: 本地 dev 用环境变量 R2_LOCAL=1 走下面的配置,
+#    部署走 wrangler.deploy.toml(R2 注释掉)。
+#
+#    开通 R2 后: Dashboard 激活 → 取消下面注释 → wrangler r2 bucket create
+#              siliao-index → python build/export/push_minimax_r2.py --remote
+[[r2_buckets]]
+binding = "INDEX_BUCKET"
+bucket_name = "siliao-index"
+# 本地用 .wrangler/state/v3/r2 里的 3674 个对象, 不连 Cloudflare
+remote = false
+
+# D1: 文档/章节/条文元数据 + articles_fts 全文索引
+# ⚠️  deploy 前必须先 `wrangler d1 create siliao-db` 拿到 database_id 填到下面
+[[d1_databases]]
+binding = "DB"
+database_name = "siliao-db"
+# 2026-10-26: `wrangler d1 list` 拿到真实 id(原来一直是占位符, deploy 必失败)
+database_id = "e406e21e-e770-4c97-822a-57178c347aa6"
+# ⚠️ 本地开发必须 remote = false —— true 会让 miniflare 连 Cloudflare 上的
+#    远端资源(R2 还没开通, 连不上; D1 也会走网络)。
+remote = false
+
+# Vectorize: bge-large-zh 1024 维向量(暂未启用,本期走 FTS5)
+# 留接口备扩展:ADR-001 还债触发器触发时启用
+# 本地 miniflare 不支持 Vectorize, 注释掉免得去连远端
+#[[vectorize]]
+#binding = "VECTOR"
+#index_name = "feed-law-index"
+
+# Workers AI: 留接口
+# 本地 miniflare 的 AI binding 走远端, 会产生流量费 —— 本地不需要
+#[ai]
+#binding = "AI"
+
+# 环境变量(非秘密)
+[vars]
+DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
+DEEPSEEK_MODEL = "deepseek-chat"
+# ⚠️ DEEPSEEK_API_KEY 是 secret(不在 [vars] 里)。2026-10-26 部署时尚未设置,
+#    所以 /api/qa 的检索段正常(SSE 先吐 meta + 8 条证据), 生成段返 401。
+#    拿到 key 后:
+#      cd query/worker && echo "sk-..." | npx wrangler secret put DEEPSEEK_API_KEY
+# [2026-09-20 玄穹 C-b] bge-m3 hybrid 召回 server。
+#
+# ⚠️ 本地开发必须用 **LAN IP**,不能用 127.0.0.1:
+#    miniflare 的 Worker 跑在沙箱里, 沙箱内的 127.0.0.1 指向它自己,
+#    连不到宿主机上的 bge_server(症状: 日志刷 "bge_server unreachable:
+#    Network connection lost", 而 bge_rank 恒为 0)。
+#    宿主机 IP 用 `hostname -I` / `ipconfig` 查, 变了要同步改这里。
+#
+# 未配/不可达时,Workers 自动退化为纯 FTS5 + LIKE,不破生产。
+#
+# ⚠️ 生产(Cloudflare 边缘)连不到本机 LAN IP —— bge 请求会失败,
+#    Worker 自动 fallback 到纯 FTS5(功能正常, 只是少了语义召回:
+#    业务 query MRR 0.647 → 0.544)。
+#    要在生产拿到 hybrid 效果, 需要:
+#      1) 把 bge_server 部署到公网(VPS / Cloud Container), 用 HTTPS endpoint
+#      2) 或改用 Workers AI 的 bge 模型
+#    眼下先用纯 FTS5 上线, 不阻塞发布。
+BGE_SERVER_URL = "http://192.168.3.65:8080"
+
+# 部署观测
+[observability]
+enabled = true

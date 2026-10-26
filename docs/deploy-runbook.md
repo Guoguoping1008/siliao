@@ -79,6 +79,59 @@ workflow 里 `CLOUDFLARE_API_TOKEN:` 是空的 → 部署必挂)。
 未配之前: 手动发布照常可用(见下一节), 只是 CI 的 Deploy job 会红,
 并且会打印明确提示而不是玄学错误。
 
+## 一之三、本地开发(修好了, 别再踩)
+
+本地三个服务(都在跑):
+
+```bash
+# 1. Worker (8788) —— 必须用 wrangler.local.toml
+cd query/worker
+npx wrangler dev -c wrangler.local.toml --port 8788 --ip 127.0.0.1
+
+# 2. 前端 (5173) —— 必须绑 127.0.0.1, 否则只监听 ::1
+cd web
+npx vite --host 127.0.0.1 --port 5173
+
+# 3. bge 语义层 (8080)
+cd ../..
+HF_HUB_OFFLINE=1 BGE_HOST=0.0.0.0 BGE_PORT=8080 \
+  BGE_CACHE=evals/bge_m3_cache.json BGE_ARTICLES=evals/articles_cache.json \
+  python build/proxy/bge_server.py
+```
+
+### 为什么有两份 wrangler.toml
+
+| 文件 | R2 binding | D1 remote | BGE | 用途 |
+|---|---|---|---|---|
+| `wrangler.toml` | **注释掉** | `true` | `""` | 远端部署(R2 未开通, 带 binding 会 deploy 失败) |
+| `wrangler.local.toml` | 开启 | `false` | `192.168.3.65:8080` | 本地开发 |
+
+三个必须记住的点:
+
+1. **本地必须 `remote = false`** —— `true` 会让 miniflare 去连 Cloudflare 远端
+   (R2 没开通直接连不上; D1 也会走网络)。
+2. **本地必须用 `-c wrangler.local.toml`** —— 用主配置的话 R2 binding 不存在,
+   `env.INDEX_BUCKET` 是 undefined, 表现是**搜索有结果但 excerpt 全空**
+   (D1 的 FTS5 照常工作, 很容易误判成"部署成功但数据不全")。
+3. **R2 key 必须 URL 编码** —— D1 的 `r2_object_key` 存原始中文, R2 里存的是
+   `%E5%B0%81...` 编码形式。Worker 里的 `r2Key()` 负责逐段 encode。
+   手工 `wrangler r2 object get` 时也要传编码后的 key。
+
+### 本地自检
+
+```bash
+python - <<'EOF'
+import json, urllib.request, urllib.parse
+op = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # 绕开系统代理
+def get(u):
+    return json.loads(op.open(urllib.request.Request(u, headers={"User-Agent":"curl/8"}), timeout=60).read())
+d = get('http://127.0.0.1:8788/api/search?q=' + urllib.parse.quote('新兽药注册办法'))
+ne = sum(1 for x in d['hits'] if x.get('excerpt'))
+print(f"hits={len(d['hits'])} excerpt非空={ne}")
+assert ne == len(d['hits']), "excerpt 空 → R2 binding 没生效, 检查 wrangler.local.toml"
+EOF
+```
+
 ## 二、日常发布
 
 ```bash

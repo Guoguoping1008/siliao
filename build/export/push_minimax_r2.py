@@ -100,9 +100,13 @@ def push_local(key: str, path: Path, retries: int = 3) -> tuple[str, bool]:
     last_err = ""
     for attempt in range(retries):
         try:
+            # ⚠️ 必须带 -c wrangler.local.toml —— 主 wrangler.toml 里 R2 binding
+            #    是注释掉的(远端 R2 未开通), 不指定配置的话 wrangler 找不到桶,
+            #    会另建一个空桶, 表现为 Worker 里 env.INDEX_BUCKET 为 undefined。
             r = subprocess.run(
                 [str(wrangler), "r2", "object", "put", f"{BUCKET}/{key}",
-                 "--file", str(path), "--local"],
+                 "--file", str(path), "--local",
+                 "-c", str(WORKER / "wrangler.local.toml")],
                 cwd=WORKER, capture_output=True, text=True, timeout=120,
             )
             if r.returncode == 0:

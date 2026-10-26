@@ -7,10 +7,16 @@ compatibility_flags = ["nodejs_compat"]
 #
 # ⚠️ 2026-10-26: 本账户的 R2 **尚未开通**(API 返 403 "Please enable R2
 #    through the Cloudflare Dashboard"), bucket 建不出来。
-#    开通前把这段注释掉 —— Worker 仍可部署, D1 里的 FTS5 索引照常工作,
-#    只是 /api/article 的 markdown 正文(R2 里)取不到, excerpt 会是空串。
-#    开通 R2 后: Dashboard 激活 → 取消注释 → wrangler r2 bucket create siliao-index
-#              → python build/export/push_minimax_r2.py --remote
+#    → **远端部署**时这段必须注释掉, 否则 wrangler deploy 直接失败。
+#    → **本地开发**时要打开, 否则 excerpt / 原文正文全是空的。
+#
+#    所以: 保留一份 wrangler.local.toml(本地用, R2 开着),
+#    部署前用 `wrangler deploy -c wrangler.local.toml` 会冲突 ——
+#    因此正确做法是: 本地 dev 用环境变量 R2_LOCAL=1 走下面的配置,
+#    部署走 wrangler.deploy.toml(R2 注释掉)。
+#
+#    开通 R2 后: Dashboard 激活 → 取消下面注释 → wrangler r2 bucket create
+#              siliao-index → python build/export/push_minimax_r2.py --remote
 #[[r2_buckets]]
 #binding = "INDEX_BUCKET"
 #bucket_name = "siliao-index"
