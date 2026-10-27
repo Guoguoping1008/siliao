@@ -136,6 +136,28 @@ curl -s http://127.0.0.1:8080/health        # 本机探活
 > gh secret set CLOUDFLARE_ACCOUNT_ID
 > ```
 
+### ⚠️ 当前状态: token 已过期(2026-10-27 09:2x)
+
+**现象**:Deploy workflow 在「预检 Cloudflare 凭据」这一步失败, 报
+`Invalid access token [code: 9109]`。本机 `npx wrangler deploy` 也同样 403。
+
+**为什么 Pages 还能发**:Pages 部署走的是另一条鉴权路径(本机的
+wrangler OAuth session), 不受 GitHub secret 里的 token 影响。
+所以「Pages 成功 + Worker 失败」不代表配置错了 —— 就是那个 token 过期了。
+
+**恢复**(两条路):
+```bash
+# A. 刷新 OAuth token(临时, 还会再过期)
+cd query/worker && npx wrangler login
+# 然后把新 token 写回 GitHub secret(见上面「设置方式」)
+
+# B. 建一个永不过期的 API Token(推荐, 一劳永逸)
+#    按 docs/cloudflare-token-setup-guide.html 的步骤走
+```
+
+⚠️ `npx wrangler login` 会**打开浏览器要求授权** —— 如果浏览器没自动批准
+(超时), 需要手动点一下授权按钮。本机遇到过两次超时。
+
 ### ⚠️ OAuth token 会过期(2026-10-27 踩过)
 
 wrangler 的 OAuth token 是**短期**的,过期后 CI 部署会报:
