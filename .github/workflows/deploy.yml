@@ -30,9 +30,6 @@ jobs:
   worker:
     name: Worker · wrangler deploy
     runs-on: ubuntu-latest
-    outputs:
-      # 刷新后的 token —— Pages job 直接用, 不用再刷一次
-      token: ${{ steps.creds_out.outputs.token }}
     defaults:
       run:
         working-directory: query/worker
@@ -69,65 +66,33 @@ jobs:
       #    "配置 wrangler" 这一步就挂了(装 wrangler + 登录鉴权, v3 对
       #    新版 wrangler 4.x 的兼容性有问题), 报错信息还被吞在 action 里。
       #    改成直接用 npx + 环境变量鉴权, 报错直白可见。
-      # ⚠️ 自动刷新 token —— 2026-10-27 踩过两次:
-      #    OAuth token **1 小时就过期**(wrangler login 拿的是短期 token),
-      #    存在 secret 里迟早会失效, 部署就挂在 9109。
+      # ⚠️ 凭据预检 —— 2026-10-27 踩过:
+      #    OAuth token(wrangler login 拿的)**1 小时就过期**, 存在 secret 里
+      #    迟早失效, 部署就挂在 "Invalid access token [code: 9109]"。
+      #    看着像权限不够, 实际是过期 —— 排查绕了一圈。
       #
-      #    根治办法是在 Dashboard 建一个永不过期的 API Token(见
-      #    docs/cloudflare-token-setup-guide.html)。在那之前, 用 refresh_token
-      #    机制自动续期 —— refresh_token 本身不过期。
-      #
-      #    CF_REFRESH_TOKEN 从 secret 读, 换到的 access_token 只在本次 job 用。
-      - name: 刷新 Cloudflare 凭据
+      #    现在用的是 Dashboard 建��**永不过期的 API Token**
+      #    (TTL 留空, 见 docs/cloudflare-token-setup-guide.html), 不会再过期。
+      #    这里只做预检: 万一 token 被误删/误改, 提前说清楚。
+      - name: 预检 Cloudflare 凭据
         id: cf
         run: |
-          set -euo pipefail
-          # 1) 先试 secret 里的 token —— 没过期就不用刷
           code=$(curl -s -o /tmp/cf.json -w "%{http_code}" -m 20 \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/accounts" || echo 000)
-          if [ "$code" = "200" ]; then
-            echo "✅ secret 里的 token 仍有效"
-            echo "token=$CLOUDFLARE_API_TOKEN" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 2) 过期了 —— 用 refresh_token 换一个
-          if [ -z "${CF_REFRESH_TOKEN:-}" ]; then
-            echo "::error::Cloudflare token 已过期, 且未配置 CF_REFRESH_TOKEN"
-            echo "::error::根治: 按 docs/cloudflare-token-setup-guide.html 建一个"
-            echo "::error::永不过期的 API Token, 存进 CLOUDFLARE_API_TOKEN。"
-            exit 1
-          fi
-
-          resp=$(curl -s -m 30 -X POST \
-            "https://dash.cloudflare.com/oauth2/token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "client_id=54d11594-84e4-41aa-b438-e81b8fa78ee7" \
-            --data-urlencode "grant_type=refresh_token" \
-            --data-urlencode "refresh_token=$CF_REFRESH_TOKEN")
-
-          new_token=$(echo "$resp" | python3 -c \
-            "import json,sys; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || true)
-          if [ -z "$new_token" ]; then
-            echo "::error::refresh_token 刷新失败: $(echo "$resp" | head -c 300)"
-            exit 1
-          fi
-
-          # 3) 验一下新 token
-          code=$(curl -s -o /dev/null -w "%{http_code}" -m 20 \
-            -H "Authorization: Bearer $new_token" \
-            "https://api.cloudflare.com/client/v4/accounts" || echo 000)
+            "https://api.cloudflare.com/client/v4/accounts")
           if [ "$code" != "200" ]; then
-            echo "::error::刷新后的 token 仍无效 (HTTP $code)"
+            echo "::error::Cloudflare API 返回 $code —— token 无效或已撤销"
+            echo "::error::$(head -c 300 /tmp/cf.json)"
+            echo "::error::修复: 在 Dashboard 重新建一个 API Token(TTL 留空),"
+            echo "::error::更新仓库 secret CLOUDFLARE_API_TOKEN。"
+            echo "::error::步骤见 docs/cloudflare-token-setup-guide.html"
             exit 1
           fi
-
-          echo "✅ 已用 refresh_token 刷新 Cloudflare 凭据"
-          echo "token=$new_token" >> "$GITHUB_OUTPUT"
+          echo "✅ Cloudflare 凭据有效"
+          echo "token=$CLOUDFLARE_API_TOKEN" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_REFRESH_TOKEN: ${{ secrets.CF_REFRESH_TOKEN }}
+
       - name: 部署 Worker
         run: npx wrangler@4 deploy
         working-directory: query/worker
@@ -135,10 +100,6 @@ jobs:
           # 用刷新后的 token(不是 secret 里那个可能已过期的)
           CLOUDFLARE_API_TOKEN: ${{ steps.cf.outputs.token }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # 把刷新后的 token 传给 Pages job —— 同一份凭据, 免得再刷一次
-      - name: 导出凭据给 Pages job
-        id: creds_out
-        run: echo "token=${{ steps.cf.outputs.token }}" >> "$GITHUB_OUTPUT"
       - name: 校验部署结果
         # 部署完必须回读一次 —— 退出码 0 不等于 Worker 真的活了
         run: |
@@ -193,8 +154,7 @@ jobs:
             --branch main \
             --commit-dirty=true
         env:
-          # 用 worker job 刷新后的 token(那个 job 已经验过有效)
-          CLOUDFLARE_API_TOKEN: ${{ needs.worker.outputs.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: 确认 Functions bundle 已上传
         run: |
