@@ -24,6 +24,50 @@ export interface Document {
   article_count: number
 }
 
+/**
+ * 目录树(来自 minimax/001目录/目录合并.md)
+ *
+ * 与 Document 列表是**两套视图**:
+ *   - Document 列表: 按 ingest 的目录树顺序, 平铺 196 个文档
+ *   - 目录树: 书籍原版的层级(一级分类 → 子类 → 文件), 带文号和起始页
+ * 目录树的价值是「有分类结构 + 有文号」, 所以不能拿 Document 列表凑。
+ */
+export interface CatalogDoc {
+  title: string
+  doc_number?: string | null
+  page?: number | null
+  /** 对应 documents 表的 doc_id; 未匹配到实体文档时为 undefined */
+  doc_id?: string
+  matched: boolean
+  match_by?: string | null
+  article_count?: number
+  chapter_count?: number
+}
+
+export interface CatalogSection {
+  title: string | null
+  page?: number | null
+  docs: CatalogDoc[]
+}
+
+export interface CatalogScope {
+  title: string
+  scope_key?: string
+  sections: CatalogSection[]
+}
+
+export interface Catalog {
+  scopes: CatalogScope[]
+  stats?: {
+    scopes: number
+    sections: number
+    docs: number
+    matched: number
+    unmatched: number
+    documents_total: number
+  }
+}
+
 export interface Chapter {
   chapter_id: string
   doc_id: string
@@ -152,6 +196,16 @@ export const api = {
     }
     const r = await fetchJson<{ documents: Document[] }>("/api/documents")
     return r.documents
+  },
+
+  // 目录树(书籍原版层级 + 文号 + 起始页)
+  async getCatalog(): Promise<Catalog> {
+    if (USE_MOCK) {
+      const { mockApi } = await import("./mockData")
+      return mockApi.getCatalog()
+    }
+    const r = await fetchJson<Catalog>("/api/catalog")
+    return r
   },
 
   // 文档下的章节

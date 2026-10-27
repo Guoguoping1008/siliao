@@ -1,15 +1,43 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { api } from "../lib/api"
-import type { Document } from "../lib/api"
+import type { Document, Catalog } from "../lib/api"
 import { SearchBar } from "../components/SearchBar"
 import { DocumentCard } from "../components/DocumentCard"
+import { CatalogTree } from "../components/CatalogTree"
 import { Layout } from "../components/Layout"
 import { AsyncState } from "../components/AsyncState"
 import { isMockMode } from "../lib/api"
 
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-selected={active}
+      role="tab"
+      className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+        active
+          ? "border-primary text-primary dark:border-primary-dark dark:text-primary-dark"
+          : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function HomePage() {
   const [docs, setDocs] = useState<Document[]>([])
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [view, setView] = useState<"list" | "catalog">("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -23,6 +51,13 @@ export function HomePage() {
   }
 
   useEffect(load, [])
+
+  // 目录树单独加载 —— 失败不该影响法规库列表(两者是独立视图)
+  useEffect(() => {
+    api.getCatalog()
+      .then(setCatalog)
+      .catch(() => setCatalog(null))
+  }, [])
 
   return (
     <Layout>
@@ -39,20 +74,46 @@ export function HomePage() {
       </header>
 
       <section id="library" className="max-w-3xl mx-auto px-4 sm:px-8 py-8">
-        <h2 className="text-lg font-semibold mb-4">法规库</h2>
-        <AsyncState
-          loading={loading}
-          error={error}
-          isEmpty={!loading && !error && docs.length === 0}
-          emptyText="暂无法规收录"
-          emptyHint="请把法规文件放进 data/raw/ 后跑 bash build/run_all.sh"
-          onRetry={load}
-          loadingText="加载法规列表..."
-        >
-          <div className="grid gap-3">
-            {docs.map(d => <DocumentCard key={d.doc_id} doc={d} />)}
-          </div>
-        </AsyncState>
+        {/* 两个视图: 平铺列表(找特定法规) / 目录树(看书的分类结构)
+            ⚠️ 用 tab 切换而不是上下都铺开 —— 196 个卡片 + 178 个目录项
+            同时渲染会让首屏非常长。默认显示平铺列表(更常用)。 */}
+        <div className="flex items-center gap-1 mb-4 border-b border-slate-200 dark:border-slate-800">
+          <TabButton active={view === "list"} onClick={() => setView("list")}>
+            法规库
+          </TabButton>
+          <TabButton active={view === "catalog"} onClick={() => setView("catalog")}>
+            目录
+            {catalog?.stats && (
+              <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-600">
+                {catalog.stats.docs}
+              </span>
+            )}
+          </TabButton>
+        </div>
+
+        {view === "list" ? (
+          <AsyncState
+            loading={loading}
+            error={error}
+            isEmpty={!loading && !error && docs.length === 0}
+            emptyText="暂无法规收录"
+            emptyHint="请把法规文件放进 data/raw/ 后跑 bash build/run_all.sh"
+            onRetry={load}
+            loadingText="加载法规列表..."
+          >
+            <div className="grid gap-3">
+              {docs.map(d => <DocumentCard key={d.doc_id} doc={d} />)}
+            </div>
+          </AsyncState>
+        ) : (
+          catalog ? (
+            <CatalogTree catalog={catalog} />
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400 py-4">
+              加载目录...
+            </p>
+          )
+        )}
       </section>
 
       <div className="text-center text-xs text-slate-400 dark:text-slate-600 py-4">

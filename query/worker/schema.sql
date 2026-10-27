@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE INDEX IF NOT EXISTS idx_articles_chapter ON articles(chapter_id);
 CREATE INDEX IF NOT EXISTS idx_articles_doc ON articles(doc_id);
 
+-- 目录树(书籍原版层级: 一级分类 → 子类 → 文件, 带文号 + 起始页)
+--
+-- ⚠️ 为什么不直接从 documents 表拼?
+--    documents 表是 ingest 按**目录树顺序**存的, 只有 scope/section 两级,
+--    没有「起始页」也没有原版的二级分类名(数据里是 '01_（一）新产品审定',
+--    目录里是 '（一）新产品审定')。目录页本身是独立信息源, 整棵存最省事。
+--
+-- 一行存整棵 JSON(压缩后约 61KB)—— 目录是只读的, 没有查询需求,
+-- 拆成多表反而增加 join 复杂度。
+CREATE TABLE IF NOT EXISTS catalog (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),   -- 永远只有一行
+  tree        TEXT NOT NULL,                       -- JSON
+  stats       TEXT,                                -- JSON
+  updated_at  TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS entities (
   entity_id    TEXT PRIMARY KEY,
   name         TEXT NOT NULL,

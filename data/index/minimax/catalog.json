@@ -1,0 +1,1915 @@
+{
+  "scopes": [
+    {
+      "title": "一、法规",
+      "sections": [
+        {
+          "title": null,
+          "page": null,
+          "docs": [
+            {
+              "title": "饲料和饲料添加剂管理条例",
+              "doc_number": "中华人民共和国国务院令2011年第609号",
+              "page": 3,
+              "doc_id": "01法规_01_（一）法规_01_饲料和饲料添加剂管理条例",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 52,
+              "chapter_count": null
+            }
+          ]
+        }
+      ],
+      "scope_key": "01法规"
+    },
+    {
+      "title": "二、制度文件",
+      "sections": [
+        {
+          "title": "（一）新产品审定",
+          "page": 15,
+          "docs": [
+            {
+              "title": "新饲料和新饲料添加剂管理办法",
+              "doc_number": "中华人民共和国农业部令2012年第4号",
+              "page": 15,
+              "doc_id": "02制度文件_01_（一）新产品审定_01_新饲料和新饲料添加剂管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 25,
+              "chapter_count": null
+            },
+            {
+              "title": "关于新饲料和新饲料添加剂证书核发标准的公告",
+              "doc_number": "中华人民共和国农业部公告第2197号",
+              "page": 18,
+              "doc_id": "02制度文件_01_（一）新产品审定_02_关于新饲料和新饲料添加剂证书核发标准的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 9,
+              "chapter_count": null
+            },
+            {
+              "title": "关于新饲料添加剂申报材料要求的公告",
+              "doc_number": "中华人民共和国农业农村部公告第226号",
+              "page": 20,
+              "doc_id": "02制度文件_01_（一）新产品审定_03_关于新饲料添加剂申报材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            },
+            {
+              "title": "关于申请饲料原料和饲料添加剂审批咨询服务的公告",
+              "doc_number": "中华人民共和国农业农村部公告第227号",
+              "page": 29,
+              "doc_id": "02制度文件_01_（一）新产品审定_04_关于申请饲料原料和饲料添加剂审批咨询服务的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "关于确定25家有能力承担饲料和饲料添加剂有效性试验机构和9家毒理学评价试验机构的公告",
+              "doc_number": "中华人民共和国农业农村部公告第279号",
+              "page": 30,
+              "doc_id": "02制度文件_01_（一）新产品审定_05_关于确定25家有能力承担饲料和饲料添加剂有效性试验机构和9",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 11,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料添加剂稳定性试验指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_06_饲料添加剂稳定性试验指南（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 16,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂畜禽靶动物有效性评价试验指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_07_饲料和饲料添加剂畜禽靶动物有效性评价试验指南（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 14,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂畜禽靶动物耐受性评价试验指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_08_饲料和饲料添加剂畜禽靶动物耐受性评价试验指南（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 10,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂评价数据由主要畜禽物种向次要畜禽物种外推的技术指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_09_饲料和饲料添加剂评价数据由主要畜禽物种向次要畜禽物种外推的",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 5,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂水产靶动物有效性评价试验指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_10_饲料和饲料添加剂水产靶动物有效性评价试验指南（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 8,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂水产靶动物耐受性评价试验指南（试行）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_11_饲料和饲料添加剂水产靶动物耐受性评价试验指南（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 8,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料和饲料添加剂评审工作规范",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_01_（一）新产品审定_12_饲料和饲料添加剂评审工作规范",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 27,
+              "chapter_count": null
+            },
+            {
+              "title": "直接饲喂微生物和发酵制品生产菌株鉴定及其安全性评价指南",
+              "doc_number": "农办牧[2021]43号",
+              "page": 82,
+              "doc_id": "02制度文件_01_（一）新产品审定_13_直接饲喂微生物和发酵制品生产菌株鉴定及其安全性评价指南",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 28,
+              "chapter_count": null
+            },
+            {
+              "title": "植物提取物类饲料添加剂申报指南",
+              "doc_number": "农办牧[2023]2号",
+              "page": 101,
+              "doc_id": "02制度文件_01_（一）新产品审定_14_植物提取物类饲料添加剂申报指南",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 26,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（二）生产许可",
+          "page": 110,
+          "docs": [
+            {
+              "title": "饲料和饲料添加剂生产许可管理办法",
+              "doc_number": "中华人民共和国农业部令2012年第3号",
+              "page": 110,
+              "doc_id": "02制度文件_02_（二）生产许可_15_饲料和饲料添加剂生产许可管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 25,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料添加剂产品批准文号管理办法",
+              "doc_number": "中华人民共和国农业部令2012年第5号",
+              "page": 114,
+              "doc_id": "02制度文件_02_（二）生产许可_16_饲料添加剂产品批准文号管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料质量安全管理办法",
+              "doc_number": "中华人民共和国农业部令2014年第1号",
+              "page": 116,
+              "doc_id": "02制度文件_02_（二）生产许可_17_饲料质量安全管理规范",
+              "matched": true,
+              "match_by": "similarity:0.80",
+              "article_count": 45,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于全面实施《饲料质量安全管理规范》的意见",
+              "doc_number": "饲料质量安全管理规范》（农业部令2014年第1号",
+              "page": 124,
+              "doc_id": "02制度文件_02_（二）生产许可_18_农业部关于全面实施《饲料质量安全管理规范》的意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国务院关于取消和下放一批行政许可事项的决定",
+              "doc_number": "国发[2019]6号",
+              "page": 127,
+              "doc_id": "02制度文件_02_（二）生产许可_19_国务院关于取消和下放一批行政许可事项的决定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 3,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于实施添加剂预混合饲料和混合型饲料添加剂产品备案管理的通知",
+              "doc_number": "农办牧[2019]32号",
+              "page": 129,
+              "doc_id": "02制度文件_02_（二）生产许可_20_农业农村部办公厅关于实施添加剂预混合饲料和混合型饲料添加剂",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料生产企业许可条件",
+              "doc_number": "日中华人民共和国农业部令2017年第8号",
+              "page": 130,
+              "doc_id": "02制度文件_02_（二）生产许可_21_饲料生产企业许可条件",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 25,
+              "chapter_count": null
+            },
+            {
+              "title": "混合型饲料添加剂生产企业许可条件",
+              "doc_number": "日中华人民共和国农业部令2017年第8号",
+              "page": 134,
+              "doc_id": "02制度文件_02_（二）生产许可_22_混合型饲料添加剂生产企业许可条件",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 28,
+              "chapter_count": null
+            },
+            {
+              "title": "关于饲料添加剂生产许可申报材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第1867号公布，根据2017年11月30日中华人民共和国农业部令2017年第8号",
+              "page": 137,
+              "doc_id": "02制度文件_02_（二）生产许可_23_关于饲料添加剂生产许可申报材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 18,
+              "chapter_count": null
+            },
+            {
+              "title": "关于混合型饲料添加剂生产许可申报材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第1867号公布，根据2017年11月30日中华人民共和国农业部令2017年第8号",
+              "page": 148,
+              "doc_id": "02制度文件_02_（二）生产许可_24_关于混合型饲料添加剂生产许可申报材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 17,
+              "chapter_count": null
+            },
+            {
+              "title": "关于添加剂预混合饲料生产许可申报材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第1867号公布，根据2017年11月30日中华人民共和国农业部令2017年第8号",
+              "page": 158,
+              "doc_id": "02制度文件_02_（二）生产许可_25_关于添加剂预混合饲料生产许可申报材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 14,
+              "chapter_count": null
+            },
+            {
+              "title": "关于浓缩饲料、配合饲料、精料补充料生产许可申报材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第1867号公布，根据2017年11月30日中华人民共和国农业部令2017年第8号",
+              "page": 168,
+              "doc_id": "02制度文件_02_（二）生产许可_26_关于浓缩饲料、配合饲料、精料补充料生产许可申报材料要求的公",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 13,
+              "chapter_count": null
+            },
+            {
+              "title": "关于单一饲料生产许可申报材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第1867号公布，根据2017年11月30日中华人民共和国农业部令2017年第8号",
+              "page": 178,
+              "doc_id": "02制度文件_02_（二）生产许可_27_关于单一饲料生产许可申报材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 17,
+              "chapter_count": null
+            },
+            {
+              "title": "关于养殖者自行配制饲料的有关规定的公告",
+              "doc_number": "中华人民共和国农业农村部公告第307号",
+              "page": 188,
+              "doc_id": "02制度文件_02_（二）生产许可_28_关于养殖者自行配制饲料的有关规定的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于饲料和饲料添加剂生产许可证核发范围和标示方法的通知",
+              "doc_number": "农办牧[2012]42号",
+              "page": 189,
+              "doc_id": "02制度文件_02_（二）生产许可_29_农业部办公厅关于饲料和饲料添加剂生产许可证核发范围和标示方",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 5,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于贯彻落实饲料行业管理新规推进饲料行政许可工作的通知",
+              "doc_number": "农办牧[2012]46号",
+              "page": 192,
+              "doc_id": "02制度文件_02_（二）生产许可_30_农业部办公厅关于贯彻落实饲料行业管理新规推进饲料行政许可工",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于饲料添加剂和添加剂预混合饲料生产企业审批下放工作的通知",
+              "doc_number": "农办牧[2013]38号",
+              "page": 195,
+              "doc_id": "02制度文件_02_（二）生产许可_31_农业部办公厅关于饲料添加剂和添加剂预混合饲料生产企业审批下",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于以猪血为原料的饲用血液制品生产企业设施设备和环境消毒规范的公告",
+              "doc_number": "中华人民共和国农业农村部公告第91号",
+              "page": 197,
+              "doc_id": "02制度文件_02_（二）生产许可_32_关于以猪血为原料的饲用血液制品生产企业设施设备和环境消毒规",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 15,
+              "chapter_count": null
+            },
+            {
+              "title": "国务院关于发布实施《促进产业结构调整暂行规定》的决定",
+              "doc_number": "国发[2005]40号",
+              "page": 202,
+              "doc_id": "02制度文件_02_（二）生产许可_33_国务院关于发布实施《促进产业结构调整暂行规定》的决定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 22,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（三）进口登记和出口服务",
+          "page": 208,
+          "docs": [
+            {
+              "title": "进口饲料和饲料添加剂登记管理办法",
+              "doc_number": "中华人民共和国农业部令2014年第2号",
+              "page": 208,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_34_进口饲料和饲料添加剂登记管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 32,
+              "chapter_count": null
+            },
+            {
+              "title": "关于进口饲料和饲料添加剂登记申请材料要求的公告",
+              "doc_number": "日中华人民共和国农业部公告第2109号颁布。中华人民共和国农业部令2016年第3号",
+              "page": 212,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_35_关于进口饲料和饲料添加剂登记申请材料要求的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 27,
+              "chapter_count": null
+            },
+            {
+              "title": "关于进口饲料和饲料添加剂登记标准的公告",
+              "doc_number": "中华人民共和国农业部公告第2197号",
+              "page": 226,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_36_关于进口饲料和饲料添加剂登记标准的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "进出口饲料和饲料添加剂检验检疫监督管理办法",
+              "doc_number": "海关总署令第262号",
+              "page": 229,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_37_进出口饲料和饲料添加剂检验检疫监督管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 71,
+              "chapter_count": null
+            },
+            {
+              "title": "38_质检总局关于修订进出口饲料和饲料添加剂风险级别及检验检疫监管方式的公告",
+              "doc_number": "原国家质检总局公告2014年第123号",
+              "page": 238,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_38_质检总局关于修订进出口饲料和饲料添加剂风险级别及检验检疫监",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "关于防止疯牛病的公告",
+              "doc_number": "中华人民共和国农业部、国家出入境检验检疫局公告第143号",
+              "page": 240,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_39_关于防止疯牛病的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于防止疯牛病的公告",
+              "doc_number": "中华人民共和国农业部、国家出入境检验检疫局公告第144号",
+              "page": 241,
+              "matched": false,
+              "match_by": null
+            },
+            {
+              "title": "关于禁止进出口莱克多巴胺和盐酸莱克多巴胺的公告",
+              "doc_number": "中华人民共和国海关总署公告2009年第110号",
+              "page": 242,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_40_关于禁止进出口莱克多巴胺和盐酸莱克多巴胺的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于进口鱼粉级别变更的公告",
+              "doc_number": "中华人民共和国农业部公告第1935号",
+              "page": 243,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_41_关于进口鱼粉级别变更的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "海关总署关于明确进口饲料添加剂归类的通知",
+              "doc_number": "署法[2000]374号",
+              "page": 244,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_42_海关总署关于明确进口饲料添加剂归类的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于办理饲料和饲料添加剂产品自由销售证明的通知",
+              "doc_number": "农办牧[2020]36号",
+              "page": 246,
+              "doc_id": "02制度文件_03_（三）进口登记和出口服务_43_农业农村部办公厅关于办理饲料和饲料添加剂产品自由销售证明的",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（四）使用管理",
+          "page": 250,
+          "docs": [
+            {
+              "title": "饲料原料目录",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_04_（四）使用管理_44_饲料原料目录",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 52,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料添加剂品种目录",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 9,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料添加剂安全使用规范",
+              "doc_number": "中华人民共和国农业部公告第2625号",
+              "page": 319,
+              "doc_id": "02制度文件_04_（四）使用管理_46_饲料添加剂安全使用规范",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 22,
+              "chapter_count": null
+            },
+            {
+              "title": "关于停止生产、进口、经营、使用部分药物饲料添加剂的公告",
+              "doc_number": "中华人民共和国农业农村部公告第194号",
+              "page": 348,
+              "doc_id": "02制度文件_04_（四）使用管理_47_关于停止生产、进口、经营、使用部分药物饲料添加剂的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于废止的药物饲料添加剂质量标准目录",
+              "doc_number": "中华人民共和国农业农村部公告第246号",
+              "page": 349,
+              "doc_id": "02制度文件_04_（四）使用管理_48_关于废止的药物饲料添加剂质量标准目录",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "禁止在饲料和动物饮用水中使用的药物品种目录",
+              "doc_number": "农业部、卫生部、国家药品监督管理局公告第176号",
+              "page": 351,
+              "doc_id": "02制度文件_04_（四）使用管理_49_禁止在饲料和动物饮用水中使用的药物品种目录",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "关于禁止在饲料中人为添加三聚氰胺和饲料中三聚氰胺限量规定的公告",
+              "doc_number": "中华人民共和国农业部公告第1218号",
+              "page": 355,
+              "doc_id": "02制度文件_04_（四）使用管理_50_关于禁止在饲料中人为添加三聚氰胺和饲料中三聚氰胺限量规定的",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于停止将二脲作为饲料添加剂生产和使用的公告",
+              "doc_number": "中华人民共和国农业部公告第1282号",
+              "page": 356,
+              "doc_id": "02制度文件_04_（四）使用管理_51_关于停止将二脲作为饲料添加剂生产和使用的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于禁止在饲料和动物饮水中使用的物质名单的公告",
+              "doc_number": "中华人民共和国农业部公告第1519号",
+              "page": 357,
+              "doc_id": "02制度文件_04_（四）使用管理_52_关于禁止在饲料和动物饮水中使用的物质名单的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "食品动物中禁止使用的约品和其他化合物清单",
+              "doc_number": "中华人民共和国农业农村部公告第250号",
+              "page": 358,
+              "doc_id": "02制度文件_04_（四）使用管理_53_食品动物中禁止使用的约品和其他化合物清单",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "停止在食品动物中使用洛美沙星等4种原料药的各种盐、脂及各种制剂的公告",
+              "doc_number": "中华人民共和国农业部公告第2292号",
+              "page": 360,
+              "doc_id": "02制度文件_04_（四）使用管理_54_停止在食品动物中使用洛美沙星等4种原料药的各种盐、脂及各种",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于禁止非泼罗尼及相关制剂用于食品动物的公告",
+              "doc_number": "360中华人民共和国农业部公告第2583号",
+              "page": 361,
+              "doc_id": "02制度文件_04_（四）使用管理_55_关于禁止非泼罗尼及相关制剂用于食品动物的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于停止在食品动物中使用喹乙醇、氨苯胂酸、洛克沙胂等3种兽药的公告",
+              "doc_number": "中华人民共和国农业部公告第2638号",
+              "page": 362,
+              "doc_id": "02制度文件_04_（四）使用管理_56_关于停止在食品动物中使用乙醇、氨苯肿酸、洛克沙肿等3种兽药",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（五）宠物饲料管理",
+          "page": 363,
+          "docs": [
+            {
+              "title": "关于宠物饲料管理的公告",
+              "doc_number": "中华人民共和国农业农村部公告第20号",
+              "page": 363,
+              "doc_id": "02制度文件_05_（五）宠物饲料管理_57_关于宠物饲料管理的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 133,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（六）监督执法",
+          "page": 413,
+          "docs": [
+            {
+              "title": "农业农村部办公厅关于印发《2023年饲料质量安全监管工作方案》的通知",
+              "doc_number": "农办牧[2023]1号",
+              "page": 413,
+              "doc_id": "02制度文件_06_（六）监督执法_58_农业农村部办公厅关于印发《2023年饲料质量安全监管工作方",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 11,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发饲料质量安全监督抽查检测工作要求及2019年工作方案的通知",
+              "doc_number": "农牧发[2019]22号",
+              "page": 425,
+              "doc_id": "02制度文件_06_（六）监督执法_59_农业农村部关于印发饲料质量安全监督抽查检测工作要求及201",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 10,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部立法工作规定",
+              "doc_number": "中华人民共和国农业部令第25号",
+              "page": 442,
+              "doc_id": "02制度文件_06_（六）监督执法_60_农业部立法工作规定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 43,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部行政许可实施办法",
+              "doc_number": "中华人民共和国农业农村部令2021年第3号",
+              "page": 447,
+              "doc_id": "02制度文件_06_（六）监督执法_61_农业农村部行政许可实施管理办法",
+              "matched": true,
+              "match_by": "similarity:0.93",
+              "article_count": 41,
+              "chapter_count": null
+            },
+            {
+              "title": "农业综合行政执法管理办法",
+              "doc_number": "中华人民共和国农业农村部令2022年第9号",
+              "page": 451,
+              "doc_id": "02制度文件_06_（六）监督执法_62_农业综合行政执法管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 46,
+              "chapter_count": null
+            },
+            {
+              "title": "农业行政执法证件管理办法",
+              "doc_number": "中华人民共和国农业部令1998年第1号",
+              "page": 457,
+              "doc_id": "02制度文件_06_（六）监督执法_63_农业行政执法证件管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 19,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部行政许可网上投诉举报处理暂行办法",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_06_（六）监督执法_64_农业部行政许可网上投诉举报处理暂行办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 14,
+              "chapter_count": null
+            },
+            {
+              "title": "规范农业行政处罚自由裁量权办法",
+              "doc_number": "日农业农村部公告第180号公布，2022年1月7日农业农村部令2022年第1号",
+              "page": 461,
+              "doc_id": "02制度文件_06_（六）监督执法_65_规范农业行政处罚自由裁量权办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 25,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发《农业综合行政执法事项指导目录（2020年版）》的通知",
+              "doc_number": "农法发[2020]2号",
+              "page": 465,
+              "doc_id": "02制度文件_06_（六）监督执法_66_农业农村部关于印发《农业综合行政执法事项指导目录（2020",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 5,
+              "chapter_count": null
+            },
+            {
+              "title": "农产品质量安全监测管理办法",
+              "doc_number": "中华人民共和国农业部令2012年第7号",
+              "page": 474,
+              "doc_id": "02制度文件_06_（六）监督执法_67_农产品质量安全监测管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 42,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于加强农产品质量安全监督抽查工作的通知",
+              "doc_number": "农质发[2012]5号",
+              "page": 478,
+              "doc_id": "02制度文件_06_（六）监督执法_68_农业部关于加强农产品质量安全监督抽查工作的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于印发《农业部农产品质量安全监督抽查实施细则》的通知",
+              "doc_number": "农办市[2007]21号",
+              "page": 480,
+              "doc_id": "02制度文件_06_（六）监督执法_69_农业部办公厅关于印发《农业部农产品质量安全监督抽查实施细则",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 47,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发《农业农村部产品质量检验测试中心管理规定》的通知",
+              "doc_number": "农质发[2023]4号",
+              "page": 484,
+              "doc_id": "02制度文件_06_（六）监督执法_70_农业农村部关于印发《农业农村部产品质量检验测试中心管理规定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部开展随机抽查监督检查事项清单",
+              "doc_number": "中华人民共和国农业部公告第2600号",
+              "page": 487,
+              "doc_id": "02制度文件_06_（六）监督执法_71_农业部开展随机抽查监督检查事项清单",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 3,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于认定违法所得问题意见的函",
+              "doc_number": "农办政函[2005]12号",
+              "page": 493,
+              "doc_id": "02制度文件_06_（六）监督执法_72_农业部办公厅关于认定违法所得问题意见的函",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于认定经营假劣饲料产品违法所得问题的复函",
+              "doc_number": "农办政函[2005]91号",
+              "page": 494,
+              "doc_id": "02制度文件_06_（六）监督执法_73_关于认定经营假劣饲料产品违法所得问题的复函",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于认定违法所得问题的复函",
+              "doc_number": "农办政函[2006]3号",
+              "page": 495,
+              "doc_id": "02制度文件_06_（六）监督执法_74_关于认定违法所得问题的复函",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于印发《农业行政处罚案件信息公开办法》的通知",
+              "doc_number": "农政发[2014]6号",
+              "page": 496,
+              "doc_id": "02制度文件_06_（六）监督执法_75_农业部关于印发《农业行政处罚案件信息公开办法》的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 15,
+              "chapter_count": null
+            },
+            {
+              "title": "关于清查金刚烷胺等抗病毒药物的紧急通知",
+              "doc_number": "农医发［2005]33号",
+              "page": 498,
+              "doc_id": "02制度文件_06_（六）监督执法_76_关于清查金刚烷胺等抗病毒药物的紧急通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于饲料原料法律适用问题的函",
+              "doc_number": "农办政函[2015]26号",
+              "page": 499,
+              "doc_id": "02制度文件_06_（六）监督执法_77_农业部办公厅关于饲料原料法律适用问题的函",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于加强饲料添加剂氯化钠监管的通知",
+              "doc_number": "农办牧[2016]31号",
+              "page": 500,
+              "doc_id": "02制度文件_06_（六）监督执法_78_农业部办公厅关于加强饲料添加剂氯化钠监管的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 5,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于饲料企业生产冒充其他企业的产品如何处罚的复函",
+              "doc_number": "农办政函[2016]92号",
+              "page": 501,
+              "doc_id": "02制度文件_06_（六）监督执法_79_农业部办公厅关于饲料企业生产冒充其他企业的产品如何处罚的复",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于切实加强蛋禽养殖质量安全管理工作的通知",
+              "doc_number": "农办牧［2017]43号",
+              "page": 502,
+              "doc_id": "02制度文件_06_（六）监督执法_80_农业部办公厅关于切实加强蛋禽养殖质量安全管理工作的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于公布饲料和饲料添加剂检测任务承检机构名单等有关事项的通知",
+              "doc_number": "农办牧[2018]23号",
+              "page": 503,
+              "doc_id": "02制度文件_06_（六）监督执法_81_农业农村部办公厅关于公布饲料和饲料添加剂检测任务承检机构名",
+              "matched": true,
+              "match_by": "similarity:0.95",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业行政许可听证程序规定",
+              "doc_number": "中华人民共和国农业部令第35号",
+              "page": 505,
+              "doc_id": "02制度文件_06_（六）监督执法_82_农业行政许可听证程序规定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 32,
+              "chapter_count": null
+            },
+            {
+              "title": "农业行政处罚程序规定",
+              "doc_number": "中华人民共和国农业农村部令2021年第4号",
+              "page": 509,
+              "doc_id": "02制度文件_06_（六）监督执法_83_农业行政处罚程序规定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 92,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于加强农业行政执法与刑事司法衔接工作的实施意见",
+              "doc_number": "农政发[2011]2号",
+              "page": 522,
+              "doc_id": "02制度文件_06_（六）监督执法_84_农业部关于加强农业行政执法与刑事司法衔接工作的实施意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料中风险物质的筛查与确认导则液相色谱-高分辨质谱法",
+              "doc_number": "中华人民共和国农业农村部公告第312号",
+              "page": 524,
+              "doc_id": "02制度文件_06_（六）监督执法_85_饲料中风险物质的筛查与确认导则_液相色谱-高分辨质谱法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 6,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料中风险物质的靶物筛查与确认液相色谱-高分辨质谱法",
+              "doc_number": "中华人民共和国农业农村部公告第676号",
+              "page": 530,
+              "doc_id": "02制度文件_06_（六）监督执法_86_饲料中风险物质的目标物筛查与确认_液相色谱-高分辨质谱法",
+              "matched": true,
+              "match_by": "similarity:0.94",
+              "article_count": 53,
+              "chapter_count": null
+            },
+            {
+              "title": "最高人民法院最高人民检察院关于办理危害食品安全刑事案件适用法律若干问题的解释",
+              "doc_number": "法释[2021]24号",
+              "page": 559,
+              "doc_id": "02制度文件_06_（六）监督执法_87_最高人民法院_最高人民检察院关于办理危害食品安全刑事案件适",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 27,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（七）税收政策",
+          "page": 564,
+          "docs": [
+            {
+              "title": "国家税务总局关于“公司+农户”经营模式企业所得税优惠问题的公告",
+              "doc_number": "国家税务总局公告2010年第2号",
+              "page": 564,
+              "doc_id": "02制度文件_07_（七）税收政策_88_国家税务总局关于“公司+农户”经营模式企业所得税优惠问题的",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于精料补充料免征增值税问题的公告",
+              "doc_number": "国家税务总局公告2013年第46号",
+              "page": 565,
+              "doc_id": "02制度文件_07_（七）税收政策_89_国家税务总局关于精料补充料免征增值税问题的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于修订“饲料”注释及加强饲料征免增值税管理问题的通知",
+              "doc_number": "国税发[1999]39号",
+              "page": 566,
+              "doc_id": "02制度文件_07_（七）税收政策_90_国家税务总局关于修订“饲料”注释及加强饲料征免增值税管理问",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "财政部国家税务总局关于饲料产品免征增值税问题的通知",
+              "doc_number": "财税[2001]121号",
+              "page": 567,
+              "doc_id": "02制度文件_07_（七）税收政策_91_财政部国家税务总局关于饲料产品免征增值税问题的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "财政部国家税务总局关于豆粕等粕类产品免征增值税政策的通知",
+              "doc_number": "财税[2001]30号",
+              "page": 568,
+              "doc_id": "02制度文件_07_（七）税收政策_92_财政部国家税务总局关于豆粘等粕类产品免征增值税政策的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于宠物饲料征收增值税问题的批复",
+              "doc_number": "国税函[2002]812号",
+              "page": 569,
+              "doc_id": "02制度文件_07_（七）税收政策_93_国家税务总局关于宠物饲料征收增值税问题的批复",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于饲用鱼油产品免征增值税的批复",
+              "doc_number": "国税函[2003]1395号",
+              "page": 570,
+              "doc_id": "02制度文件_07_（七）税收政策_94_国家税务总局关于饲用鱼油产品免征增值税的批复",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于取消饲料产品免征增值税审批程序后加强后续管理的通知",
+              "doc_number": "国税函[2004]884号",
+              "page": 571,
+              "doc_id": "02制度文件_07_（七）税收政策_95_国家税务总局关于取消饲料产品免征增值税审批程序后加强后续管",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于矿物质微量元素舔砖免征增值税问题的批复",
+              "doc_number": "国税函[2005]1127号",
+              "page": 572,
+              "doc_id": "02制度文件_07_（七）税收政策_96_国家税务总局关于矿物质微量元素砖免征增值税问题的批复",
+              "matched": true,
+              "match_by": "similarity:0.93",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于饲料级磷酸二氢钙产品增值税政策问题的通知",
+              "doc_number": "国税函[2007]10号",
+              "page": 573,
+              "doc_id": "02制度文件_07_（七）税收政策_97_国家税务总局关于饲料级磷酸二氢钙产品增值税政策问题的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "财政部国家税务总局关于发布享受企业所得税优惠政策农产品初加工范围（试行）的通知",
+              "doc_number": "财税[2008]149号",
+              "page": 574,
+              "doc_id": "02制度文件_07_（七）税收政策_98_财政部国家税务总局关于发布享受企业所得税优惠政策的农产品初",
+              "matched": true,
+              "match_by": "similarity:0.99",
+              "article_count": 14,
+              "chapter_count": null
+            },
+            {
+              "title": "财政部国家税务总局关于黑大豆出口免征增值税的通知",
+              "doc_number": "财税[2008]154号",
+              "page": 578,
+              "doc_id": "02制度文件_07_（七）税收政策_99_财政部国家税务总局关于黑大豆出口免征增值税的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于部分饲料产品征免增值税政策问题的批复",
+              "doc_number": "国税函[2009]324号",
+              "page": 579,
+              "doc_id": "02制度文件_07_（七）税收政策_100_国家税务总局关于部分饲料产品征免增值税政策问题的批复",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于取消20项税务证明事项的公告",
+              "doc_number": "国家税务总局公告2018年第65号",
+              "page": 580,
+              "doc_id": "02制度文件_07_（七）税收政策_101_国家税务总局关于取消20项税务证明事项的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 7,
+              "chapter_count": null
+            },
+            {
+              "title": "国家税务总局关于粕类产品征免增值税问题的通知",
+              "doc_number": "国税函[2010]75号",
+              "page": 593,
+              "doc_id": "02制度文件_07_（七）税收政策_102_国家税务总局关于粘类产品征免增值税问题的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于享受企业所得税优惠的农产品初加工有关范围的补充通知",
+              "doc_number": "财税[2011]26号",
+              "page": 594,
+              "doc_id": "02制度文件_07_（七）税收政策_103_关于享受企业所得税优惠的农产品初加工有关范围的补充通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（八）瘦肉精监管",
+          "page": 596,
+          "docs": [
+            {
+              "title": "关于查处非法生产、销售和使用盐酸克仑特罗等药品的紧急通知",
+              "doc_number": "农业部国家药品监督管理局农牧发[2000]4号",
+              "page": 596,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_104_关于查处非法生产、销售和使用盐酸克仑特罗等药品的紧急通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于严厉打击非法生产、经营和使用盐酸克仑特罗等药品违法行为的通知",
+              "doc_number": "农办牧[2001]14号",
+              "page": 598,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_105_关于严厉打击非法生产经营和使用盐酸克仑特罗等药品违法行为",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "最高人民法院最高人民检察院关于办理非法生产、销售、使用禁止在饲料和动物饮用水中使用的药品等刑事案件具体应用法律若干问题的解释",
+              "doc_number": "法释[2002]26号",
+              "page": 601,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_106_最高人民法院、最高人民检察院关于办理非法生产、销售、使用",
+              "matched": true,
+              "match_by": "similarity:0.98",
+              "article_count": 7,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于印发《农业部瘦肉精等违禁药品中毒事件应急预案》的通知",
+              "doc_number": "农牧发[2004]31号",
+              "page": 604,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_107_农业部关于印发《农业部瘦肉精等违禁药品中毒事件应急预案》",
+              "matched": true,
+              "match_by": "similarity:0.95",
+              "article_count": 7,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于进一步加强瘦肉精等违禁药品专项整治工作的通知",
+              "doc_number": "农办牧［2005]8号",
+              "page": 607,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_108_农业部关于进一步加强瘦肉精等违禁药品专项整治工作的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家食品药品监督管理局关于加强盐酸克仑特罗管理的通知",
+              "doc_number": "国食药监安[2005]255号",
+              "page": 609,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_109_国家食品药品监督管理局关于加强盐酸克仑特罗管理的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于严厉打击非法生产销售和使用瘦肉精行为的紧急通知",
+              "doc_number": "农办牧［2009]13号",
+              "page": 610,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_110_农业部办公厅关于严厉打击非法生产销售和使用瘦肉精行为的紧",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "中央机构编制委员会办公室关于进一步加强“瘦肉精”监管工作的意见",
+              "doc_number": "中央编办发[2010]105号",
+              "page": 612,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_111_中央机构编制委员会办公室关于进一步加强“瘦肉精”监管工作",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于进一步加强生猪“瘦肉精” 监管工作的紧急通知",
+              "doc_number": "农明字[2011]第12号",
+              "page": 613,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_112_农业部关于进一步加强生猪“瘦肉精”监管工作的紧急通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国务院食品安全委员会办公室关于印发《“瘦肉精”专项整治方案》的通知",
+              "doc_number": "食安办[2011]14号",
+              "page": 614,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_113_国务院食品安全委员会办公室关于印发《“瘦肉精”专项整治方",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "国家食品药品监督管理局关于开展严厉打击食品非法添加和滥用食品添加剂专项工作的紧急通知",
+              "doc_number": "国食药监食[2011]188号",
+              "page": 618,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_114_国家食品药品监督管理局关于开展严厉打击食品非法添加和滥用",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "工业和信息化部关于贯彻落实《“瘦肉精”专项整治方案》的通知",
+              "doc_number": "工信部原函[2011]216号",
+              "page": 623,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_115_工业和信息化部关于贯彻落实《“瘦肉精”专项整治方案》的通",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家食品药品监督管理局办公室关于印发餐饮服务环节“瘦肉精”专项整治实施方案的通知",
+              "doc_number": "食药监办食[2011]78号",
+              "page": 624,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_116_国家食品药品监督管理局办公室关于印发餐饮服务环节“瘦肉精",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 5,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于开展生猪定点屠宰环节“瘦肉精”部级专项监督检测工作的通知",
+              "doc_number": "农办医[2011]40号",
+              "page": 628,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_117_农业部办公厅关于开展生猪定点屠宰环节“瘦肉精”部级专项监",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "国家食品药品监督管理局关于停止生产、销售和使用盐酸克仑特罗片剂的通知",
+              "doc_number": "国食药监办[2011]432号",
+              "page": 631,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_118_国家食品药品监督管理局关于停止生产、销售和使用盐酸克仑特",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于禁止生产和销售莱克多巴胺的公告",
+              "doc_number": "工商行政管理总局国家质量监督检验检疫总局公告2011年第41号",
+              "page": 632,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_119_关于禁止生产和销售莱克多巴胺的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于开展“瘦肉精”和含“瘦肉精”饲料清查收缴工作的通知",
+              "doc_number": "农质发[2011]9号",
+              "page": 634,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_120_关于开展“瘦肉精”和含“瘦肉精”饲料清查收缴工作的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "关于“瘦肉精”和含“瘦肉精”饲料清查收缴工作的公告",
+              "doc_number": "农业部、公安部、工业和信息化部公告、国家工商行政管理总局、国家食品药品监督管理局联合公告第1682号",
+              "page": 637,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_121_关于“瘦肉精”和含“瘦肉精”饲料清查收缴工作的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于印发《“瘦肉精”涉案线索移送与案件督办工作机制》的通知",
+              "doc_number": "农质发[2011]10号",
+              "page": 638,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_122_关于印发《“瘦肉精”涉案线索移送与案件督办工作机制》的通",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 7,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部关于深入推进“瘦肉精”专项整治工作的意见",
+              "doc_number": "农牧发[2011]12号",
+              "page": 641,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_123_农业部关于深人推进“瘦肉精”专项整治工作的意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "国家食品药品监管总局办公厅关于严厉打击经营含“瘦肉精”牛羊肉违法行为的通知",
+              "doc_number": "食药监办食监二[2016]129号",
+              "page": 645,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_124_国家食品药品监管总局办公厅关于严厉打击经营含“瘦肉精”牛",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "最高人民法院关于审理走私、非法经营、非法使用兴奋剂刑事案件适用法律若干问题的解释",
+              "doc_number": "法释［2019]16号",
+              "page": 647,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_125_最高人民法院关于审理走私、非法经营、非法使用兴奋剂刑事案",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 10,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于开展“瘦肉精”专项整治行动的通知",
+              "doc_number": "农办牧[2021]18号",
+              "page": 649,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_126_农业农村部办公厅关于开展“瘦肉精”专项整治行动的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 12,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于加强对反刍动物养殖环节瘦肉精监管的通知",
+              "doc_number": "农办牧[2009]33号",
+              "page": 653,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_127_农业部办公厅关于加强对反当动物养殖环节瘦肉精监管的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "动物毛发中克仑特罗、莱克多巴胺、沙丁胺醇和苯乙醇胺A的测定液相色谱-串联质谱法",
+              "doc_number": "中华人民共和国农业农村部公告第600号",
+              "page": 654,
+              "doc_id": "02制度文件_08_（八）瘦肉精监管_128_动物毛发中克仑特罗、莱克多巴胺、沙丁胺醇和苯乙醇胺A的测",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 15,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（九）行业规划和政策",
+          "page": 661,
+          "docs": [
+            {
+              "title": "中共中央、国务院关于做好2023年全面推进乡村振兴重点工作的意见（2023年1月2日）",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_129_中共中央、国务院关于做好2023年全面推进乡村振兴重点工",
+              "matched": true,
+              "match_by": "title_fuzzy",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "中共中央办公厅国务院办公厅印发《粮食节约行动方案》",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_130_中共中央办公厅国务院办公厅印发《粮食节约行动方案》",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发《“十四五”全国饲草产业发展规划》的通知",
+              "doc_number": "农牧发[2022]7号",
+              "page": 673,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_131_农业农村部关于印发《“十四五”全国饲草产业发展规划》的通",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于印发《饲料豆粕减量替代三年行动方案》的通知",
+              "doc_number": "农办牧[2023]9号",
+              "page": 681,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_132_农业农村部办公厅关于印发《饲用豆粕减量替代三年行动方案》",
+              "matched": true,
+              "match_by": "similarity:0.97",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于公布饲料中豆粕减量替代典型案例的通知",
+              "doc_number": "农办牧[2022]24号",
+              "page": 685,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_133_农业农村部办公厅关于公布饲料中豆减量替代典型案例的通知",
+              "matched": true,
+              "match_by": "similarity:0.98",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "国务院办公厅转发农业部关于促进饲料业持续健康发展若干意见的通知",
+              "doc_number": "国办发[2002]42号",
+              "page": 690,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_134_国务院办公厅转发农业部关于促进饲料业持续健康发展若干意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "国务院办公厅关于稳定生猪生产促进转型升级的意见",
+              "doc_number": "国办发[2019]44号",
+              "page": 694,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_135_国务院办公厅关于稳定生猪生产促进转型升级的意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "关于印发《全国农业可持续发展规划（2015—2030年）》的通知",
+              "doc_number": "农计发[2015]145号",
+              "page": 699,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_136_关于印发《全国农业可持续发展规划（2015一2030年）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 18,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发《“十四五”全国畜牧兽医行业发展规划》的通知",
+              "doc_number": "农牧发[2021]37号",
+              "page": 713,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_137_农业农村部关于印发《“十四五”全国畜牧兽医行业发展规划》",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 53,
+              "chapter_count": null
+            },
+            {
+              "title": "关于促进农业产业化联合体发展的指导意见",
+              "doc_number": "农经发[2017]9号",
+              "page": 730,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_138_关于促进农业产业化联合体发展的指导意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 7,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于加快推进饲料散装散运工作的意见",
+              "doc_number": "农办牧[2017]66号",
+              "page": 735,
+              "doc_id": "02制度文件_09_（九）行业规划和政策_139_农业部办公厅关于加快推进饲料散装散运工作的意见",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            }
+          ]
+        }
+      ],
+      "scope_key": "02制度文件"
+    },
+    {
+      "title": "三、相关法律法规文件",
+      "sections": [
+        {
+          "title": "（一）中华人民共和国畜牧法",
+          "page": 739,
+          "docs": [
+            {
+              "title": "（一）中华人民共和国畜牧法",
+              "doc_number": "",
+              "page": null,
+              "doc_id": "03相关法律法规文件_01_（一）中华人民共和国畜牧法_01_（一）中华人民共和国畜牧法",
+              "matched": true,
+              "match_by": "residual",
+              "article_count": 95,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（二）中华人民共和国农产品质量安全法",
+          "page": 750,
+          "docs": [
+            {
+              "title": "（二）中华人民共和国农产品质量安全法",
+              "doc_number": "",
+              "page": null,
+              "doc_id": "03相关法律法规文件_02_（二）中华人民共和国农产品质量安全法_02_（二）中华人民共和国农产品质量安全法",
+              "matched": true,
+              "match_by": "residual",
+              "article_count": 82,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（三）国务院关于加强食品等产品安全监督管理的特别规定",
+          "page": 762,
+          "docs": [
+            {
+              "title": "（三）国务院关于加强食品等产品安全监督管理的特别规定",
+              "doc_number": "",
+              "page": null,
+              "doc_id": "03相关法律法规文件_03_（三）国务院关于加强食品等产品安全监督管理的特别规定_03_（三）国务院关于加强食品等产品安全监督管理的特别规定",
+              "matched": true,
+              "match_by": "residual",
+              "article_count": 21,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（四）兽药管理",
+          "page": 767,
+          "docs": [
+            {
+              "title": "兽药管理条例",
+              "doc_number": "中华人民共和国国务院令2004年第404号",
+              "page": 767,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_04_兽药管理条例",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 106,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药注册办法",
+              "doc_number": "中华人民共和国农业部令第44号",
+              "page": 782,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_05_新兽药注册办法",
+              "matched": true,
+              "match_by": "similarity:0.92",
+              "article_count": 46,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药注册评审工作程序",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_06_兽药注册评审工作程序",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药产品批准文号管理办法",
+              "doc_number": "中华人民共和国农业部令2015年第4号",
+              "page": 791,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_07_兽药产品批准文号管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 34,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药标签和说明书管理办法",
+              "doc_number": "日农业部令第38号、2007年11月8日农业部令第6号、2017年11月30日农业部令2017年第8号",
+              "page": 797,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_08_兽药标签和说明书管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 27,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药标签和说明书编写细则",
+              "doc_number": "中华人民共和国农业部公告第242号",
+              "page": 800,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_09_兽药标签和说明书编写细则",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 2,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药生产质量管理规范",
+              "doc_number": "中华人民共和国农业农村部令2020年第3号",
+              "page": 804,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_10_兽药生产质量管理规范",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 291,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药经营质量管理规范",
+              "doc_number": "中华人民共和国农业部令2010年第3号",
+              "page": 835,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_11_兽药经营质量管理规范",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 38,
+              "chapter_count": null
+            },
+            {
+              "title": "兽用生物制品经营管理办法",
+              "doc_number": "中华人民共和国农业农村部令2021年第2号",
+              "page": 840,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_12_兽用生物制品经营管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药进口管理办法",
+              "doc_number": "海关总署令第2号公布，2019年4月25日农业农村部令2019年第2号",
+              "page": 842,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_13_兽药进口管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 31,
+              "chapter_count": null
+            },
+            {
+              "title": "关于发布《进口兽药管理目录》的公告",
+              "doc_number": "2022年1月28日农业农村部、海关总署公告第507号",
+              "page": 846,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_14_关于发布《进口兽药管理目录》的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 4,
+              "chapter_count": null
+            },
+            {
+              "title": "兽药质量监督抽查检验管理办法",
+              "doc_number": "农业农村部公告第645号",
+              "page": 850,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_15_兽药质量监督抽查检验管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 51,
+              "chapter_count": null
+            },
+            {
+              "title": "兽用处方药和非处方药管理办法",
+              "doc_number": "中华人民共和国农业部令2013年第2号",
+              "page": 858,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_16_兽用处方药和非处方药管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 19,
+              "chapter_count": null
+            },
+            {
+              "title": "兽医处方格式及应用规范",
+              "doc_number": "中华人民共和国农业部公告第2450号",
+              "page": 860,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_17_兽医处方格式及应用规范",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "关于兽药严重违法行为从重处罚情形的公告",
+              "doc_number": "中华人民共和国农业农村部公告第97号",
+              "page": 863,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_18_关于兽药严重违法行为从重处罚情形的公告",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于印发《全国兽用抗菌药使用减量化行动方案（2021—2025年）》的通知",
+              "doc_number": "农牧发[2021]31号",
+              "page": 865,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_19_农业农村部关于印发《全国兽用抗菌药使用减量化行动方案（20",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 6,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于开展规范畜禽养殖用药专项整治行动的通知",
+              "doc_number": "农办牧[2023]7号",
+              "page": 870,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_20_农业农村部办公厅关于开展规范畜禽养殖用药专项整治行动的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部办公厅关于建立兽药行政许可联络员制度的通知",
+              "doc_number": "农办牧【2023]27号",
+              "page": 873,
+              "doc_id": "03相关法律法规文件_04_（四）兽药管理_21_农业农村部办公厅关于建立兽药行政许可联络员制度的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（五）转基因管理",
+          "page": 875,
+          "docs": [
+            {
+              "title": "农业转基因生物安全管理条例",
+              "doc_number": "中华人民共和国国务院令2001年第304号",
+              "page": 875,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_22_农业转基因生物安全管理条例",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 55,
+              "chapter_count": null
+            },
+            {
+              "title": "农业部办公厅关于《农业转基因生物安全管理条例》有关规定解释意见的函",
+              "doc_number": "农办政函[2008]21号",
+              "page": 882,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_23_农业部办公厅关于《农业转基因生物安全管理条例》有关规定解释",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "农业转基因生物安全评价管理办法",
+              "doc_number": "中华人民共和国农业部令2002年第8号",
+              "page": 883,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_24_农业转基因生物安全评价安全管理办法",
+              "matched": true,
+              "match_by": "similarity:0.94",
+              "article_count": 58,
+              "chapter_count": null
+            },
+            {
+              "title": "农业转基因生物加工审批办法",
+              "doc_number": "日农业部令第59号公布，2019年4月25日农业农村部令2019年第2号",
+              "page": 892,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_25_农业转基因生物加工审批办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 12,
+              "chapter_count": null
+            },
+            {
+              "title": "农业转基因生物进口安全管理办法",
+              "doc_number": "中华人民共和国农业部令2002年第9号",
+              "page": 894,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_26_农业转基因生物进口安全管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 23,
+              "chapter_count": null
+            },
+            {
+              "title": "农业转基因生物标识管理办法",
+              "doc_number": "中华人民共和国农业部令2002年第10号",
+              "page": 897,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_27_农业转基因生物标识管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 16,
+              "chapter_count": null
+            },
+            {
+              "title": "进出境转基因产品检验检疫管理办法",
+              "doc_number": "海关总署令第262号",
+              "page": 899,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_28_进出境转基因产品检验检疫管理办法",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 18,
+              "chapter_count": null
+            },
+            {
+              "title": "农业转基因生物（植物、动物、动物用微生物）安全评价指南",
+              "doc_number": "农办科[2017]5号",
+              "page": 901,
+              "doc_id": "03相关法律法规文件_05_（五）转基因管理_29_农业转基因生物（植物、动物、动物用微生物）安全评价指南",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 66,
+              "chapter_count": null
+            }
+          ]
+        },
+        {
+          "title": "（六）水产养殖管理",
+          "page": 927,
+          "docs": [
+            {
+              "title": "水产养殖质量安全管理规定",
+              "doc_number": "中华人民共和国农业部令2003年第31号",
+              "page": 927,
+              "doc_id": "03相关法律法规文件_06_（六）水产养殖管理_30_水产养殖质量安全管理规定",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 26,
+              "chapter_count": null
+            },
+            {
+              "title": "农业农村部关于加强水产养殖用投入品监管的通知",
+              "doc_number": "农渔发[2021]1号",
+              "page": 930,
+              "doc_id": "03相关法律法规文件_06_（六）水产养殖管理_31_农业农村部关于加强水产养殖用投人品监管的通知",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            },
+            {
+              "title": "实施水产养殖用投入品使用白名单制度工作规范（试行）",
+              "doc_number": "农办渔[2021]8号",
+              "page": 933,
+              "doc_id": "03相关法律法规文件_06_（六）水产养殖管理_32_实施水产养殖用投人品使用白名单制度工作规范（试行）",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 1,
+              "chapter_count": null
+            }
+          ]
+        }
+      ],
+      "scope_key": "03相关法律法规文件"
+    },
+    {
+      "title": "四、标准及标准目录",
+      "sections": [
+        {
+          "title": null,
+          "page": null,
+          "docs": [
+            {
+              "title": "GB 10648—2013《饲料标签》国家标准第1号修改单",
+              "doc_number": "GB10648-2013",
+              "page": 940,
+              "doc_id": "04标准及标准目录_01_饲料标签_01_饲料标签",
+              "matched": true,
+              "match_by": "doc_number",
+              "article_count": 31,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料卫生标准",
+              "doc_number": "GB13078-2017",
+              "page": 949,
+              "doc_id": "04标准及标准目录_02_饲料卫生标准_02_饲料卫生标准",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 8,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料加工系统粉尘防爆安全规程",
+              "doc_number": "GB19081-2008",
+              "page": 960,
+              "doc_id": "04标准及标准目录_03_饲料加工系统粉尘防爆安全规程_03_饲料加工系统粉尘防爆安全规程",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 23,
+              "chapter_count": null
+            },
+            {
+              "title": "全国一体化政务服务平台电子证照饲料和饲料添加剂进口登记证",
+              "doc_number": "进口饲料和饲料添加剂登记管理办法（农业部令2014年第2号",
+              "page": 968,
+              "doc_id": "04标准及标准目录_04_全国一体化政务服务平台、电子证照、饲料和饲料添加剂进口登记_04_全国一体化政务服务平台、电子证照、饲料和饲料添加剂进口登记",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 10,
+              "chapter_count": null
+            },
+            {
+              "title": "饲料产品标准和检测方法标准目录",
+              "doc_number": null,
+              "page": null,
+              "doc_id": "04标准及标准目录_05_饲料产品标准和检测方法标准目录_05_饲料产品标准和检测方法标准目录",
+              "matched": true,
+              "match_by": "title",
+              "article_count": 20,
+              "chapter_count": null
+            }
+          ]
+        }
+      ],
+      "scope_key": "04标准及标准目录"
+    }
+  ],
+  "stats": {
+    "scopes": 4,
+    "sections": 17,
+    "docs": 178,
+    "matched": 177,
+    "unmatched": 1,
+    "documents_total": 177
+  }
+}

@@ -14,7 +14,7 @@
 
 import type {
   Document, Chapter, ChapterDetail, Article, ArticleDetail, SearchHit,
-  Entity,
+  Entity, Catalog,
 } from "./api"
 
 // Vite: build 时把索引产物打包进 bundle
@@ -33,6 +33,11 @@ const indexModules = {
   ),
   ...import.meta.glob(
     "../../../data/index/minimax/articles.light.json",
+    { eager: true }
+  ),
+  // 目录树: 结构 + 文号 + 起始页, 不含正文 —— 可以 eager(几十 KB)
+  ...import.meta.glob(
+    "../../../data/index/minimax/catalog.json",
     { eager: true }
   ),
 } as Record<string, { default: unknown }>
@@ -55,6 +60,31 @@ const chapterMdModules = import.meta.glob(
   "../../../data/index/minimax/chapters/*.md",
   { eager: false, query: "?raw", import: "default" }
 ) as Record<string, () => Promise<string>>
+
+interface RawCatalog {
+  scopes: {
+    title: string
+    scope_key?: string
+    sections: {
+      title: string | null
+      page?: number | null
+      docs: {
+        title: string
+        doc_number?: string | null
+        page?: number | null
+        doc_id?: string
+        matched: boolean
+        match_by?: string | null
+        article_count?: number
+        chapter_count?: number
+      }[]
+    }[]
+  }[]
+  stats?: {
+    scopes: number; sections: number; docs: number
+    matched: number; unmatched: number; documents_total: number
+  }
+}
 
 interface RawDocument {
   doc_id: string
@@ -104,6 +134,24 @@ function pick<T>(name: string): T[] {
   }
   return (indexModules[key].default as T[]) ?? []
 }
+
+/**
+ * 取一个 JSON 对象(不是数组)。
+ *
+ * ⚠️ pick() 假设产物是数组, 但 catalog.json 是 `{scopes, stats}` 对象 ——
+ *    用 pick() 取会得到 `[]`, 再 `[0]` 就是 undefined, 目录树整个空掉
+ *    (症状: 点「目录」tab 什么都没渲染, 但 console 无报错)。
+ */
+function pickObject<T>(name: string): T | null {
+  const key = Object.keys(indexModules).find(p => p.endsWith(`/${name}.json`))
+  if (!key) {
+    console.warn(`[mockData] 索引清单缺失: ${name}.json`)
+    return null
+  }
+  return (indexModules[key].default as T) ?? null
+}
+
+const RAW_CATALOG: RawCatalog = pickObject<RawCatalog>("catalog") ?? { scopes: [] }
 
 const RAW_DOCUMENTS: RawDocument[] = pick<RawDocument>("documents")
 const RAW_CHAPTERS: RawChapter[] = pick<RawChapter>("chapters")
@@ -163,6 +211,11 @@ const DOCUMENTS: Document[] = RAW_DOCUMENTS
     chapter_count: RAW_CHAPTERS.filter(c => c.doc_id === d.doc_id).length,
     article_count: d.article_count,
   }))
+
+// 目录树: 直接用 catalog.json 的结构(build/export/build_catalog.py 生成)。
+// ⚠️ 目录里的 doc_number 可能有 OCR 噪声(如「日中华人民共和国农业部公告第2109号颁布。」),
+//    build 脚本已用真实文档的 doc_number 覆盖 —— 这里不再二次清洗。
+const CATALOG: Catalog = RAW_CATALOG as Catalog
 
 const CHAPTERS: ChapterDetail[] = RAW_CHAPTERS.map(c => ({
   chapter_id: c.chapter_id,
@@ -258,6 +311,12 @@ export const mockApi = {
   async listDocuments(): Promise<Document[]> {
     await new Promise(r => setTimeout(r, 50))
     return DOCUMENTS
+  },
+
+  /** 目录树(书籍原版层级 + 文号 + 起始页) */
+  async getCatalog(): Promise<Catalog> {
+    await new Promise(r => setTimeout(r, 30))
+    return CATALOG
   },
 
   async listChapters(docId: string): Promise<Chapter[]> {

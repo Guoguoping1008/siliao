@@ -73,6 +73,7 @@ export default {
         return json(await searchArticles(url.searchParams.get("q") ?? "", env, url.searchParams), env);
       }
       if (path === "/api/documents") return json(await listDocuments(env), env);
+      if (path === "/api/catalog") return json(await getCatalog(env), env);
       const mDocChs = path.match(/^\/api\/documents\/([^/]+)\/chapters$/);
       // ⚠️ 必须 decode —— url.pathname 不做 percent-decode,
       //    中文 doc_id 会带 %E5%81... 进 D1, 查不到任何章节。
@@ -704,6 +705,31 @@ async function listDocuments(env: Env) {
      ORDER BY d.is_toc ASC, d.sort_order ASC, d.doc_id ASC`
   ).all();
   return { documents: rows.results };
+}
+
+// ---------- 目录树(书籍原版层级) ----------
+//
+// 数据来自 minimax/001目录/目录合并.md, build/export/build_catalog.py 解析成
+// JSON 存进 catalog 表的 tree 字段(整棵一行)。
+//
+// ⚠️ 为什么不用 documents 表现场拼: documents 里只有 scope/section 两级,
+//    没有「起始页」也没有原版的二级分类名。目录页是独立信息源。
+async function getCatalog(env: Env) {
+  const row = await env.DB.prepare(
+    `SELECT tree, stats FROM catalog WHERE id = 1`
+  ).first<{ tree: string; stats: string | null }>();
+
+  if (!row?.tree) {
+    return {
+      error: "catalog_not_found",
+      message: "目录数据未灌入。跑 build/export/push_catalog.py --remote",
+      scopes: [],
+    };
+  }
+
+  const scopes = JSON.parse(row.tree);
+  const stats = row.stats ? JSON.parse(row.stats) : undefined;
+  return { scopes, stats };
 }
 
 // ---------- 文档下的章节 ----------
