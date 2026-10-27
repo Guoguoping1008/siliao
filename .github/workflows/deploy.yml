@@ -111,6 +111,11 @@ jobs:
       #    会丢, 前端就拿不到 API(页面能开, 搜索全空)。
       #    wrangler pages deploy 会把 functions/ 一起打成 Functions bundle。
       - name: 部署到 Cloudflare Pages
+        # ⚠️ **必须在 web/ 目录下跑** —— dist 在 web/dist, 在仓库根跑会
+        #    报 "ENOENT: no such file or directory, scandir '.../siliao/dist'"。
+        #    而且必须从 web/ 跑才能把 web/functions/ 一起打成 Functions bundle
+        #    (Pages Functions 代理丢了, 前端就拿不到 API)。
+        working-directory: web
         run: |
           npx wrangler@4 pages deploy dist \
             --project-name siliao-web \
