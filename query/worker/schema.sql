@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS chapters (
   article_count INTEGER DEFAULT 0,
   sort_order   INTEGER NOT NULL,
   r2_object_key TEXT NOT NULL,           -- R2 中 chapters/ch01.md 的 key
+  -- ⚠️ 章节正文**不单独存**: 它是本章下所有条文 body 的拼接,
+  --    单独存会让 seed.sql 的单条 INSERT 超过 D1 的 SQLITE_TOOBIG(实测 115KB),
+  --    而且正文重复存一遍。Worker 改为按 chapter_id 聚合 articles.body 现拼。
   FOREIGN KEY (doc_id) REFERENCES documents(doc_id)
 );
 
@@ -37,6 +40,19 @@ CREATE TABLE IF NOT EXISTS articles (
   title        TEXT,
   r2_object_key TEXT NOT NULL,
   vector_id    TEXT,                    -- 对应 Vectorize 中的 id
+  -- 正文全文(markdown)。
+  --
+  -- ⚠️ 2026-10-26: 正文改存在 D1,不再依赖 R2。
+  --    原因: 本账户 R2 未开通(Dashboard 手动激活 + 绑支付方式, API 绕不过),
+  --    而正文只有 7.3MB —— D1 免费额度 5GB, 完全放得下。
+  --    附带好处: excerpt 不用 20 次 R2 GET 拼, 一次 JOIN 就出来,
+  --    每条 hit 少一个网络往返(21 次 → 1 次)。
+  --    r2_object_key 保留(将来开 R2 了可以搬回去, 也兼容旧数据)。
+  body         TEXT,
+  -- 本章内的条文顺序。⚠️ 不能靠 article_id 排序 —— 它按字典序排,
+  -- 会打乱原文顺序(实测 95/529 个章节的条文顺序与原文不一致)。
+  -- 章节正文是按这个顺序拼出来的。
+  sort_order   INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (chapter_id) REFERENCES chapters(chapter_id),
   FOREIGN KEY (doc_id) REFERENCES documents(doc_id)
 );

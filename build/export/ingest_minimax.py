@@ -537,6 +537,14 @@ def main() -> int:
     for ch in chapters:
         ch["article_count"] = len(ch["article_ids"])
 
+    # 条文在**全局**的出现顺序(= 原文顺序)。
+    # articles 列表是按文档扫描顺序 extend 的, 所以它的下标就是原文序。
+    # ⚠️ 不能靠 article_id 排序 —— 字典序会打乱原文顺序
+    #    (实测 95/529 个章节的条文顺序与 ingest 写的章节 md 不一致)。
+    #    Worker 拼章节正文时按 sort_order 排, 与 ingest 的拼接顺序一致。
+    for _i, _a in enumerate(articles):
+        _a["_ord"] = _i
+
     # ⚠️ 节级章节的 article_ids 只装了「直接归属」的条文, 但条文通常挂在
     #    章级子章节下 (chap_id = <doc_id>@@第X章)。不聚合的话,
     #    节级章节正文是空的, 前端点开是白页。
@@ -626,10 +634,12 @@ def main() -> int:
         # ⚠️ 节级章节(kind=section)也要有正文 —— 前端点开章节不能是空白页。
         #    它汇总的是本节下所有条文的正文(含各章级子章节的条文)。
         fname = safe_name(ch["chapter_id"])
-        (out / "chapters" / f"{fname}.md").write_text(
-            "\n\n".join(parts), encoding="utf-8"
-        )
+        ch_body = "\n\n".join(parts)
+        (out / "chapters" / f"{fname}.md").write_text(ch_body, encoding="utf-8")
         r2_keys[ch["chapter_id"]] = fname + ".md"
+        # 章节正文也存一份在内存对象里, 后面 INSERT chapters 时写进 D1 的 body 列
+        # (2026-10-26: 正文存 D1 而非 R2 —— R2 未开通, 且 D1 一次 JOIN 就能拿 excerpt)
+        ch["body"] = ch_body
 
     # 紧凑格式: 前端 eager 打包, indent 会让体积翻倍
     # 文档排序: **法规正文在前, 目录/封面在后**。
@@ -714,7 +724,29 @@ def main() -> int:
 
 
 def esc(s: str) -> str:
-    return (s or "").replace("'", "''")
+    """SQL 字符串内容转义(**不加引号**, 调用处自己加)—— 用于不含换行的字段。
+
+    转义: 反斜杠(Windows 路径里的 \\ 会被当转义序列) + 单引号(双写)。
+    """
+    return (s or "").replace("\\", "\\\\").replace("'", "''")
+
+
+def esc_expr(s: str) -> str:
+    """完整的 SQL 表达式 —— 用于**可能含真实换行**的字段(目前只有 body)。
+
+    ⚠️ 换行处理踩了两轮(2026-10-26):
+    SQLite 的字符串字面量**不能跨行**(真实换行 → 语法错),
+    但也**不认 `\\n` 转义序列**(写成 `\\n` 存进去就是字面的反斜杠+n)。
+
+    正解: 用 `char(10)` 做字符串拼接, 把换行拆成 SQL 表达式:
+        '第一行' || char(10) || '第二行'
+    既合法, 存进 D1 的又是真换行。
+    """
+    s = (s or "").replace("\\", "\\\\").replace("'", "''")
+    if "\n" not in s and "\r" not in s:
+        return f"'{s}'"
+    parts = s.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return " || char(10) || ".join(f"'{p}'" for p in parts)
 
 
 def write_seed_sql(
@@ -751,6 +783,12 @@ def write_seed_sql(
         # r2_object_key 存**完整 R2 key**(含短 doc 前缀), Worker 直接取用
         ck = r2_keys.get(c["chapter_id"], c["chapter_id"] + ".md")
         ck_full = f"{r2_doc_ids.get(c['doc_id'], 'd')}/chapters/{ck}"
+        # body = 章节正文(markdown)。2026-10-26 起正文存 D1 而非 R2
+        # (R2 未开通, 且 D1 一次 JOIN 就能拿到 excerpt, 少 20 次网络往返)。
+        cbody = c.get("body") or ""
+        # ⚠️ 章节正文**不写进 DB**: 它是本章条文 body 的拼接, 单独存会让
+        #    单条 INSERT 超过 D1 的 SQLITE_TOOBIG(实测 115KB), 且正文重复存。
+        #    Worker 改为按 chapter_id 聚合 articles.body 现拼。
         lines.append(
             "INSERT INTO chapters(chapter_id, doc_id, number, title, article_count, sort_order, r2_object_key) VALUES("
             f"'{esc(c['chapter_id'])}', '{esc(c['doc_id'])}', '{esc(c['number'])}', "
@@ -761,16 +799,20 @@ def write_seed_sql(
     # 目录/封面文档的 doc_id → 它们的条文不进 FTS 索引
     toc_doc_ids = {d["doc_id"] for d in documents if d.get("is_toc")}
 
+    # 条文在章内的顺序: ingest 扫页面时就是按原文顺序遇到的,
+    # 这里记下来给 chapters 拼正文用(不能靠 article_id 字典序)。
     for a in articles:
         title = a["title"] or ""
         # r2_object_key 存**完整 R2 key**(含短 doc 前缀), Worker 直接取用
         ak = r2_keys.get(a["article_id"], a["article_id"] + ".md")
         ak_full = f"{r2_doc_ids.get(a['doc_id'], 'd')}/articles/{ak}"
+        # body = 条文正文(markdown), 见 chapters 处的说明。
+        abody = a.get("text") or ""
         lines.append(
-            "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key) VALUES("
+            "INSERT INTO articles(article_id, chapter_id, doc_id, number, title, r2_object_key, body, sort_order) VALUES("
             f"'{esc(a['article_id'])}', '{esc(a['chapter_id'])}', '{esc(a['doc_id'])}', "
             f"'{esc(a['number'])}', '{esc(title)}', "
-            f"'{esc(ak_full)}');"
+            f"'{esc(ak_full)}', {esc_expr(abody)}, {a.get('_ord', 0)});"
         )
 
         # ⚠️ 目录页(001目录)与封面(000封面)不进全文索引 ——

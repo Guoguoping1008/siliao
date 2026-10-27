@@ -8,7 +8,7 @@
 | API (Cloudflare Workers) | https://siliao-api.guoguoping.workers.dev | ✅ 已上线 |
 | API 代理 (Pages Functions) | https://siliao-web.pages.dev/api/* | ✅ 已上线 |
 | D1 数据库 | `siliao-db` / `e406e21e-e770-4c97-822a-57178c347aa6` | ✅ 已灌 3145 条文 |
-| R2 桶 | `siliao-index` | ⛔ **未开通**(见下) |
+| R2 桶 | `siliao-index` | ➖ **不再需要**(正文已进 D1,见下) |
 | bge 语义层 | `https://ns.hbnongfengyuan.cn` | ✅ **已上线**(见下) |
 | LLM (MiniMax) | `MiniMax-Text-01` | ✅ 已接入 |
 
@@ -16,24 +16,44 @@
 
 ## 一、上线前的前置动作(都要人工做一次)
 
-### 1.1 开通 R2(阻塞 excerpt / 原文正文)
+### 1.1 R2 —— ✅ 已不需要(正文改存 D1)
 
-账户的 R2 还没激活, API 返 `403 Please enable R2 through the Cloudflare Dashboard`。
+**原计划**: R2 存正文。但账户的 R2 没激活, API 返
+`403 Please enable R2 through the Cloudflare Dashboard`, 而且激活要**人工去
+Dashboard 接受条款 + 绑支付方式**(API 绕不过, OAuth token 也没有订阅管理权限)。
 
-1. 打开 https://dash.cloudflare.com → 左侧 **R2** → **Enable R2**
-2. 首次开通要接受条款 + 绑支付方式(信用卡即可, 免费额度 10GB/月)
-3. 激活后执行:
+**改用 D1(2026-10-26)**, 理由:
+
+| | R2 | D1 |
+|---|---|---|
+| 需要人工开通 | 是 | 否 |
+| 正文总量 | 7.3 MB | 7.3 MB |
+| 存储额度 | 10GB/月免费 | 5GB 免费(实际只占 1.2MB) |
+| excerpt 怎么拿 | 20 次 R2.get() | **1 次 JOIN** |
+| 每条 hit 延迟 | +1 网络往返 | 0 |
+
+改完后 `wrangler.toml` 里 `[[r2_buckets]]` 保持注释状态, `INDEX_BUCKET` 变成可选
+binding(代码里 `env.INDEX_BUCKET ? ... : null` 兼容两种)。
+
+**灌正文用 D1 REST API 的 bound params**, 不用 `wrangler d1 execute --file`:
 
 ```bash
-cd query/worker
-npx wrangler r2 bucket create siliao-index
-
-# 取消 wrangler.toml 里 [[r2_buckets]] 那段的注释
-python build/export/push_minimax_r2.py --remote     # 推 3674 个对象
-npx wrangler deploy
+python build/export/push_d1_bodies.py
 ```
 
-不做的后果: 检索照常能出结果, 但 `/api/article` 的正文是空串, 搜索结果的 excerpt 是空。
+为什么不用 wrangler(两个坑):
+1. wrangler 4.127+ 对「schema 变了」的库报 `D1_RESET_DO` —— 它想走迁移流程,
+   不肯直接灌(而且那次失败**把远端表清空了**)。
+2. 正文含真实换行, 拼进 SQL 字符串字面量会踩三个 SQLite 限制:
+   字符串不能跨行 / 不认 `\n` 转义 / `|| char(10) ||` 拼接会让表达式树超 100 深度。
+
+bound params 全绕过: 值不进 SQL 文本, 换行引号反斜杠原样传。
+
+**D1 raw API 的三个限制**:
+- 参数上限 **100 个变量**(不是 SQLite 默认的 999)→ 每行 8 列 → 每请求 12 行
+- **多语句 + params 不支持** → 必须单语句多行 INSERT
+- 占位符个数要**按实际批大小**生成, 否则最后一批报
+  `Wrong number of parameter bindings`
 
 ### 1.2 LLM key ✅ 已用 MiniMax 顶上(2026-10-26)
 

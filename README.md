@@ -15,7 +15,8 @@ D1 已灌满 196 文档 / 529 章 / 3145 条文。
 **bge 语义层已上线**(`https://ns.hbnongfengyuan.cn`,Docker 容器 + nginx 反代),
 生产跑的是 FTS5 + bge hybrid。
 **LLM 已接入 MiniMax**(OpenAI 兼容端点,DeepSeek key 余额不足故切换)。
-**1 项待人工开通**:R2 桶(原文正文/excerpt —— 这是当前答案质量的唯一瓶颈)。
+**正文存 D1**(`articles.body`,1.2MB)—— 不依赖 R2,故**无需人工开通任何 Cloudflare 付费产品**。
+检索 = D1 FTS5 + bge-m3 公网 hybrid;问答 = MiniMax。
 详见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
 
 ## 形态

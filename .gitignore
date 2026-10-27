@@ -122,3 +122,6 @@ output2/_chunk_split/
 
 # R2 object get 会在 worker 目录下拉出 <doc前缀>/ 残留目录
 query/worker/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/
+
+# schema+seed 合并的临时产物(可由 ingest 重建)
+build/export/seed_full.sql

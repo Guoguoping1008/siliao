@@ -357,12 +357,12 @@ async function searchArticles(
     };
   }).sort((a, b) => b.fused_score - a.fused_score).slice(0, 20);
 
-  // 关联 D1 + R2
+  // 关联 D1(正文直接从 articles.body 取)
   const ids = fusedRows.map(r => r.article_id);
   const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
   const meta = await env.DB.prepare(
     `SELECT a.article_id, a.chapter_id, a.doc_id, a.number, a.title as atitle,
-            a.r2_object_key,
+            a.body,
             c.title as chapter_title, c.number as chapter_number
      FROM articles a
      LEFT JOIN chapters c ON c.chapter_id = a.chapter_id
@@ -371,14 +371,13 @@ async function searchArticles(
   const metaById = new Map((meta.results as any[]).map(m => [m.article_id, m]));
 
   const fusedById = new Map(fusedRows.map(r => [r.article_id, r]));
-  const excerptById = new Map<string, string>();
-  await Promise.all((meta.results as any[]).map(async (m) => {
-    // R2 key: 必须 encode(见 r2Key 的注释)
-    const key = r2Key(m.r2_object_key, m.doc_id, "articles");
-    const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
-    const text = obj ? (await obj.text()).slice(0, 600) : "";
-    excerptById.set(m.article_id, text);
-  }));
+  // ⚠️ 2026-10-26: 正文改从 D1 的 articles.body 直接取(随上面的 JOIN 一起出来),
+  //    不再逐条 R2.get()。
+  //    旧写法: 20 hits → 20 次 R2 网络往返, 慢且依赖 R2 未开通的账户。
+  //    新写法: 1 次查询, 0 次额外往返。
+  const excerptById = new Map<string, string>(
+    (meta.results as any[]).map(m => [m.article_id, (m.body || "").slice(0, 600)])
+  );
 
   const hits: SearchHit[] = ids.map((aid) => {
     const m = metaById.get(aid);
@@ -676,12 +675,26 @@ async function getChapter(docId: string, chId: string, env: Env) {
   ).bind(docId, chId).first();
   if (!row) return { error: "chapter_not_found" };
 
-  // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀),
-  // 例如 "d1a2b3c4d5/chapters/xxx__abc12345.md"。
-  // doc_id 段必须短 —— R2 object name 上限约 320 字节(UTF-8), 长中文 slug 会超。
-  const key = r2Key((row as any).r2_object_key, docId, "chapters");
-  const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
-  const markdown = obj ? await obj.text() : "";
+  // ⚠️ 章节正文**不在 chapters 表里**(单独存会让 seed.sql 单条 INSERT
+  //    超过 D1 的 SQLITE_TOOBIG, 实测 115KB)—— 按 chapter_id 聚合
+  //    本章下所有 articles.body 现拼。
+  //
+  //    注意: 条文正文本身已以 `### 第一条` 开头, 直接拼会渲染成
+  //    「第一条 第一条」重复, 所以只在正文没有标题行时才补 `### {number}`。
+  const arts = await env.DB.prepare(
+    `SELECT a.number, a.title, a.body
+     FROM articles a
+     WHERE a.chapter_id = ?1
+     ORDER BY a.sort_order ASC`
+  ).bind(chId).all();
+  const parts: string[] = [];
+  for (const a of arts.results as any[]) {
+    const b = (a.body || "").trim();
+    if (!b) continue;
+    const label = a.number || a.title || "";
+    parts.push(b.startsWith("#") ? b : (label ? `### ${label}\n\n${b}` : b));
+  }
+  const markdown = parts.join("\n\n");
   return { chapter: row, markdown };
 }
 
@@ -692,18 +705,15 @@ async function getArticle(artId: string, env: Env) {
   //    症状是所有条文详情都 article_not_found。
   const row = await env.DB.prepare(
     `SELECT a.article_id, a.chapter_id, a.doc_id, a.number, a.title,
-            a.r2_object_key, a.vector_id,
+            a.r2_object_key, a.vector_id, a.body,
             c.title as chapter_title, c.number as chapter_number
      FROM articles a LEFT JOIN chapters c ON c.chapter_id = a.chapter_id
      WHERE a.article_id=?1`
   ).bind(artId).first();
   if (!row) return { error: "article_not_found" };
 
-  // R2 key: r2_object_key 存的是**完整 key**(含短 doc 前缀)
-  const docId = (row as any).doc_id;
-  const key = r2Key((row as any).r2_object_key, docId, "articles");
-  const obj = env.INDEX_BUCKET ? await env.INDEX_BUCKET.get(key) : null;
-  return { article: row, markdown: obj ? await obj.text() : "" };
+  // 正文从 D1 的 articles.body 取(2026-10-26,不再依赖 R2)。
+  return { article: row, markdown: (row as any).body || "" };
 }
 
 // ---------- 实体详情 ----------
