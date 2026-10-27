@@ -91,12 +91,27 @@ export default {
       const mEnt = path.match(/^\/api\/entity\/(.+)$/);
       if (mEnt) return json(await getEntity(decodeURIComponent(mEnt[1]), env), env);
       if (path === "/api/qa" && req.method === "POST") {
-        const body = await req.json<{ q: string; stream?: boolean }>();
+        const body = await req.json<{ q: string; stream?: boolean; question?: string }>();
+        // ⚠️ 2026-10-27 加: 字段名写错(q/question/ask)时**静默**返回
+        //    "未找到相关规定" —— 看起来像检索没召回, 实际是压根没收到问题。
+        //    排查时非常误导。现在明确报 400 并说明正确字段名。
+        //    同时接受 question/ask 作为别名, 前端/脚本用哪个都行。
+        const rawQ = (body.q ?? body.question ?? (body as any).ask ?? "").toString().trim();
+        if (!rawQ) {
+          return json(
+            {
+              error: "missing_query",
+              message: "缺少查询字段。POST body 请用 {\"q\": \"你的问题\"} (别名: question / ask)",
+            },
+            env,
+            400
+          );
+        }
         const wantStream = body.stream || url.searchParams.get("stream") === "true";
         if (wantStream) {
-          return ragQAStream(body.q, env);
+          return ragQAStream(rawQ, env);
         }
-        return json(await ragQA(body.q, env), env);
+        return json(await ragQA(rawQ, env), env);
       }
       return json({ error: "not_found", path }, env, 404);
     } catch (e) {
