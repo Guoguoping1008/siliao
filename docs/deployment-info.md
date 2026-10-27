@@ -136,9 +136,28 @@ curl -s http://127.0.0.1:8080/health        # 本机探活
 > gh secret set CLOUDFLARE_ACCOUNT_ID
 > ```
 
-### ✅ 当前状态: 已改用永不过期的 API Token(2026-10-27)
+### ✅ 当前状态: 已改用永不过期的 API Token(2026-10-27 完成)
 
-**2026-10-27 中午踩的坑, 记下来别重蹈**:
+**已完成**:Dashboard 建的 API Token(`siliao-deploy`)已装进 secret,
+`expires_on: None` 确认永不过期, 自动部署已验证全绿。
+
+Token 权限实测:
+| 端点 | 结果 |
+|---|---|
+| `/accounts/{id}` | ✅ 200 |
+| `/workers/scripts` | ✅ 200(6 个脚本) |
+| `/pages/projects` | ✅ 200(含 `siliao-web`) |
+| `/d1/database` | ⚠️ 401 —— **部署不需要**, D1 数据是一次性灌的 |
+
+**没给 D1 权限是有意的** —— 最小权限原则。部署只读账户 + 写 Worker/Pages;
+D1 正文和目录树都是用一次性脚本灌的(`push_d1_bodies.py` / `push_catalog.py`),
+不需要 CI 长期持有 D1 写权限。
+
+⚠️ **token 值不记录在任何文档里** —— 它只存在于 GitHub secret(加密存储)
+和 Cloudflare Dashboard。本文件只记 token 名和 ID(`2d50d9177ab951ac6a97a03cf6fc4673`),
+需要时从 Dashboard 或 secret 里取。
+
+### 2026-10-27 中午踩的坑(记下来别重蹈)
 
 1. `wrangler login` 拿的 OAuth token **1 小时就过期** —— 存在 secret 里必然失效。
 2. 试过用 `refresh_token` 自动续期, 发现 **Cloudflare 每次刷新都会轮换
