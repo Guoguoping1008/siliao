@@ -17,7 +17,12 @@ D1 已灌满 196 文档 / 529 章 / 3145 条文。
 **LLM 已接入 MiniMax**(OpenAI 兼容端点,DeepSeek key 余额不足故切换)。
 **正文存 D1**(`articles.body`,1.2MB)—— 不依赖 R2,故**无需人工开通任何 Cloudflare 付费产品**。
 检索 = D1 FTS5 + bge-m3 公网 hybrid;问答 = MiniMax。
-详见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
+**完整资源清单**(服务器/Cloudflare/GitHub secret/运维命令)见
+[`docs/deployment-info.md`](docs/deployment-info.md);
+操作步骤见 [`docs/deploy-runbook.md`](docs/deploy-runbook.md)。
+
+**部署已全自动化**:push 到 `deploy/c-b-hybrid` → CI 验证 → Deploy 部署 Worker
++ Pages → 回读生产 API 校验。手工部署只需 `gh workflow run deploy.yml --ref deploy/c-b-hybrid`。
 
 ## 形态
 
