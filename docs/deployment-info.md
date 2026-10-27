@@ -136,31 +136,25 @@ curl -s http://127.0.0.1:8080/health        # 本机探活
 > gh secret set CLOUDFLARE_ACCOUNT_ID
 > ```
 
-### ⚠️ 当前状态: token 已过期(2026-10-27 09:2x)
+### ✅ 当前状态: 已改用永不过期的 API Token(2026-10-27)
 
-**现象**:Deploy workflow 在「预检 Cloudflare 凭据」这一步失败, 报
-`Invalid access token [code: 9109]`。本机 `npx wrangler deploy` 也同样 403。
+**2026-10-27 中午踩的坑, 记下来别重蹈**:
 
-**为什么 Pages 还能发**:Pages 部署走的是另一条鉴权路径(本机的
-wrangler OAuth session), 不受 GitHub secret 里的 token 影响。
-所以「Pages 成功 + Worker 失败」不代表配置错了 —— 就是那个 token 过期了。
+1. `wrangler login` 拿的 OAuth token **1 小时就过期** —— 存在 secret 里必然失效。
+2. 试过用 `refresh_token` 自动续期, 发现 **Cloudflare 每次刷新都会轮换
+   refresh_token, 旧的那个立刻失效**。本地刷过一次, secret 里那个就废了
+   (CI 报 `invalid_grant`)。要正确用得把轮换后的 token 再写回 secret,
+   而回写需要额外的 PAT(仓库 `GH_TOKEN` 改不了 Actions secret) —— 链路太长,
+   且回写失败本身就是新的失败点。
 
-**恢复**(两条路):
-```bash
-# A. 刷新 OAuth token(临时, 还会再过期)
-cd query/worker && npx wrangler login
-# 然后把新 token 写回 GitHub secret(见上面「设置方式」)
+**最终方案**: 在 Dashboard 建一个 **TTL 留空的 API Token**。
+不过期、权限最小、不需要刷新、不需要 PAT。
 
-# B. 建一个永不过期的 API Token(推荐, 一劳永逸)
-#    按 docs/cloudflare-token-setup-guide.html 的步骤走
-```
+详见 [`cloudflare-token-setup-guide.html`](cloudflare-token-setup-guide.html)。
 
-⚠️ `npx wrangler login` 会**打开浏览器要求授权** —— 如果浏览器没自动批准
-(超时), 需要手动点一下授权按钮。本机遇到过两次超时。
+### ⚠️ 为什么不用 wrangler OAuth token(2026-10-27 踩过)
 
-### ⚠️ OAuth token 会过期(2026-10-27 踩过)
-
-wrangler 的 OAuth token 是**短期**的,过期后 CI 部署会报:
+wrangler 的 OAuth token 是**短期**的(1 小时),过期后 CI 部署会报:
 
 ```
 Authentication error [code: 10000]
@@ -169,21 +163,19 @@ Invalid access token [code: 9109]
 
 看起来像"权限不够",实际是"token 过期了"。
 
-**修复**(本机执行,然后更新 secret):
-```bash
-cd query/worker && npx wrangler login      # 会弹浏览器, 系统浏览器自动批准
-# 然后把新 token 写回 secret
-```
+⚠️ **不要用 OAuth token 跑 CI** —— 1 小时就过期, 而且:
+- `npx wrangler login` 要开浏览器手动授权(headless 过不了 Turnstile)
+- 试过 `refresh_token` 自动续期, 但 **Cloudflare 每次刷新都会轮换
+  refresh_token, 旧的那个立刻失效**(实测本地刷一次 secret 里那个就废了)
+- 要正确用就得把轮换后的 token 再写回 secret, 而回写需要额外 PAT
+  (仓库 `GH_TOKEN` 改不了 Actions secret) —— 链路太长, 回写失败本身也是失败点
 
-**长期方案**:在 Dashboard 建一个**真正的 API Token**(不过期):
-Dashboard → My Profile → API Tokens → Create Token →
-模板 **Edit Cloudflare Workers** → 配好权限 → 复制 token
-→ `gh secret set CLOUDFLARE_API_TOKEN`。
-⚠️ OAuth token **没有** `account:api_tokens` 权限, 自己建不了 —— 必须手点。
+**正解**: Dashboard 建一个 **TTL 留空的 API Token** ——
+不过期、权限最小、不需要刷新、不需要 PAT。
+步骤见 [`cloudflare-token-setup-guide.html`](cloudflare-token-setup-guide.html)。
 
-`deploy.yml` 已加**凭据预检**: 部署前先 curl `/accounts`,
-token 失效时直接给出"token 过期,去跑 wrangler login"的提示,
-而不是让 wrangler 抛一堆看不懂的 9109。
+`deploy.yml` 保留了**凭据预检**: 部署前先 curl `/accounts`,
+token 被误删/误改时直接说清楚, 而不是让 wrangler 抛一堆看不懂的 9109。
 
 ### 工作流
 

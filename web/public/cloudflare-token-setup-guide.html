@@ -373,6 +373,19 @@ Invalid access token [code: 9109]</code></pre>
     </tbody>
   </table>
 
+  <div class="box danger">
+    <span class="t">为什么必须是 API Token, 不能用 wrangler OAuth token</span>
+    OAuth token <b>1 小时就过期</b>, 而且它带不来任何好处:<br>
+    • <code>npx wrangler login</code> 要开浏览器手动授权(headless 过不了 Turnstile)<br>
+    • 试过用 <code>refresh_token</code> 自动续期 —— 但 <b>Cloudflare 每次刷新都会轮换
+    refresh_token,旧的那个立刻失效</b>(实测本地刷一次,secret 里那个就废了,
+    CI 报 <code>invalid_grant</code>)<br>
+    • 要正确用就得把轮换后的 token 再写回 secret,而回写需要额外 PAT
+    (仓库的 <code>GH_TOKEN</code> 改不了 Actions secret)—— 链路太长,
+    回写失败本身就是新的失败点<br>
+    <b>TTL 留空的 API Token 没有这些问题</b>: 不过期、权限最小、不需要刷新。
+  </div>
+
   <div class="box warn">
     <span class="t">关于 D1</span>
     部署流程里 <b>不会</b>通过 API 写 D1 数据（D1 正文是用 <code>push_d1_bodies.py</code> 走 REST bound params 单独灌的，
