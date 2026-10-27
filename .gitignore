@@ -125,3 +125,10 @@ query/worker/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-
 
 # schema+seed 合并的临时产物(可由 ingest 重建)
 build/export/seed_full.sql
+
+# 调试临时产物(截图 / 一次性脚本)—— 提交前手动清, 别进 git
+_cat*.png
+_m*.png
+_f*.png
+_e*.png
+web/_*.cjs
