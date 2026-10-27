@@ -62,6 +62,25 @@ jobs:
       #    "配置 wrangler" 这一步就挂了(装 wrangler + 登录鉴权, v3 对
       #    新版 wrangler 4.x 的兼容性有问题), 报错信息还被吞在 action 里。
       #    改成直接用 npx + 环境变量鉴权, 报错直白可见。
+      # ⚠️ 预检 token —— 2026-10-27 踩过: OAuth token 过期后,
+      #    wrangler 报的是 "Invalid access token [code: 9109]" + 一堆
+      #    "Authentication error", 看不出是「token 过期」还是「权限不够」。
+      #    这里先自己 curl 一下 /accounts, 把原因说清楚。
+      - name: 预检 Cloudflare 凭据
+        run: |
+          code=$(curl -s -o /tmp/cf.json -w "%{http_code}" -m 20 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts")
+          if [ "$code" != "200" ]; then
+            echo "::error::Cloudflare API 返回 $code —— token 无效或过期"
+            echo "::error::$(head -c 300 /tmp/cf.json)"
+            echo "::error::修复: 在本机跑 'npx wrangler login' 刷新 token, 然后"
+            echo "::error::更新仓库 secret CLOUDFLARE_API_TOKEN。"
+            exit 1
+          fi
+          echo "✅ Cloudflare 凭据有效"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: 部署 Worker
         run: npx wrangler@4 deploy
         working-directory: query/worker

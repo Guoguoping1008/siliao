@@ -136,6 +136,33 @@ curl -s http://127.0.0.1:8080/health        # 本机探活
 > gh secret set CLOUDFLARE_ACCOUNT_ID
 > ```
 
+### ⚠️ OAuth token 会过期(2026-10-27 踩过)
+
+wrangler 的 OAuth token 是**短期**的,过期后 CI 部署会报:
+
+```
+Authentication error [code: 10000]
+Invalid access token [code: 9109]
+```
+
+看起来像"权限不够",实际是"token 过期了"。
+
+**修复**(本机执行,然后更新 secret):
+```bash
+cd query/worker && npx wrangler login      # 会弹浏览器, 系统浏览器自动批准
+# 然后把新 token 写回 secret
+```
+
+**长期方案**:在 Dashboard 建一个**真正的 API Token**(不过期):
+Dashboard → My Profile → API Tokens → Create Token →
+模板 **Edit Cloudflare Workers** → 配好权限 → 复制 token
+→ `gh secret set CLOUDFLARE_API_TOKEN`。
+⚠️ OAuth token **没有** `account:api_tokens` 权限, 自己建不了 —— 必须手点。
+
+`deploy.yml` 已加**凭据预检**: 部署前先 curl `/accounts`,
+token 失效时直接给出"token 过期,去跑 wrangler login"的提示,
+而不是让 wrangler 抛一堆看不懂的 9109。
+
 ### 工作流
 
 | Workflow | 触发 | 作用 |
