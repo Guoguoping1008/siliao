@@ -58,6 +58,27 @@ export function HomePage() {
       <div className="text-center text-xs text-slate-400 dark:text-slate-600 py-4">
         {isMockMode ? "Mock 模式 · 离线数据" : "生产模式 · Cloudflare Workers"}
       </div>
+
+      {/* 运维文档入口
+          ⚠️ 这是**部署运维指南**, 不是给法规查询用户看的功能 ——
+          所以放页脚, 不进顶部主导航(主导航是「首页/目录/搜索/问答/实体」,
+          加一条运维文档会稀释主流程, 移动端底栏只有 4 格也放不下)。
+          用 <a> 而不是 <Link>: 它指向的是 public/ 下的静态 HTML,
+          不是 React 路由, 走 <Link> 会被 router 拦截成 SPA 路由。 */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-8 pb-8">
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+          <a
+            href="/cloudflare-token-setup-guide.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary-dark transition"
+          >
+            <span aria-hidden="true">📘</span>
+            <span>部署运维指南</span>
+            <span className="text-xs text-slate-400 dark:text-slate-600">(Cloudflare Token 配置 · 新窗口打开)</span>
+          </a>
+        </div>
+      </div>
     </Layout>
   )
 }

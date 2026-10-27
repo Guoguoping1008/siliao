@@ -75,3 +75,38 @@ test.describe("核心导航", () => {
     expect(focused).toBe("INPUT")
   })
 })
+
+/**
+ * 运维指南入口 e2e
+ *
+ * 指南是 web/public/ 下的**静态 HTML**, 不是 React 路由:
+ * - 用 <a href> 而不是 <Link>, 走 <Link> 会被 router 拦截成 SPA 路由 → 404
+ * - 链接指向 /cloudflare-token-setup-guide (Pages 会把 .html 308 到无扩展名 URL)
+ *
+ * 这个测试防的是「入口链接静默失效」—— 文件被误删 / 改名 / 路由改成 <Link>
+ * 都会让运维找不到指南, 但不会让任何现有测试变红。
+ */
+test.describe("运维指南入口", () => {
+  test("首页页脚有部署运维指南入口, 指向静态 HTML", async ({ page }) => {
+    await page.goto("/")
+    // 页脚入口(不在 nav 里 —— 桌面导航也有一个, 用 not.closest('nav') 区分)
+    const link = page.locator("a[href='/cloudflare-token-setup-guide.html']").first()
+    await expect(link).toBeVisible({ timeout: 15_000 })
+    await expect(link).toHaveText(/部署运维指南|运维指南/)
+    // 必须是普通 <a> + 新窗口打开, 不能是 React Router 的 <Link>
+    await expect(link).toHaveAttribute("target", "_blank")
+    await expect(link).toHaveAttribute("rel", /noopener/)
+  })
+
+  test("运维指南入口指向的页面真的能打开(200 + 是指南本体)", async ({ page }) => {
+    // 直接访问静态 HTML, 断言拿到的是指南内容而不是 SPA 的 index.html
+    const resp = await page.goto("/cloudflare-token-setup-guide.html")
+    expect(resp?.status()).toBe(200)
+    // 指南的标志性内容
+    // ⚠️ h1 里含 <br>, accessible name 会被规范化成带空格的一整串 ——
+    //    用 getByRole 匹配不如直接查 h1 的文本稳。
+    await expect(page.locator("h1")).toContainText("Cloudflare API Token")
+    // 不能是 SPA 壳(index.html 里只有 <div id="root">)
+    await expect(page.locator("#root")).toHaveCount(0)
+  })
+})

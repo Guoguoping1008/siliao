@@ -75,6 +75,19 @@ export function Layout({ children }: Props) {
                 <span className="mr-1">{l.icon}</span>{l.label}
               </Link>
             ))}
+
+            {/* 运维文档 —— 用 <a> 指向 public/ 下的静态 HTML, 不是 React 路由。
+                放最后且用较淡的样式: 它是给运维看的, 不该跟「搜索/问答」抢注意力。 */}
+            <a
+              href="/cloudflare-token-setup-guide.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg transition hover:bg-slate-100 dark:hover:bg-slate-800
+                         text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary-dark"
+              title="部署运维指南(新窗口打开)"
+            >
+              <span className="mr-1">📘</span>运维指南
+            </a>
           </div>
 
           <ThemeToggle />
@@ -109,6 +122,18 @@ export function Layout({ children }: Props) {
                   <span>{l.icon}</span>{l.label}
                 </Link>
               ))}
+
+              {/* 运维文档入口(静态 HTML, 不是 React 路由 → 用 <a>) */}
+              <a
+                href="/cloudflare-token-setup-guide.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 mt-2 border-t border-slate-200 dark:border-slate-800
+                           text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary-dark"
+              >
+                <span>📘</span>部署运维指南
+                <span className="ml-auto text-xs opacity-60">↗</span>
+              </a>
             </nav>
           </aside>
         </div>
