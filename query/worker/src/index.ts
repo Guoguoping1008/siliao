@@ -142,6 +142,39 @@ async function fetchWithRetry<T>(
   throw lastErr;
 }
 
+// ---------- excerpt 文本清洗 ----------
+//
+// ⚠️ 2026-10-27 修: 检索结果的 excerpt 直接塞 markdown 原文, 前端用
+//    `<p>{excerpt}</p>` 渲染 → `### 第三条` / `#### 兽药管理条例` 这种
+//    标记**原样显示**给用户, 很难看。
+//
+//    对策: 去掉 markdown 标记, 只留可读正文。
+//    ⚠️ 必须是「去掉标记但保留换行」—— 不能压成一行, 否则正文会挤成一坨。
+function plainExcerpt(body: string, maxLen = 600): string {
+  const s = (body || "")
+    // 标题行: `### 第三条` → `第三条`(去掉前导 # 和空格)
+    .replace(/^#{1,6}\s*/gm, "")
+    // 表格分隔行 `|---|---|` → 去掉整行
+    .replace(/^\s*\|[\s|:-]+\|\s*$/gm, "")
+    // 行内标记: **粗体** __高亮__ `代码`
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    // 图片/链接: ![alt](url) → alt, [text](url) → text
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    // 引用块 > 和列表符号 -/*/数字.
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    // 水平线
+    .replace(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/gm, "")
+    // 连续空行压成一个
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return s.length > maxLen ? s.slice(0, maxLen).trim() + "…" : s;
+}
+
 // ---------- LLM 端点解析(provider 无关) ----------
 //
 // ⚠️ MiniMax 的 OpenAI 兼容端点是 `https://api.minimaxi.com/v1/chat/completions`,
@@ -376,7 +409,7 @@ async function searchArticles(
   //    旧写法: 20 hits → 20 次 R2 网络往返, 慢且依赖 R2 未开通的账户。
   //    新写法: 1 次查询, 0 次额外往返。
   const excerptById = new Map<string, string>(
-    (meta.results as any[]).map(m => [m.article_id, (m.body || "").slice(0, 600)])
+    (meta.results as any[]).map(m => [m.article_id, plainExcerpt(m.body || "")])
   );
 
   const hits: SearchHit[] = ids.map((aid) => {
