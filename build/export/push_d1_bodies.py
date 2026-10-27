@@ -173,12 +173,106 @@ def chunked(seq: list, n: int):
         yield seq[i : i + n]
 
 
+def local_db_path() -> Path:
+    """本地 miniflare D1 的 sqlite 文件。
+
+    wrangler dev 用的是 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/ 下
+    某个 hash 命名的 .sqlite —— hash 由 database_id 决定, 不直观。
+    这里直接找出**含 articles 表**的那个。
+    """
+    d = ROOT / "query" / "worker" / ".wrangler" / "state" / "v3" / "d1" / "miniflare-D1DatabaseObject"
+    cands = []
+    for f in d.glob("*.sqlite"):
+        if f.name == "metadata.sqlite":
+            continue
+        try:
+            import sqlite3
+
+            c = sqlite3.connect(f"file:{f.as_posix()}?mode=ro", uri=True)
+            n = c.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='articles'"
+            ).fetchone()[0]
+            c.close()
+            if n:
+                cands.append(f)
+        except Exception:  # noqa: BLE001
+            continue
+    if not cands:
+        raise SystemExit(f"找不到本地 D1: {d}")
+    if len(cands) == 1:
+        return cands[0]
+
+    # ⚠️ 可能有多个本地 D1(database_id 改过 → miniflare 另建了一个)。
+    #    必须挑**当前 wrangler.toml 的 database_id 对应的那个** ——
+    #    挑错会导致「灌了但 dev server 读的是另一个库」。
+    #
+    #    认法: 当前库里 articles 的 chapter_id/doc_id 与最新语料一致,
+    #    且它的 r2_object_key 带**当前**短前缀(d + sha1(doc_id)[:10])。
+    #    简化判据: 取**最近修改**的那个(mtime 最大)。
+    cands.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    newest = cands[0]
+    print(f"[d1-local] 有 {len(cands)} 个本地 D1, 取最近修改的: {newest.name[:20]}…")
+    for f in cands:
+        try:
+            import sqlite3
+
+            c = sqlite3.connect(f"file:{f.as_posix()}?mode=ro", uri=True)
+            nb = c.execute(
+                "SELECT COUNT(*) FROM articles WHERE body IS NOT NULL AND body!=''"
+            ).fetchone()[0]
+            c.close()
+            print(f"[d1-local]   {f.name[:20]}… 带正文 {nb}")
+        except Exception:  # noqa: BLE001
+            pass
+    return newest
+
+
+def push_local() -> int:
+    """灌本地 miniflare D1(直接写 sqlite 文件, 不走 API)。
+
+    本地 D1 是普通 sqlite, 换行用参数绑定就天然安全, 没有那些 SQLite 限制。
+    """
+    import sqlite3
+
+    f = local_db_path()
+    print(f"[d1-local] {f.name}")
+    arts = load_articles()
+    con = sqlite3.connect(f)
+    try:
+        cols = [r[1] for r in con.execute("PRAGMA table_info(articles)")]
+        for need in ("body", "sort_order"):
+            if need not in cols:
+                typ = "TEXT" if need == "body" else "INTEGER NOT NULL DEFAULT 0"
+                con.execute(f"ALTER TABLE articles ADD COLUMN {need} {typ}")
+                print(f"[d1-local] 加列 {need}")
+        have = con.execute("SELECT COUNT(*) FROM articles WHERE body IS NOT NULL AND body!=''").fetchone()[0]
+        print(f"[d1-local] 已有正文: {have}/{len(arts)}")
+        if have >= len(arts):
+            print("[d1-local] 无需重灌")
+            return 0
+        con.executemany(
+            "UPDATE articles SET body=?, sort_order=? WHERE article_id=?",
+            [(a.get("text") or "", a.get("_ord", 0), a["article_id"]) for a in arts],
+        )
+        con.commit()
+        n, b = con.execute(
+            "SELECT COUNT(*), SUM(LENGTH(body)) FROM articles WHERE body IS NOT NULL AND body!=''"
+        ).fetchone()
+        print(f"[d1-local] ✅ {n} 条带正文, 共 {b / 1024 / 1024:.2f} MB")
+    finally:
+        con.close()
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只查当前状态")
     ap.add_argument("--batch", type=int, default=BATCH)
+    ap.add_argument("--local", action="store_true", help="灌本地 miniflare D1")
     args = ap.parse_args()
 
+    if args.local:
+        return push_local()
     print(f"[d1] target: {DB_ID[:12]}…")
 
     # 当前状态
