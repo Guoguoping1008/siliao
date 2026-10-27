@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare API Token 配置操作指南 · siliao RAG</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 100px}
+
+  /* ── header ── */
+  header{
+    background:linear-gradient(135deg,#0c4a6e 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{
+    display:inline-block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+    padding:4px 14px; margin-bottom:18px; font-weight:600;
+  }
+  /* ⚠️ header 是深色渐变, 标题必须显式设浅色 —— 否则浅色模式下
+     继承 body 的深色文字, 深底深字几乎看不清。 */
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:70ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{
+    background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3);
+    color:#bae6fd; border-radius:6px; padding:5px 12px; font-size:12.5px; font-family:ui-monospace,monospace;
+  }
+  /* header 内的 code 在深底上也要用浅色 */
+  header code{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  /* ── toc ── */
+  nav.toc{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 26px; margin-bottom:40px; box-shadow:var(--shadow);
+  }
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  /* ── sections ── */
+  section{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:30px 32px; margin-bottom:26px; box-shadow:var(--shadow);
+  }
+  h2{
+    font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border);
+  }
+  h2 .num{
+    background:var(--accent);color:#082f49;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none;
+  }
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--code-bg); border:1px solid var(--border); border-radius:4px;
+    padding:1.5px 6px; font-size:.87em; color:#7dd3fc;
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:16px 18px; overflow-x:auto; margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.6;
+  }
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  /* ── callouts ── */
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+
+  /* ── steps ── */
+  .step{margin:20px 0;padding:18px 20px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+  .step > .h{font-weight:700;margin-bottom:10px;color:var(--fg);font-size:1rem}
+  .step > .h .b{
+    display:inline-grid;place-items:center;width:23px;height:23px;border-radius:6px;
+    background:var(--bg3);color:var(--accent);font-size:12.5px;font-weight:800;margin-right:9px;vertical-align:1px;
+  }
+  .step p:last-child,.step pre:last-child,.step ul:last-child,.step ol:last-child{margin-bottom:0}
+
+  /* ── copy button ── */
+  .prewrap{position:relative}
+  .copy{
+    position:absolute;top:9px;right:9px;background:var(--bg3);border:1px solid var(--border);
+    color:var(--fg-dim);border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;
+    font-family:inherit;transition:.15s;z-index:2;
+  }
+  .copy:hover{background:var(--accent);color:#082f49;border-color:var(--accent)}
+  .copy.done{background:var(--ok);color:#052e16;border-color:var(--ok)}
+
+  /* ── table ── */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+
+  /* ── badges ── */
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+
+  /* ── endpoint cards ── */
+  .eps{display:grid;gap:10px;margin:16px 0}
+  .ep{display:flex;align-items:center;gap:14px;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:12px 16px;flex-wrap:wrap}
+  .ep .url{font-family:ui-monospace,monospace;font-size:13px;color:#7dd3fc;word-break:break-all;flex:1;min-width:260px}
+  .ep .desc{color:var(--fg-dim);font-size:13px}
+
+  /* ── troubleshooting ── */
+  details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg);overflow:hidden}
+  summary{padding:13px 18px;cursor:pointer;font-weight:600;font-size:14.5px;list-style:none;
+          display:flex;align-items:center;gap:10px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.2s;flex:none}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary:hover{background:var(--bg3)}
+  .dbody{padding:0 18px 16px;border-top:1px solid var(--border)}
+  .dbody > *:first-child{margin-top:14px}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+  .kbd{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg3);border:1px solid var(--border);
+       border-bottom-width:2px;border-radius:4px;padding:1px 6px}
+
+  /* ══════════ 移动端 / H5 适配 ══════════ */
+  @media (max-width: 820px){
+    .wrap{padding:0 16px 72px}
+    header{padding:34px 0 30px;margin-bottom:26px}
+    h1{font-size:1.5rem;line-height:1.32}
+    .sub{font-size:.95rem;line-height:1.7}
+    .eyebrow{font-size:11px;padding:3px 11px;margin-bottom:14px}
+    .meta{gap:7px;margin-top:18px}
+    .chip{font-size:11px;padding:4px 9px}
+
+    section{padding:20px 17px;margin-bottom:18px;border-radius:9px}
+    h2{font-size:1.12rem;gap:10px;padding-bottom:12px}
+    h2 .num{width:26px;height:26px;font-size:.82rem;border-radius:7px}
+    h3{font-size:.98rem;margin:20px 0 8px}
+    p,li{font-size:14.5px;line-height:1.72}
+    ul,ol{margin-left:18px}
+
+    /* 横向滚动提示 —— 3+ 列的表要能滑, 但得让用户知道 */
+    .scrollhint{
+      display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg-faint);
+      margin:-4px 0 8px;user-select:none;
+    }
+    .scrollhint::after{content:"⟶";color:var(--accent);font-size:14px}
+
+    /* ── 表格适配 ──
+       3+ 列的表: 横向滚动(列多了堆叠反而更难读)
+       2 列的表(.stack2): 卡片式堆叠 —— 横向滚动会把内容裁成
+       「Account」/「不要选 All accou」, 用户既看不到全也不易察觉能滑。 */
+    table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;font-size:13px}
+    th,td{padding:8px 11px}
+
+    /* 两列表 → 堆叠成卡片 */
+    table.stack2{display:block;overflow-x:visible;white-space:normal}
+    table.stack2 thead{display:none}
+    table.stack2 tr{display:block;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:3px 0;margin-bottom:10px}
+    table.stack2 tr:last-child{margin-bottom:0}
+    table.stack2 tr:nth-child(even) td{background:none}
+    table.stack2 td{display:block;border:none;padding:6px 14px;white-space:normal;
+      width:auto !important}
+    table.stack2 td:first-child{
+      font-weight:700;font-size:12.5px;color:var(--fg);
+      letter-spacing:.02em;padding-bottom:1px;
+    }
+    table.stack2 td + td{border-top:1px dashed var(--border);padding-top:8px;padding-bottom:8px}
+    /* 首列为空的表(纯键值对)→ 首列本身就是标签, 值另起一行 */
+    table.stack2 td:first-child:empty{display:none}
+
+    /* 代码块: 字号缩小 + 允许横向滚动 */
+    pre{padding:13px 14px;font-size:12px;line-height:1.65;border-radius:7px;
+        overflow-x:auto;-webkit-overflow-scrolling:touch}
+    pre code{font-size:12px;white-space:pre;display:block}
+
+    /* 长 URL 换行 —— 窄屏下超长链接会被裁掉尾巴, 必须允许断行 */
+    p a, li a, td a{overflow-wrap:anywhere;word-break:break-word}
+    p{overflow-wrap:break-word}
+    code{overflow-wrap:anywhere}
+    code{font-size:.85em;padding:1.5px 5px}
+    .copy{top:7px;right:7px;padding:4px 9px;font-size:11px}
+
+    /* 目录 */
+    nav.toc{padding:16px 18px;margin-bottom:24px}
+    nav.toc ol{gap:9px}
+
+    .step{padding:14px 15px;margin:16px 0}
+    .box{padding:12px 15px;font-size:14px;margin:14px 0}
+    .ep{padding:10px 13px;gap:8px}
+    .ep .url{font-size:12px;min-width:0;flex:1 1 100%}
+    .ep .desc{font-size:12px}
+    details summary{padding:12px 15px;font-size:14px}
+    .dbody{padding:0 15px 14px}
+    footer{font-size:12px;padding-top:28px}
+  }
+
+  /* 超窄屏 (iPhone SE 等) */
+  @media (max-width: 380px){
+    .wrap{padding:0 12px 60px}
+    h1{font-size:1.32rem}
+    section{padding:17px 14px}
+    h2{font-size:1.04rem}
+    pre{font-size:11.4px;padding:11px 12px}
+    pre code{font-size:11.4px}
+    .chip{font-size:10.5px}
+  }
+
+  /* 触摸设备: 复制按钮不能太小 */
+  @media (pointer: coarse){
+    .copy{padding:7px 12px;font-size:12px}
+    details summary{padding:14px 16px}
+  }
+
+  /* 回到顶部 */
+  #top{
+    position:fixed;right:18px;bottom:18px;width:44px;height:44px;border-radius:50%;
+    background:var(--accent);color:#082f49;border:none;font-size:18px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;z-index:99;line-height:1;
+  }
+  #top.show{opacity:1;pointer-events:auto}
+  #top:active{transform:scale(.92)}
+  @media (max-width:820px){ #top{right:14px;bottom:14px;width:48px;height:48px} }
+
+  /* 打印: 去掉装饰, 展开所有 details */
+  @media print{
+    body{background:#fff;color:#000}
+    header{background:none;border-bottom:2px solid #000}
+    h1,.sub{color:#000}
+    .copy,.toc{display:none}
+    details{border:1px solid #ccc}
+    details>summary{font-weight:700}
+    section{break-inside:avoid;box-shadow:none;border-color:#ccc}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">操作指南</span>
+    <h1>配置 Cloudflare API Token<br>让自动部署不再因 token 过期而中断</h1>
+    <p class="sub">
+      本指南一步步教你创建一个<b>永不过期</b>的 Cloudflare API Token，替换掉当前会过期的 OAuth token，
+      并接入 GitHub Actions。完成后，<code>git push</code> 即可自动部署，无需人工干预。
+    </p>
+    <div class="meta">
+      <span class="chip">项目 · siliao RAG</span>
+      <span class="chip">仓库 · Guoguoping1008/siliao</span>
+      <span class="chip">分支 · deploy/c-b-hybrid</span>
+      <span class="chip">约 10 分钟</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#why">为什么要换 Token</a></li>
+    <li><a href="#prep">准备：确认你需要什么</a></li>
+    <li><a href="#create">在 Dashboard 创建 API Token</a></li>
+    <li><a href="#verify">验证新 Token 可用</a></li>
+    <li><a href="#github">接入 GitHub Actions</a></li>
+    <li><a href="#deploy">触发一次部署并验收</a></li>
+    <li><a href="#trouble">故障排查</a></li>
+    <li><a href="#appendix">附录：资源清单</a></li>
+  </ol>
+</nav>
+
+<section id="why">
+  <h2><span class="num">1</span>为什么要换 Token</h2>
+
+  <p>现在 GitHub Actions 里的 <code>CLOUDFLARE_API_TOKEN</code> 存的是 <code>wrangler login</code> 拿到的 <b>OAuth token</b>。它有个致命特性：<b>会过期</b>。</p>
+
+  <p>过期后自动部署会失败，报错长这样：</p>
+
+<pre><code>Authentication error [code: 10000]
+Invalid access token [code: 9109]</code></pre>
+
+  <div class="box danger">
+    <span class="t">最坑的地方</span>
+    这个报错看着像「权限不够」，实际是「token 过期了」。2026-10-27 部署时就在这上面绕了一圈，
+    以为是 secret 没配对、权限给少了。<b>凭据问题的报错必须能一眼看出是过期还是缺权限</b>，否则每次都要重新排查一遍。
+  </div>
+
+  <p>换成一个 <b>Dashboard 创建的 API Token</b> 之后：</p>
+
+  <table>
+    <thead><tr><th style="width:26%"></th><th>OAuth token（现在）</th><th>API Token（换完）</th></tr></thead>
+    <tbody>
+      <tr><td>有效期</td><td><span class="b b-warn">会过期</span> 几个月后突然挂</td><td><span class="b b-ok">不过期</span> 一直有效</td></tr>
+      <tr><td>创建方式</td><td>本机 <code>wrangler login</code></td><td>Dashboard 网页点选</td></tr>
+      <tr><td>权限范围</td><td>跟随 wrangler 的固定 scope 集</td><td><b>自己勾选</b>，最小权限</td></tr>
+      <tr><td>能否被本机程序创建</td><td>—</td><td><span class="b b-err">不能</span> 必须手点（原因见下）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">为什么不能脚本化创建</span>
+    试过用 OAuth token 直接调 <code>POST /accounts/{id}/tokens</code>，返回
+    <code>403 Unauthorized to access requested resource</code>。
+    OAuth token 本身<b>没有 <code>account:api_tokens</code> 权限</b>，无法自我提权创建新 token —— 只能去 Dashboard 手点。
+  </div>
+</section>
+
+<section id="prep">
+  <h2><span class="num">2</span>准备：确认你需要什么</h2>
+
+  <p>开始之前，确认这几个信息（都已核实为当前真实值）：</p>
+
+  <table>
+    <thead><tr><th style="width:30%">项</th><th>值</th><th style="width:22%">在哪里确认</th></tr></thead>
+    <tbody>
+      <tr><td>Cloudflare 账户</td><td><code>Guoguoping@gmail.com's Account</code></td><td>Dashboard 右上角</td></tr>
+      <tr><td>Account ID</td><td><code>1b938cc261b000a03554b506985daabb</code></td><td>Dashboard 侧栏</td></tr>
+      <tr><td>GitHub 仓库</td><td><code>Guoguoping1008/siliao</code></td><td>已知</td></tr>
+      <tr><td>要部署的三个资源</td><td>Worker <code>siliao-api</code> · Pages <code>siliao-web</code> · D1 <code>siliao-db</code></td><td>见下方权限表</td></tr>
+    </tbody>
+  </table>
+
+  <h3>需要的权限（三项，一勾就够）</h3>
+
+  <table>
+    <thead><tr><th style="width:34%">权限</th><th>作用域</th><th style="width:26%">为什么需要</th></tr></thead>
+    <tbody>
+      <tr><td><b>Workers Scripts</b> — Edit</td><td>Account — <code>Guoguoping@gmail.com's Account</code></td><td>部署 Worker</td></tr>
+      <tr><td><b>Cloudflare Pages</b> — Edit</td><td>Account — 同上</td><td>部署前端</td></tr>
+      <tr><td><b>Account Settings</b> — Read</td><td>Account — 同上</td><td>读取 Account ID / 账户信息</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <span class="t">关于 D1</span>
+    部署流程里 <b>不会</b>通过 API 写 D1 数据（D1 正文是用 <code>push_d1_bodies.py</code> 走 REST bound params 单独灌的，
+    一次性操作）。所以<b>不需要</b> D1 写权限。如果你的 Key 模板里带了 D1 Edit 也可以留着，无害。
+  </div>
+</section>
+
+<section id="create">
+  <h2><span class="num">3</span>在 Dashboard 创建 API Token</h2>
+
+  <div class="step">
+    <div class="h"><span class="b">1</span>打开 API Token 页面</div>
+    <p>登录 Cloudflare Dashboard，直达：</p>
+    <p><a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">https://dash.cloudflare.com/profile/api-tokens</a></p>
+    <p>也可以从 Dashboard 右上角头像 → <b>My Profile</b> → <b>API Tokens</b> 进入。</p>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">2</span>点「Create Token」</div>
+    <p>页面顶部有 <b>Create Token</b> 按钮，展开后选 <b>Create Custom Token</b>（自定义），不要选模板 —— 模板会带上一堆用不上的权限。</p>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">3</span>填写基本信息</div>
+    <table class="stack2">
+      <tbody>
+        <tr><td style="width:30%"><b>Token name</b></td><td><code>siliao-deploy</code></td></tr>
+        <tr><td><b>Permissions</b></td><td>见上表三项（Workers Scripts:Edit / Cloudflare Pages:Edit / Account Settings:Read）</td></tr>
+        <tr><td><b>Account Resources</b></td><td>Include → <code>Guoguoping@gmail.com's Account</code>（<b>选具体账户</b>，不要选 All accounts）</td></tr>
+        <tr><td><b>Client IP Address Filtering</b></td><td><b>留空</b></td></tr>
+        <tr><td><b>TTL (Time to Live)</b></td><td><b>Leave blank</b>（不过期）</td></tr>
+      </tbody>
+    </table>
+    <div class="box ok">
+      <span class="t">关键</span>
+      <b>TTL 必须留空</b>。如果填了有效期，到期后又是同一场事故 —— 除非你确定会定期回来续期。
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">4</span>创建并保存 token</div>
+    <p>点 <b>Continue to summary</b> → <b>Create Token</b>。创建成功后 token 字符串<b>只显示这一次</b>。</p>
+    <div class="box danger">
+      <span class="t">立刻复制保存</span>
+      关掉这个弹窗就再也看不到了。如果丢了，删掉重建一个即可，不用担心。
+    </div>
+    <p>存到一个安全的地方（密码管理器 / 本地 <code>.env</code>）。<b>不要</b>粘到聊天窗口、issue 或 git commit 里。</p>
+  </div>
+</section>
+
+<section id="verify">
+  <h2><span class="num">4</span>验证新 Token 可用</h2>
+
+  <p>先在本机验证，别直接丢给 CI —— 本地能跑通说明 token 和权限都对。</p>
+
+  <div class="prewrap">
+<pre><code># 把 token 填进环境变量(临时)
+export CF_TOKEN="粘贴你的新token"
+
+# 验证 1: 能不能读账户
+curl -s -H "Authorization: Bearer $CF_TOKEN" \
+  https://api.cloudflare.com/client/v4/accounts | head -c 300
+
+# 验证 2: 能不能列出 Worker 脚本(验证 Workers Scripts 权限)
+curl -s -H "Authorization: Bearer $CF_TOKEN" \
+  https://api.cloudflare.com/client/v4/accounts/1b938cc261b000a03554b506985daabb/workers/scripts | head -c 300</code></pre>
+    <button class="copy" onclick="cp(this)">复制</button>
+  </div>
+
+  <table class="stack2">
+    <thead><tr><th style="width:34%">返回</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td><code>"success": true</code></td><td><span class="b b-ok">通过</span> 可以进入下一步</td></tr>
+      <tr><td><code>"success": false</code> + <code>9109</code></td><td><span class="b b-err">token 无效</span> 复制时少了字符 / 有多余空格</td></tr>
+      <tr><td><code>9109 Unauthorized</code> 在验证 2</td><td><span class="b b-warn">缺 Workers Scripts 权限</span> 回第 3 步补权限</td></tr>
+      <tr><td><code>9109</code> 在验证 1</td><td><span class="b b-err">token 完全无效</span> 重新复制一遍</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">Windows 用户注意</span>
+    本机如果开了代理（<code>http://127.0.0.1:7897</code> 之类），curl 可能被代理拦截。
+    验证失败时先试：<code>curl --noproxy "*" ...</code>，确认是不是本地网络问题而不是 token 问题。
+  </div>
+</section>
+
+<section id="github">
+  <h2><span class="num">5</span>接入 GitHub Actions</h2>
+
+  <p>现在要把新 token 替换掉 GitHub 里的旧值。仓库的 secret 只能<b>覆盖写入</b>，不能读取，所以你需要手上有新 token。</p>
+
+  <h3>方式 A：网页（最简单，推荐第一次用）</h3>
+
+  <div class="step">
+    <div class="h"><span class="b">1</span>打开仓库 secret 设置</div>
+    <p><a href="https://github.com/Guoguoping1008/siliao/settings/secrets/actions" target="_blank" rel="noopener">https://github.com/Guoguoping1008/siliao/settings/secrets/actions</a></p>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">2</span>更新 <code>CLOUDFLARE_API_TOKEN</code></div>
+    <p>找到 <code>CLOUDFLARE_API_TOKEN</code> 这一行 → 点 <b>Update</b> → 粘贴新 token → <b>Update secret</b>。</p>
+    <p>另一个 <code>CLOUDFLARE_ACCOUNT_ID</code> 保持不变（<code>1b938cc261b000a03554b506985daabb</code>）。</p>
+  </div>
+
+  <h3>方式 B：命令行（需要 <code>gh</code>）</h3>
+
+  <div class="prewrap">
+<pre><code># 装 gh(没有的话: https://cli.github.com)
+winget install GitHub.cli
+
+# 登录
+gh auth login
+
+# 写入 secret(token 不进 shell 历史, 不进进程列表)
+printf '%s' "$CF_TOKEN" | gh secret set CLOUDFLARE_API_TOKEN --repo Guoguoping1008/siliao
+
+# 确认
+gh secret list --repo Guoguoping1008/siliao</code></pre>
+    <button class="copy" onclick="cp(this)">复制</button>
+  </div>
+
+  <h3>方式 C：不用 gh（本仓库实际用的方式）</h3>
+
+  <p>用 GitHub API + libsodium sealed box 加密写入，token 不经过明文传输：</p>
+
+  <div class="prewrap">
+<pre><code>pip install pynacl
+
+python - &lt;&lt;'PY'
+import json, urllib.request, base64, subprocess
+from nacl.public import SealedBox, PublicKey
+from nacl.encoding import RawEncoder
+
+REPO = "/repos/Guoguoping1008/siliao"
+
+# 从 git credential 拿 GitHub token
+out = subprocess.run(["git","credential","fill"],
+    input="protocol=https\nhost=github.com\n\n",
+    capture_output=True, text=True).stdout
+gh = [l[9:] for l in out.splitlines() if l.startswith("password=")][0]
+
+def api(path, method="GET", body=None):
+    req = urllib.request.Request(
+        f"https://api.github.com{path}",
+        data=json.dumps(body).encode() if body else None, method=method,
+        headers={"Authorization": f"Bearer {gh}",
+                 "Accept": "application/vnd.github+json",
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        raw = r.read()
+        return r.status, (json.loads(raw) if raw else {})
+
+# 1) 取仓库公钥
+s, pk = api(f"{REPO}/actions/secrets/public-key")
+pub = PublicKey(base64.b64decode(pk["key"]))
+
+# 2) 用新 CF token 加密
+cf_token = input("粘贴新的 CF token: ").strip()
+sealed = SealedBox(pub).encrypt(cf_token.encode(), encoder=RawEncoder)
+
+# 3) 写入(成功返回 204, 空 body)
+s, d = api(f"{REPO}/actions/secrets/CLOUDFLARE_API_TOKEN", "PUT",
+    {"encrypted_value": base64.b64encode(sealed).decode(),
+     "key_id": pk["key_id"]})
+print("HTTP", s)
+PY</code></pre>
+    <button class="copy" onclick="cp(this)">复制</button>
+  </div>
+
+  <div class="box warn">
+    <span class="t">三个容易踩的坑</span>
+    <ul style="margin-bottom:0">
+      <li>成功返回 <b>204 No Content</b>（空 body）—— 按 JSON 解析会报「期待 null」，要「有 body 才 parse」</li>
+      <li>公钥是 raw bytes，<b>必须</b> <code>base64.b64decode</code> 后包成 <code>PublicKey</code> 对象</li>
+      <li>本机没装 <code>gh</code> 不是问题 —— 方式 C 完全替代</li>
+    </ul>
+  </div>
+</section>
+
+<section id="deploy">
+  <h2><span class="num">6</span>触发一次部署并验收</h2>
+
+  <div class="step">
+    <div class="h"><span class="b">1</span>触发部署</div>
+    <p>在 GitHub Actions 页面选 <b>Deploy</b> workflow → <b>Run workflow</b> → 分支选 <code>deploy/c-b-hybrid</code> → 运行。</p>
+    <p>或者本地推一个空提交触发：</p>
+    <div class="prewrap">
+<pre><code>git commit --allow-empty -m "chore: 触发部署验证 token"
+git push origin deploy/c-b-hybrid</code></pre>
+      <button class="copy" onclick="cp(this)">复制</button>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">2</span>看三个 job 是否全绿</div>
+    <table>
+      <thead><tr><th style="width:44%">Job</th><th style="width:20%">预期</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>CI</td><td><span class="b b-ok">success</span></td><td>5 个检查：ingest / eval / vitest / playwright / tsc</td></tr>
+        <tr><td>Worker · wrangler deploy</td><td><span class="b b-ok">success</span></td><td>含<b>凭据预检</b>，token 无效会在这里明确报错</td></tr>
+        <tr><td>Pages · vite build + deploy</td><td><span class="b b-ok">success</span></td><td>必须在 <code>web/</code> 目录下跑才能带上 <code>functions/</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">3</span>回读生产接口验收</div>
+    <p><b>部署完必须回读</b> —— 退出码 0 不等于线上真的活了。</p>
+    <div class="prewrap">
+<pre><code># 前端
+curl -s -o /dev/null -w "%{http_code}\n" https://siliao-web.pages.dev/
+
+# 文档数(应 196)
+curl -s https://siliao-api.guoguoping.workers.dev/api/documents | head -c 200
+
+# 搜索(应有 20 条, excerpt 非空)
+curl -s "https://siliao-api.guoguoping.workers.dev/api/search?q=新兽药注册办法" | head -c 400
+
+# QA(应有答案 + 引用)
+curl -s -X POST https://siliao-api.guoguoping.workers.dev/api/qa \
+  -H "Content-Type: application/json" \
+  -d '{"q":"新兽药注册由哪个部门负责？"}' | head -c 400</code></pre>
+      <button class="copy" onclick="cp(this)">复制</button>
+    </div>
+  </div>
+
+  <div class="box ok">
+    <span class="t">完成标志</span>
+    上面 4 条命令都返回预期内容，且 Actions 三个 job 全绿。
+    <b>至此 token 不会再过期了</b> —— 以后 <code>git push</code> 就能自动部署。
+  </div>
+</section>
+
+<section id="trouble">
+  <h2><span class="num">7</span>故障排查</h2>
+
+  <details open>
+    <summary>部署报 <code>Invalid access token [code: 9109]</code></summary>
+    <div class="dbody">
+      <p><b>最常见原因：token 过期。</b>如果还没换 API Token，按下面处理：</p>
+      <ol>
+        <li>本机刷新：<code>cd query/worker &amp;&amp; npx wrangler login</code>（弹浏览器，自动批准）</li>
+        <li>把新 token 写回 GitHub secret（第 5 节任一方式）</li>
+      </ol>
+      <p>如果已经换成 API Token 了还报这个，检查：复制时有没有带空格/换行、token 有没有被截断。</p>
+      <div class="box info">
+        <span class="t">本仓库已加预检</span>
+        2026-10-27 给 <code>deploy.yml</code> 加了「预检 Cloudflare 凭据」步骤 ——
+        部署前先 curl <code>/accounts</code>，token 失效时直接报
+        「token 无效或过期 → 跑 wrangler login → 更新 secret」，
+        而不是让 wrangler 抛一堆看不懂的 9109。
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Pages job 报 <code>ENOENT: no such file or directory, open 'dist'</code></summary>
+    <div class="dbody">
+      <p>工作目录不对。<code>wrangler pages deploy dist</code> 必须在 <code>web/</code> 目录下执行。</p>
+      <p><code>deploy.yml</code> 里该 job 需要 <code>working-directory: web</code>，否则会在仓库根找 <code>dist</code>。</p>
+      <p>另外：<b>必须在 <code>web/</code> 下跑</b>才能把 <code>web/functions/</code> 打成 Pages Functions bundle —— 在根目录跑即使找到了 dist，API 代理也会丢。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>CI 报 <code>EBADPLATFORM</code> 或 <code>Missing: @esbuild/linux-x64 from lock file</code></summary>
+    <div class="dbody">
+      <p>三个跨平台坑，2026-10-26 全踩过：</p>
+      <ul>
+        <li><b>win32-only 直接依赖</b> → Linux 上 <code>npm ci</code> 直接失败。只依赖 <code>wrangler</code>，让 <code>workerd</code> 自己用 <code>optionalDependencies</code> 挑平台二进制</li>
+        <li><b>esbuild 版本分叉</b> → vitest 拉 0.28.2、vite 拉 0.21.5，lockfile 里出现 23 个嵌套平台包且没标 optional。加 <code>"overrides": {"esbuild": "0.21.5"}</code></li>
+        <li><b>Node 版本太老</b> → wrangler@4 要求 ≥22，jsdom@30 / undici@8 要求 ≥22.13。CI 的 <code>node-version</code> 全改 22</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>Worker 部署成功，但搜索 <code>excerpt</code> 全是空字符串</summary>
+    <div class="dbody">
+      <p>正文没取到。当前生产<b>不依赖 R2</b>，正文存在 D1 的 <code>articles.body</code> 列，所以：</p>
+      <ul>
+        <li>确认 D1 里 body 列有值：<code>SELECT count(*) FROM articles WHERE length(body) &gt; 0;</code></li>
+        <li>确认 Worker 的 <code>wrangler.toml</code> 里的 <code>database_id</code> 和实际 D1 一致</li>
+      </ul>
+      <p>这个症状历史上还有个经典成因：<b>生产配置里注释掉了 R2 binding，本地也复用了同一份配置</b> → <code>env.INDEX_BUCKET</code> 是 undefined。现在靠两份配置（<code>wrangler.toml</code> / <code>wrangler.local.toml</code>）分开避免。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>QA 返回 <code>{"answer": "未找到相关规定", "retrieval": []}</code></summary>
+    <div class="dbody">
+      <p><b>先看 body 字段名对不对</b>：接口认 <code>{"q": "..."}</code>。传 <code>{"question": ...}</code> 曾经会静默返回这个结果（看着像检索没召回，实际压根没收到问题）。</p>
+      <p>2026-10-27 已修：缺字段返回 <code>400 missing_query</code>，并接受 <code>q</code> / <code>question</code> / <code>ask</code> 三种别名。</p>
+      <p>如果字段名对但 <code>retrieval</code> 仍为空，那是检索层问题，去查 <code>/api/search</code> 同一 query 是否有结果。</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>本地 <code>wrangler dev</code> 起来但连不上 D1 / R2</summary>
+    <div class="dbody">
+      <ul>
+        <li>本地<b>必须</b>用 <code>-c wrangler.local.toml</code>，且里面 <code>remote = false</code></li>
+        <li>改完 R2/D1 配置要 <b>干净重启</b>（kill 旧进程），热重载不生效</li>
+        <li>本地可能有多个 D1 SQLite 文件（<code>database_id</code> 改过会新建），要挑 dev server 正在读的那个</li>
+        <li>Vite 默认只绑 IPv6，<code>localhost</code> 通但 <code>127.0.0.1</code> 不通 → 用 <code>--host 127.0.0.1</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>前端页面完全没样式（CSS 只有一百多字节）</summary>
+    <div class="dbody">
+      <p>检查 <code>web/postcss.config.js</code> 是否存在。缺它 → Tailwind 插件不加载 → <code>@tailwind</code> 指令原样输出 → 页面无样式。</p>
+      <p>这个坑很隐蔽：<b>单元测试和 e2e 全绿也不暴露</b>，因为它们只断言文本内容不看样式。验证方法：</p>
+      <div class="prewrap">
+<pre><code>curl -s https://siliao-web.pages.dev/ | grep -o 'assets/[^"]*\.css'
+# 再看那个 CSS 的体积 —— 正常应 ~20KB, 146 字节就是坏了</code></pre>
+        <button class="copy" onclick="cp(this)">复制</button>
+      </div>
+    </div>
+  </details>
+</section>
+
+<section id="appendix">
+  <h2><span class="num">8</span>附录：资源清单</h2>
+
+  <h3>生产地址</h3>
+  <div class="eps">
+    <div class="ep"><span class="b b-info">前端</span><span class="url">https://siliao-web.pages.dev</span><span class="desc">给用户用</span></div>
+    <div class="ep"><span class="b b-info">API 代理</span><span class="url">https://siliao-web.pages.dev/api/*</span><span class="desc">前端同源</span></div>
+    <div class="ep"><span class="b b-info">Worker</span><span class="url">https://siliao-api.guoguoping.workers.dev/api/*</span><span class="desc">直连，调试用</span></div>
+    <div class="ep"><span class="b b-info">bge</span><span class="url">https://ns.hbnongfengyuan.cn</span><span class="desc">embedding 服务</span></div>
+  </div>
+
+  <h3>Cloudflare 资源</h3>
+  <table class="stack2">
+    <thead><tr><th style="width:30%">资源</th><th>标识</th></tr></thead>
+    <tbody>
+      <tr><td>Account</td><td><code>Guoguoping@gmail.com's Account</code> · <code>1b938cc261b000a03554b506985daabb</code></td></tr>
+      <tr><td>Worker</td><td><code>siliao-api</code> · <code>siliao-api.guoguoping.workers.dev</code></td></tr>
+      <tr><td>Pages</td><td><code>siliao-web</code> · <code>siliao-web.pages.dev</code></td></tr>
+      <tr><td>D1</td><td><code>siliao-db</code> · <code>e406e21e-e770-4c97-822a-57178c347aa6</code></td></tr>
+      <tr><td>GitHub Secret</td><td><code>CLOUDFLARE_API_TOKEN</code> · <code>CLOUDFLARE_ACCOUNT_ID</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>服务器（bge embedding 服务）</h3>
+  <table class="stack2">
+    <tbody>
+      <tr><td style="width:30%">地址</td><td><code>47.108.112.118</code> · SSH 别名 <code>prod</code> · <code>ssh prod</code></td></tr>
+      <tr><td>系统</td><td>CentOS 7.9 · 4 核 · 16G · 磁盘 99G（已用 40G / 42%）</td></tr>
+      <tr><td>容器</td><td><code>siliao-bge:1.0</code>（6.35GB）· <code>--memory=6g --cpus=3</code> · 绑 <code>127.0.0.1:8080</code></td></tr>
+      <tr><td>模型</td><td><code>BAAI/bge-m3</code>（1024 维），烤在镜像 <code>/opt/models</code></td></tr>
+      <tr><td>语料</td><td><code>/opt/bge/data/{bge_m3_cache.json, articles_cache.json}</code></td></tr>
+      <tr><td>证书</td><td>有效期至 <b>2026-12-22</b>（<span class="b b-warn">需在到期前续签</span>）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>常用运维命令</h3>
+  <div class="prewrap">
+<pre><code># bge 容器
+ssh prod
+docker logs -f siliao-bge
+docker restart siliao-bge
+docker ps --filter name=siliao-bge
+
+# 健康检查
+curl -s https://ns.hbnongfengyuan.cn/health
+
+# 磁盘
+df -h /
+du -sh /root/logs/* /var/lib/docker /opt 2>/dev/null | sort -h | tail</code></pre>
+    <button class="copy" onclick="cp(this)">复制</button>
+  </div>
+
+  <h3>数据规模</h3>
+  <table>
+    <thead><tr><th style="width:34%">实体</th><th style="width:20%">数量</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>documents</td><td>196</td><td>含 19 个目录/封面</td></tr>
+      <tr><td>chapters</td><td>529</td><td>章/节</td></tr>
+      <tr><td>articles</td><td>3145</td><td>条文，正文在 <code>articles.body</code>（约 1.22MB）</td></tr>
+      <tr><td>FTS 有效行</td><td>2959</td><td>目录/封面不进 FTS</td></tr>
+    </tbody>
+  </table>
+
+  <h3>检索质量基线</h3>
+  <table>
+    <thead><tr><th style="width:34%">指标</th><th style="width:20%">当前</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>recall@10</td><td>76%</td><td>目标 ≥80%</td></tr>
+      <tr><td>MRR</td><td>0.647</td><td>业务问句 0.717（接 bge 后 +47%）</td></tr>
+      <tr><td>negative precision</td><td>100%</td><td>严格口径（全部实义词命中才算）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <p>siliao RAG · Cloudflare API Token 配置指南 · 2026-10-27</p>
+  <p style="margin-top:8px">
+    相关文档：<code>docs/deployment-info.md</code>（资源清单）· <code>docs/deploy-runbook.md</code>（部署手册）· <code>docs/adr/</code>（架构决策）
+  </p>
+</footer>
+
+</div>
+
+<button id="top" aria-label="回到顶部">↑</button>
+
+<script>
+// 回到顶部: 移动端长页面上很需要
+(function(){
+  const btn = document.getElementById('top');
+  const onScroll = () => btn.classList.toggle('show', window.scrollY > 600);
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+  btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+})();
+
+// 给窄屏下可横向滚动的表格加滑动提示
+(function(){
+  const mq = window.matchMedia('(max-width: 820px)');
+  function mark(){
+    document.querySelectorAll('table:not(.stack2)').forEach(tb=>{
+      if(tb.dataset.hinted) return;
+      if(tb.scrollWidth > tb.clientWidth + 4){
+        tb.dataset.hinted = '1';
+        const h = document.createElement('div');
+        h.className = 'scrollhint';
+        h.textContent = '表格可左右滑动';
+        tb.parentNode.insertBefore(h, tb);
+      }
+    });
+  }
+  function run(){ document.querySelectorAll('.scrollhint').forEach(e=>e.remove());
+    document.querySelectorAll('table').forEach(t=>delete t.dataset.hinted);
+    if(mq.matches) mark(); }
+  if(mq.addEventListener) mq.addEventListener('change', run);
+  window.addEventListener('resize', run);
+  window.addEventListener('load', run);
+  run();
+})();
+
+function cp(btn){
+  const pre = btn.parentElement.querySelector('pre');
+  const txt = pre.innerText;
+  const done = () => {
+    const old = btn.textContent;
+    btn.textContent = '已复制 ✓';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = old; btn.classList.remove('done'); }, 1800);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(txt).then(done).catch(fallback);
+  } else { fallback(); }
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+</script>
+
+</body>
+</html>
