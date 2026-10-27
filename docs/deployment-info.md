@@ -71,7 +71,7 @@
 | **SSH** | `ssh prod`(别名已配 `~/.ssh/config`,root + `id_rsa`) |
 | **系统** | CentOS Linux 7.9.2009 |
 | **规格** | 4 核 / 16 GB 内存 |
-| **磁盘** | 99 GB,已用 87 GB(**剩 8.3 GB,92%**) |
+| **磁盘** | 99 GB,已用 40 GB(**剩 55 GB,42%**) |
 | Docker | 26.1.4 |
 | nginx | 1.19.9(`/usr/local/nginx/`,配置在 `conf/conf.d/`) |
 | Python | 3.6.8(**太老**,故 bge 必须容器化) |
@@ -105,10 +105,16 @@ docker exec siliao-bge python -c "..."       # 进容器排查
 curl -s http://127.0.0.1:8080/health        # 本机探活
 ```
 
-### ⚠️ 磁盘告警
+### 磁盘
 
-`/root/logs/csp` 占 **47 GB**(别的业务的日志,未清理)。磁盘已 92%。
-需要清理时确认那个服务的日志策略再动 —— **不是本项目的数据**。
+2026-10-27 已清理完毕:`/root/logs/csp` 的 47 GB 日志清掉后,
+磁盘从 **92% → 42%**(40G/99G,剩 55G)。
+
+当前占用 TOP3:`/var/lib/docker` 14G(bge 镜像 6.35G + 基础镜像)、
+`/opt` 8.1G(其他业务项目)、`/root/logs/nacos` 396M。
+
+> bge 的语料(`/opt/bge/data/`)与应用文件(`/opt/bge/app/`)在清理中未受影响,
+> 容器全程 healthy(uptime 20h+)。
 
 ---
 
@@ -206,5 +212,5 @@ python build/export/push_d1_bodies.py --local
 |---|---|---|
 | R2 开通 | **不需要**(正文已进 D1) | — |
 | DeepSeek 充值 | 可选,当前用 MiniMax | 用户 |
-| 服务器磁盘清理(87G/99G) | 待定,`/root/logs/csp` 47G 非本项目 | 用户决策 |
+| 服务器磁盘 | ✅ 已清理(92% → 42%) | — |
 | `DEEPSEEK_API_KEY` 余额 | 402,当前走 MiniMax | 用户 |
