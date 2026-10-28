@@ -28,15 +28,11 @@ on:
         default: false
   # 推 `seed/compliance` 分支自动跑 —— 本地没有 gh CLI / GitHub token 时,
   # 灌库也能通过 push 触发(workflow_dispatch 需要 API 调用)。
+  # ⚠️ **不要加 paths 过滤器** —— paths 会让「只有空提交」的 push 不触发,
+  #    而灌库最常的触发方式就是空提交(代码没变, 只是要重跑一次)。
   push:
     branches:
       - seed/compliance
-    paths:
-      - 'build/export/extract_compliance_rules.py'
-      - 'build/export/seed_compliance.py'
-      - 'build/export/compliance_rules.json'
-      - 'build/export/substance_catalog.json'
-      - 'query/worker/migrate_c1.sql'
 
 jobs:
   seed:
@@ -59,8 +55,12 @@ jobs:
       - name: 灌库
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          MARK_REVIEWED: ${{ vars.SEED_MARK_REVIEWED }}
         run: |
-          if [ "${{ inputs.mark-reviewed }}" = "true" ]; then
+          # workflow_dispatch 用 inputs.mark-reviewed; push 触发时用
+          # 仓库变量 SEED_MARK_REVIEWED(默认 false → 灌 pending, 安全)
+          MARK="${MARK_REVIEWED:-false}"
+          if [ "${{ inputs.mark-reviewed }}" = "true" ] || [ "$MARK" = "true" ]; then
             echo "::warning::正在以 reviewed 状态灌库 —— 确认已完成人工逐条校核"
             python build/export/seed_compliance.py --remote --mark-reviewed
           else
