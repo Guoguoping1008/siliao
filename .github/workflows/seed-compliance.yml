@@ -26,6 +26,17 @@ on:
         description: "标记为 reviewed(需已完成人工校核)"
         type: boolean
         default: false
+  # 推 `seed/compliance` 分支自动跑 —— 本地没有 gh CLI / GitHub token 时,
+  # 灌库也能通过 push 触发(workflow_dispatch 需要 API 调用)。
+  push:
+    branches:
+      - seed/compliance
+    paths:
+      - 'build/export/extract_compliance_rules.py'
+      - 'build/export/seed_compliance.py'
+      - 'build/export/compliance_rules.json'
+      - 'build/export/substance_catalog.json'
+      - 'query/worker/migrate_c1.sql'
 
 jobs:
   seed:
