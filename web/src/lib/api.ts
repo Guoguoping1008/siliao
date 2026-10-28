@@ -145,6 +145,46 @@ export interface QAAnswerFull {
   elapsed_ms: number
 }
 
+// ---------- ② 合规规则(C1) ----------
+
+/** 合规判定状态。 */
+export type ComplianceStatus =
+  | "compliant"      // 合规
+  | "exceeded"       // 超限
+  | "prohibited"     // 禁用
+  | "not_covered"    // ⚠️ 规则未覆盖 —— 必须显式展示
+
+/** 命中的规则 + 溯源。 */
+export interface ComplianceRuleHit {
+  ruleId: string
+  sourceArticleId: string
+  sourceDocId: string
+  sourceExcerpt: string | null
+  limit: { min: number | null; max: number | null; unit: string | null }
+}
+
+/** 检索到的相关条文(未覆盖时给人工参考)。 */
+export interface RelatedArticle {
+  articleId: string
+  chapterTitle?: string
+  articleNumber?: string
+  excerpt: string
+}
+
+/** 合规校验响应。 */
+export interface ComplianceResult {
+  status: ComplianceStatus
+  substance: string
+  matchedSubstance: string | null
+  matchMethod: string | null
+  usage: { species: string; stage: string | null; value: number; unit: string }
+  ruleHits: ComplianceRuleHit[]
+  suggestion: { maxAllowed: number; unit: string; message: string } | null
+  coverageGap: { reason: string; relatedArticles: RelatedArticle[] } | null
+  ruleSetVersion: string
+  notice: string
+}
+
 // ---------- API ----------
 
 /**
@@ -258,6 +298,49 @@ export const api = {
       return mockApi.getEntity(name)
     }
     return fetchJson<{ entity: Entity; articles: Article[] }>(`/api/entity/${encodeURIComponent(name)}`)
+  },
+
+  // ② 合规规则(C1)
+  /**
+   * 用量合规速查。
+   *
+   * ⚠️ 这是**确定性**接口 —— 参数错直接 400, 不做模糊猜测。
+   *    「规则未覆盖」会返回 status='not_covered', 由前端显式提示转人工。
+   */
+  async checkCompliance(params: {
+    substance: string
+    species: string
+    stage?: string | null
+    value: number
+    unit: string
+  }): Promise<ComplianceResult> {
+    if (USE_MOCK) {
+      return {
+        status: "not_covered",
+        substance: params.substance,
+        matchedSubstance: null,
+        matchMethod: null,
+        usage: {
+          species: params.species,
+          stage: params.stage ?? null,
+          value: params.value,
+          unit: params.unit,
+        },
+        ruleHits: [],
+        suggestion: null,
+        coverageGap: {
+          reason: "Mock 模式:未接入合规规则库",
+          relatedArticles: [],
+        },
+        ruleSetVersion: "mock",
+        notice: "本结果为辅助意见，不构成监管结论",
+      }
+    }
+    const r = await fetchJson<ComplianceResult>("/api/compliance/usage", {
+      method: "POST",
+      body: JSON.stringify(params),
+    } as any)
+    return r
   },
 
   // RAG 问答(同步):返回完整 JSON,适用于不要求 streaming 的场景

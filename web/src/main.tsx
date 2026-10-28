@@ -9,6 +9,7 @@ import { ChapterPage } from './pages/ChapterPage'
 import { SearchPage } from './pages/SearchPage'
 import { EntityPage } from './pages/EntityPage'
 import { QAPage } from './pages/QAPage'
+import { CompliancePage } from './pages/CompliancePage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { NotFound } from './components/NotFound'
 
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/search" element={<SearchPage />} />
           <Route path="/entity/:name" element={<EntityPage />} />
           <Route path="/qa" element={<QAPage />} />
+          <Route path="/compliance" element={<CompliancePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

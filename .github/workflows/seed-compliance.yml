@@ -1,0 +1,91 @@
+name: Seed Compliance Rules
+
+# C1 · 合规规则灌库
+#
+# 为什么单独一个 workflow
+# -------------------
+# 灌库需要 Cloudflare 的 **D1 写权限**。而 deploy.yml 用的
+# CLOUDFLARE_API_TOKEN 是**最小权限**的 —— 实测 `/d1/database` 返回 401
+# (见 docs/deployment-info.md「为什么没给 D1 权限是有意的」)。
+#
+# 所以灌库用**一次性 dispatch** 跑, 需要 D1 写权限的 token。
+# 如果 runner 上的 token 有 D1 权限, 直接跑; 没有则明确报错, 不静默跳过。
+#
+# ⚠️ 审核闸门
+#   默认灌 review_status='pending' —— 未审核规则**不参与判定**, 安全。
+#   要提升为 'reviewed' 必须传 mark-reviewed, 且**应已完成人工逐条校核**。
+#
+# 用法:
+#   gh workflow run seed-compliance.yml
+#   gh workflow run seed-compliance.yml -f mark-reviewed=true
+
+on:
+  workflow_dispatch:
+    inputs:
+      mark-reviewed:
+        description: "标记为 reviewed(需已完成人工校核)"
+        type: boolean
+        default: false
+
+jobs:
+  seed:
+    name: D1 · 合规规则灌库
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 生成索引产物(articles.json 是抽取的输入)
+        run: python build/export/ingest_minimax.py
+
+      - name: 抽取规则候选
+        # 从 articles.json 抽 (物质×动物×限量) 三元组
+        run: python build/export/extract_compliance_rules.py
+
+      - name: 灌库
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ "${{ inputs.mark-reviewed }}" = "true" ]; then
+            echo "::warning::正在以 reviewed 状态灌库 —— 确认已完成人工逐条校核"
+            python build/export/seed_compliance.py --remote --mark-reviewed
+          else
+            python build/export/seed_compliance.py --remote
+          fi
+
+      - name: 回读校验
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'EOF'
+          import json, os, sys, urllib.request
+          sys.path.insert(0, "build/export")
+          from seed_compliance import api_request, load_account_token, ACCOUNT_ID, DB_ID
+
+          token = os.environ["CLOUDFLARE_API_TOKEN"]
+          path = f"/accounts/{ACCOUNT_ID}/d1/database/{DB_ID}/query"
+
+          def q(sql, params=None):
+              body = {"sql": sql}
+              if params: body["params"] = params
+              return api_request(path, token, "POST", body)
+
+          r = q("SELECT COUNT(*) c FROM compliance_rules")
+          rules = r.get("result", [{}])[0].get("c", 0)
+          r = q("SELECT COUNT(*) c FROM substance_catalog")
+          cat = r.get("result", [{}])[0].get("c", 0)
+          r = q("SELECT COUNT(*) c FROM compliance_rules WHERE source_article_id IS NULL OR source_article_id=''")
+          bad = r.get("result", [{}])[0].get("c", 0)
+
+          print(f"compliance_rules   : {rules}")
+          print(f"substance_catalog  : {cat}")
+          print(f"无溯源的规则        : {bad}")
+
+          assert rules > 0, "规则数为 0 —— 抽取没产出"
+          assert cat > 0, "物质目录为 0"
+          assert bad == 0, f"有 {bad} 条规则没有溯源 —— 违反不变量 2"
+          print("✅ 灌库校验通过")
+          EOF
