@@ -85,17 +85,6 @@ def api_request(path, token, method="GET", body=None):
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "ignore")
-        # ⚠️ 把 Cloudflare 的错误码打全 —— 401 是「token 没 D1 权限」,
-        #    403 是「权限不够」, 两者要区分开, 否则 CI 日志只一句 SystemExit
-        #    看不出是 token 问题还是 SQL 问题。
-        print(f"[HTTP {e.code}] {method} {path}", file=sys.stderr)
-        print(f"[BODY] {detail[:1200]}", file=sys.stderr)
-        if e.code in (401, 403):
-            print(
-                "[提示] 灌库需要 **D1 写权限**。deploy.yml 用的 token 是最小权限的, "
-                "实测 /d1/database 返回 401 —— 需要一个有 D1 编辑权限的 token。",
-                file=sys.stderr,
-            )
         raise SystemExit(f"[HTTP {e.code}] {path}\n{detail[:600]}")
 
 
@@ -231,6 +220,10 @@ def main():
         m += 1
     print(f"       substance_catalog: {m} 条")
 
+    # ── 导出 SQL 文件(供 wrangler d1 execute 回退路径) ──
+    print("\n=== 导出 SQL 文件 ===")
+    write_sql_files(version, rules, catalog, status)
+
     # ── 校验 ──
     print("\n=== 校验 ===")
     res = api_request(path, token, "POST", {
@@ -253,6 +246,67 @@ def main():
     print(f"  无溯源的规则: {bad} {'✅' if bad == 0 else '❌'}")
 
     print("\n[OK] 灌库完成")
+
+
+def write_sql_files(version, rules, catalog, status):
+    """导出纯 SQL 文件 —— 给 `wrangler d1 execute --file` 回退路径用。
+
+    ⚠️ 这些文件是**灌库产物**(含真实法规数据), 已 gitignore。
+    """
+    rule_cols = [
+        "rule_id", "rule_type", "substance", "substance_alias",
+        "species", "stage", "min_value", "max_value", "unit",
+        "condition_text", "source_article_id", "source_doc_id", "source_excerpt",
+        "rule_set_version", "extraction_method", "review_status",
+    ]
+    cat_cols = [
+        "substance_id", "name_cn", "name_en", "substance_alias",
+        "formula", "source", "spec", "category", "scope_text",
+        "source_article_id", "source_doc_id", "rule_set_version", "review_status",
+    ]
+
+    def lit(v):
+        if v is None:
+            return "NULL"
+        if isinstance(v, (int, float)):
+            return str(v)
+        return "'" + str(v).replace("'", "''") + "'"
+
+    def dump(table, cols, rows, path):
+        lines = [
+            "-- 由 seed_compliance.py 生成 (rule_set_version=%s, review_status=%s)" % (version, status),
+            "DELETE FROM %s;" % table,
+        ]
+        for r in rows:
+            vals = ",".join(lit(r.get(c)) for c in cols)
+            lines.append("INSERT OR REPLACE INTO %s (%s) VALUES (%s);" % (table, ",".join(cols), vals))
+        with io.open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        print("       %s → %d 条" % (os.path.basename(path), len(rows)))
+
+    rpath = os.path.join(EXPORT, "compliance_rules.sql")
+    cpath = os.path.join(EXPORT, "substance_catalog.sql")
+
+    rrows = []
+    for r in rules:
+        row = dict(r)
+        row["rule_id"] = r.get("rule_id") or make_rule_id(r)
+        row["rule_set_version"] = version
+        row["review_status"] = status
+        row.setdefault("extraction_method", "auto")
+        rrows.append(row)
+    dump("compliance_rules", rule_cols, rrows, rpath)
+
+    crows = []
+    for c in catalog:
+        row = dict(c)
+        row["substance_id"] = c.get("substance_id") or make_substance_id(c)
+        row["rule_set_version"] = version
+        row["review_status"] = status
+        crows.append(row)
+    dump("substance_catalog", cat_cols, crows, cpath)
+
+    return rpath, cpath
 
 
 def make_rule_id(r):
