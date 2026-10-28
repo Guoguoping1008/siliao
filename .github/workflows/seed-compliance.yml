@@ -55,16 +55,72 @@ jobs:
       - name: 灌库
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           MARK_REVIEWED: ${{ vars.SEED_MARK_REVIEWED }}
         run: |
           # workflow_dispatch 用 inputs.mark-reviewed; push 触发时用
           # 仓库变量 SEED_MARK_REVIEWED(默认 false → 灌 pending, 安全)
           MARK="${MARK_REVIEWED:-false}"
+          FLAGS=""
           if [ "${{ inputs.mark-reviewed }}" = "true" ] || [ "$MARK" = "true" ]; then
             echo "::warning::正在以 reviewed 状态灌库 —— 确认已完成人工逐条校核"
-            python build/export/seed_compliance.py --remote --mark-reviewed
+            FLAGS="--mark-reviewed"
+          fi
+
+          # ── 优先走 D1 REST API(bound params, 可控、可回读校验) ──
+          # 失败输出写进 job summary —— GitHub API 无需认证也能读到,
+          # 不用登录就能看 CI 到底报了什么。
+          set -o pipefail
+          if python build/export/seed_compliance.py --remote $FLAGS 2>&1 | tee /tmp/seed.log; then
+            echo "✅ D1 REST API 灌库成功"
+            echo "### ✅ 合规规则灌库成功" >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/seed.log >> "$GITHUB_STEP_SUMMARY"
           else
-            python build/export/seed_compliance.py --remote
+            {
+              echo "## ❌ D1 REST API 灌库失败"
+              echo ""
+              echo '```'
+              cat /tmp/seed.log || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::D1 REST API 失败, 回退到 wrangler d1 execute"
+
+            # ── 回退: wrangler(认证路径不同, 某些 token REST 401 但 wrangler 能通) ──
+            cd query/worker
+            npm ci
+            if ! npx wrangler d1 execute siliao-db --remote --file migrate_c1.sql 2>&1 | tee /tmp/wrangler.log; then
+              {
+                echo ""
+                echo "## ❌ wrangler 建表也失败"
+                echo ""
+                echo '```'
+                cat /tmp/wrangler.log || true
+                echo '```'
+                echo ""
+                echo "**结论**: 当前的 \`CLOUDFLARE_API_TOKEN\` secret **没有 D1 写权限**。"
+                echo "需要新建一个带 \`Account → D1 → Edit\` 权限的 API Token。"
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::建表失败 —— 需要有 D1 编辑权限的 token"
+              exit 1
+            fi
+            cd ../..
+
+            # SQL 文件由 seed_compliance.py 在失败前写出; 若没生成则先生成
+            if [ ! -f build/export/compliance_rules.sql ]; then
+              python - <<'PYEOF'
+          import io, json, sys
+          sys.path.insert(0, "build/export")
+          from seed_compliance import write_sql_files
+          rules = json.load(io.open("build/export/compliance_rules.json", encoding="utf-8"))
+          cat = json.load(io.open("build/export/substance_catalog.json", encoding="utf-8"))
+          status = "reviewed" if "${MARK:-false}" == "true" else "pending"
+          write_sql_files(rules.get("rule_set_version", "v2026.10"), rules["rules"], cat["substances"], status)
+          PYEOF
+            fi
+
+            cd query/worker
+            npx wrangler d1 execute siliao-db --remote --file ../../build/export/compliance_rules.sql
+            npx wrangler d1 execute siliao-db --remote --file ../../build/export/substance_catalog.sql
           fi
 
       - name: 回读校验
