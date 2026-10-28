@@ -107,6 +107,28 @@ describe("validateCitations", () => {
     const out = validateCitations("[2]", HITS);
     expect(out[0].excerpt).toBe("正文2");
   });
+
+  it("空串元数据保持空串(不被转成 null 或 'null')", () => {
+    // ⚠️ 回归测试: LEFT JOIN 缺失的 chapter 会返回空串/null,
+    //    原实现直接透传。改成 String() 会把 null 变成字符串 "null"。
+    const withEmpty: Evidence[] = [
+      { article_id: "a", chapter_number: "", article_number: null, excerpt: "x" },
+    ];
+    const out = validateCitations("[1]", withEmpty);
+    expect(out[0].chapter_number).toBe("");
+    expect(out[0].article_number).toBeNull();
+    expect(out[0].article_number).not.toBe("null");
+  });
+
+  it("null 元数据在 JSON 序列化后仍是 null(不是 'null' 字符串)", () => {
+    const withNull: Evidence[] = [
+      { article_id: "a", chapter_number: null, article_number: null, excerpt: "x" },
+    ];
+    const out = validateCitations("[1]", withNull);
+    const parsed = JSON.parse(JSON.stringify(out));
+    expect(parsed[0].chapter_number).toBeNull();
+    expect(parsed[0].article_number).toBeNull();
+  });
 });
 
 describe("hasOnlyValidCitations", () => {

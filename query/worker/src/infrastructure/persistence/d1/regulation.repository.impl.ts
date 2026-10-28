@@ -15,7 +15,7 @@ import type {
   RegulationDocument,
   RegulationDocumentSummary,
 } from "../../../domain/regulation/regulation-document.aggregate";
-import { mapRows, str, int, type DbRow } from "./mappers";
+import { mapRows, str, strOrNull, int, type DbRow } from "./mappers";
 
 /** D1 prepared statement(可 bind 参数)。 */
 export interface D1PreparedStatement {
@@ -64,9 +64,11 @@ export class D1RegulationRepository implements RegulationRepository {
     return mapRows(rows.results as DbRow[], (r) => ({
       doc_id: String(r.doc_id),
       title: String(r.title),
-      doc_number: str(r.doc_number),
-      issuer: str(r.issuer),
-      effective_date: str(r.effective_date),
+      // ⚠️ 可空字段**透传原值**, 不用 String() —— null 要保持 null,
+      //    否则 JSON 里会出现字符串 "null"(与原实现不一致)。
+      doc_number: strOrNull(r.doc_number),
+      issuer: strOrNull(r.issuer),
+      effective_date: strOrNull(r.effective_date),
       is_toc: int(r.is_toc),
       chapter_count: int(r.chapter_count),
       article_count: int(r.article_count),

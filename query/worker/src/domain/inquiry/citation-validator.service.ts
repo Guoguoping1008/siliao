@@ -47,6 +47,9 @@ export function extractCitationRefs(answer: string): number[] {
  *   - N 超出证据范围 → `valid: false`(LLM 编造)
  *   - 答案没有任何引用 → 返回空数组(不是错误, 由调用方决定是否可接受)
  *
+ * ⚠️ 元数据**直接透传** Evidence 的原值(含 null), 不做 String() 转换 ——
+ *    原实现就是直接赋值, 转成字符串会让空值变成 "null"。
+ *
  * @param answer  LLM 生成的答案原文
  * @param hits    检索证据(顺序即引用号的顺序)
  */

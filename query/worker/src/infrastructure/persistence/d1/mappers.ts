@@ -24,6 +24,16 @@ export function str(v: unknown): string | undefined {
   return v === null || v === undefined ? undefined : String(v);
 }
 
+/**
+ * 从行里取字符串, **保留 null**。
+ *
+ * ⚠️ 用于「原实现直接透传」的字段 —— null 要保持 null,
+ *    不能变 undefined(键消失)也不能变字符串 "null"。
+ */
+export function strOrNull(v: unknown): string | null {
+  return v === null || v === undefined ? null : String(v);
+}
+
 /** 从行里取数字。 */
 export function num(v: unknown): number | undefined {
   if (v === null || v === undefined) return undefined;

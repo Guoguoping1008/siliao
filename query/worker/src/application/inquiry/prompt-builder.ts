@@ -15,10 +15,19 @@
  * 设计原则:
  * - system 强制「未找到则明说」, 避免 LLM 编造
  * - evidence 限 8 条, 过长会稀释 LLM 注意
+ *
+ * ⚠️ 元数据允许 null —— D1 LEFT JOIN 缺失时就是 null,
+ *    这里原样插值(null 会变成字符串 "null" 出现在 prompt 里,
+ *    与重构前行为一致, 故不改)。
  */
 export function buildRagPrompt(
   q: string,
-  hits: { chapter_number?: string; chapter_title?: string; article_number?: string; excerpt: string }[]
+  hits: {
+    chapter_number?: string | null;
+    chapter_title?: string | null;
+    article_number?: string | null;
+    excerpt: string;
+  }[]
 ): { systemPrompt: string; userPrompt: string } {
   const context = hits
     .slice(0, 8)

@@ -9,15 +9,21 @@
  *   - 不出现 fetch()
  */
 
-/** 一条检索命中。字段与 Worker 现有 SearchHit 保持一致, 保证行为不变。 */
+/**
+ * 一条检索命中。
+ *
+ * ⚠️ 字段类型允许 `null` —— D1 的 LEFT JOIN 会给缺失的 chapter 返回 null,
+ *    且原实现是**直接透传原值**(空串保持空串、null 保持 null)。
+ *    这里若改成 `String(x)` 就会把 null 变成字符串 "null", 是回归。
+ */
 export interface Evidence {
   article_id: string;
-  chapter_id?: string;
-  doc_id?: string;
-  chapter_title?: string;
-  chapter_number?: string;
-  article_number?: string;
-  title?: string;
+  chapter_id?: string | null;
+  doc_id?: string | null;
+  chapter_title?: string | null;
+  chapter_number?: string | null;
+  article_number?: string | null;
+  title?: string | null;
   excerpt: string;
   relevance?: number;
 }
@@ -27,16 +33,19 @@ export interface Evidence {
  *
  * `valid: false` 表示 LLM 编造了不存在的引用(引用号超出证据范围),
  * 前端会把它标红。这是「合规优先」原则的技术落点。
+ *
+ * ⚠️ 元数据允许 null —— 与 Evidence 一致, **直接透传原值**,
+ *    不做 String() 转换(null 变 "null" 是回归)。
  */
 export interface Citation {
   ref: number;
   article_id?: string;
-  chapter_id?: string;
-  doc_id?: string;
-  chapter_number?: string;
-  chapter_title?: string;
-  article_number?: string;
-  title?: string;
+  chapter_id?: string | null;
+  doc_id?: string | null;
+  chapter_number?: string | null;
+  chapter_title?: string | null;
+  article_number?: string | null;
+  title?: string | null;
   excerpt?: string;
   valid: boolean;
 }

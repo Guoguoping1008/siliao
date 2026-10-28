@@ -312,12 +312,15 @@ export class HybridRetriever {
       const f = fusedById.get(aid)!;
       return {
         article_id: aid,
-        chapter_id: m?.chapter_id ? String(m.chapter_id) : undefined,
-        doc_id: m?.doc_id ? String(m.doc_id) : undefined,
-        chapter_title: m?.chapter_title ? String(m.chapter_title) : undefined,
-        chapter_number: m?.chapter_number ? String(m.chapter_number) : undefined,
-        article_number: m?.number ? String(m.number) : undefined,
-        title: m?.atitle ? String(m.atitle) : undefined,
+        // ⚠️ 这些字段**直接透传 D1 原值**, 不能用 `String(x)` 转换 ——
+        //    原实现就是 `m?.chapter_number`, 空串保持空串、null 保持 null。
+        //    改成 String() 会把 null 变成字符串 "null"(回归测试抓到过)。
+        chapter_id: m?.chapter_id,
+        doc_id: m?.doc_id,
+        chapter_title: m?.chapter_title,
+        chapter_number: m?.chapter_number,
+        article_number: m?.number,
+        title: m?.atitle,
         excerpt: excerptById.get(aid) ?? "",
         relevance: f.fused_score,
         // 调试字段,生产可隐藏
