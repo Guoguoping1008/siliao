@@ -69,7 +69,6 @@ export class D1RegulationRepository implements RegulationRepository {
       doc_number: strOrNull(r.doc_number),
       issuer: strOrNull(r.issuer),
       effective_date: strOrNull(r.effective_date),
-      is_toc: int(r.is_toc),
       chapter_count: int(r.chapter_count),
       article_count: int(r.article_count),
     }));
