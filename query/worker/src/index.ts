@@ -31,6 +31,7 @@
 import { createApp, type Env } from "./interfaces/composition-root";
 import { llmConfig, fetchWithRetry } from "./interfaces/acl/llm.acl";
 import { validateCitations } from "./domain/inquiry/citation-validator.service";
+import { validateComplianceBody } from "./domain/compliance/compliance-request.vo";
 import type { Evidence } from "./domain/inquiry/evidence.vo";
 import { buildRagPrompt } from "./application/inquiry/prompt-builder";
 
@@ -108,6 +109,31 @@ export default {
           return ragQAStream(rawQ, env);
         }
         return json(await app.inquiry.ask(rawQ), env);
+      }
+      if (path === "/api/compliance/usage" && req.method === "POST") {
+        const body = await req.json<{
+          substance?: string;
+          species?: string;
+          stage?: string | null;
+          value?: number;
+          unit?: string;
+        }>();
+        // ⚠️ 入参校验 —— 用量判定是**确定性**的, 参数错必须明确报错,
+        //    不能像 LLM 抽取那样静默给个错结论。
+        const err = validateComplianceBody(body);
+        if (err) {
+          return json({ error: "invalid_request", message: err }, env, 400);
+        }
+        return json(
+          await app.complianceCheck.check({
+            substance: body.substance!.trim(),
+            species: body.species!.trim(),
+            stage: body.stage ?? null,
+            value: body.value!,
+            unit: body.unit!.trim(),
+          }),
+          env
+        );
       }
       return json({ error: "not_found", path }, env, 404);
     } catch (e) {

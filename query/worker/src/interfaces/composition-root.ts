@@ -21,7 +21,17 @@ import {
   HybridRetriever,
 } from "../infrastructure/persistence/retrieval/hybrid-retriever.adapter";
 import { InquiryService } from "../application/inquiry/inquiry.service";
+import {
+  ComplianceCheckService,
+  type ComplianceRuleSource,
+} from "../application/compliance/compliance-check.usecase";
+import { ComplianceRuleSet } from "../domain/compliance/compliance-rule-set.aggregate";
+import type { RelatedArticle } from "../domain/compliance/compliance-rule-set.aggregate";
 import { LlmEnv } from "../interfaces/acl/llm.acl";
+import {
+  D1ComplianceRepository,
+  type ComplianceRepository,
+} from "../infrastructure/persistence/d1/compliance.repository.impl";
 
 /** Worker 运行时环境。 */
 export interface Env {
@@ -50,6 +60,8 @@ export interface AppDependencies {
   graph: GraphRepository;
   retriever: HybridRetriever;
   inquiry: InquiryService;
+  compliance: ComplianceRepository;
+  complianceCheck: ComplianceCheckService;
 }
 
 /**
@@ -72,5 +84,30 @@ export function createApp(env: Env): AppDependencies {
     DEEPSEEK_API_KEY: env.DEEPSEEK_API_KEY,
   });
 
-  return { regulations, graph, retriever, inquiry };
+  // ── ② 合规规则 ──
+  const compliance = new D1ComplianceRepository(db);
+  const ruleSource: ComplianceRuleSource = {
+    async listRules(ruleSetVersion?: string) {
+      const rules = await compliance.listRules(ruleSetVersion);
+      return new ComplianceRuleSet(ruleSetVersion ?? "current", rules);
+    },
+    async listCatalog(reviewedOnly?: boolean) {
+      return compliance.listCatalog(reviewedOnly);
+    },
+  };
+  const complianceCheck = new ComplianceCheckService(ruleSource, {
+    async search({ q }) {
+      const { hits } = await retriever.search({ q });
+      return {
+        hits: hits.map((h) => ({
+          articleId: h.article_id,
+          chapterTitle: h.chapter_title,
+          articleNumber: h.article_number,
+          excerpt: h.excerpt,
+        })) as RelatedArticle[],
+      };
+    },
+  });
+
+  return { regulations, graph, retriever, inquiry, compliance, complianceCheck };
 }
