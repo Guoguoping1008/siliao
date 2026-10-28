@@ -85,6 +85,17 @@ def api_request(path, token, method="GET", body=None):
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "ignore")
+        # ⚠️ 把 Cloudflare 的错误码打全 —— 401 是「token 没 D1 权限」,
+        #    403 是「权限不够」, 两者要区分开, 否则 CI 日志只一句 SystemExit
+        #    看不出是 token 问题还是 SQL 问题。
+        print(f"[HTTP {e.code}] {method} {path}", file=sys.stderr)
+        print(f"[BODY] {detail[:1200]}", file=sys.stderr)
+        if e.code in (401, 403):
+            print(
+                "[提示] 灌库需要 **D1 写权限**。deploy.yml 用的 token 是最小权限的, "
+                "实测 /d1/database 返回 401 —— 需要一个有 D1 编辑权限的 token。",
+                file=sys.stderr,
+            )
         raise SystemExit(f"[HTTP {e.code}] {path}\n{detail[:600]}")
 
 
