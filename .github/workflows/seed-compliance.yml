@@ -52,6 +52,26 @@ jobs:
         # 从 articles.json 抽 (物质×动物×限量) 三元组
         run: python build/export/extract_compliance_rules.py
 
+      - name: 探测 D1 权限
+        id: d1probe
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 用 REST 直接问 D1 要行数 —— 返回 200 说明 token 有读权限,
+          # 401/403 说明没有 D1 权限(不是 SQL 问题)。
+          # 结果写成 step output, 后面失败时能直接引用。
+          CODE=$(curl -s -o /tmp/probe.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"sql":"SELECT COUNT(*) c FROM articles"}' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database/e406e21e-e770-4c97-822a-57178c347aa6/query")
+          echo "HTTP $CODE"
+          cat /tmp/probe.json
+          echo "http_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "body=$(cat /tmp/probe.json)" >> "$GITHUB_OUTPUT"
+
       - name: 灌库
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -78,6 +98,14 @@ jobs:
           else
             {
               echo "## ❌ D1 REST API 灌库失败"
+              echo ""
+              echo "**D1 权限探测**: HTTP `${{ steps.d1probe.outputs.http_code }}`"
+              echo ""
+              echo '```'
+              echo "${{ steps.d1probe.outputs.body }}"
+              echo '```'
+              echo ""
+              echo "**灌库输出**:"
               echo ""
               echo '```'
               cat /tmp/seed.log || true
