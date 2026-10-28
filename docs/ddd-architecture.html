@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDD 系统架构 · 饲料法规智能体 · siliao RAG</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --purple:#a78bfa; --pink:#f472b6;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px 100px}
+
+  header{
+    background:linear-gradient(135deg,#4c1d95 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{
+    display:inline-block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--purple); border:1px solid var(--purple); border-radius:999px;
+    padding:4px 14px; margin-bottom:18px; font-weight:600;
+  }
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:76ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{
+    background:rgba(167,139,250,.14); border:1px solid rgba(167,139,250,.32);
+    color:#ddd6fe; border-radius:6px; padding:5px 12px; font-size:12.5px; font-family:ui-monospace,monospace;
+  }
+  header code{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  nav.toc{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 26px; margin-bottom:40px; box-shadow:var(--shadow);
+  }
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  section{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:30px 32px; margin-bottom:26px; box-shadow:var(--shadow);
+  }
+  h2{
+    font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border);
+  }
+  h2 .num{
+    background:var(--purple);color:#2e1065;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none;
+  }
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  h4{font-size:.95rem;margin:18px 0 8px;color:var(--fg-dim)}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--code-bg); border:1px solid var(--border); border-radius:4px;
+    padding:1.5px 6px; font-size:.87em; color:#7dd3fc;
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:16px 18px; overflow-x:auto; margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.6;
+  }
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+  .box.purple{background:rgba(167,139,250,.09);border-color:var(--purple)}
+  .box.purple .t{color:var(--purple)}
+
+  .prewrap{position:relative}
+  .copy{
+    position:absolute;top:9px;right:9px;background:var(--bg3);border:1px solid var(--border);
+    color:var(--fg-dim);border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;
+    font-family:inherit;transition:.15s;z-index:2;
+  }
+  .copy:hover{background:var(--accent);color:#082f49;border-color:var(--accent)}
+  .copy.done{background:var(--ok);color:#052e16;border-color:var(--ok)}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+  .b-purple{background:rgba(167,139,250,.16);color:var(--purple);border:1px solid rgba(167,139,250,.35)}
+  .b-mute{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+
+  /* ══ 上下文卡片 ══ */
+  .ctxs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:18px 0}
+  .ctx{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:18px 20px;border-top:3px solid var(--accent)}
+  .ctx.c1{border-top-color:var(--ok)} .ctx.c2{border-top-color:var(--pink)}
+  .ctx.c3{border-top-color:var(--accent)} .ctx.c4{border-top-color:var(--warn)}
+  .ctx.c5{border-top-color:var(--purple)}
+  .ctx .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+  .ctx .id{font-family:ui-monospace,monospace;font-weight:800;font-size:1.25rem;color:var(--fg)}
+  .ctx .nm{font-weight:700;font-size:.98rem;color:var(--fg)}
+  .ctx .kind{font-size:11px;padding:1px 7px;border-radius:4px;font-weight:700}
+  .ctx .kind.core{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .ctx .kind.sup{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+  .ctx .ub{font-size:12.5px;color:var(--fg-dim);margin:8px 0 10px;font-style:italic}
+  .ctx dl{margin:0;font-size:13.3px}
+  .ctx dt{font-weight:700;color:var(--fg-faint);font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-top:10px}
+  .ctx dd{margin:2px 0 0;color:var(--fg)}
+  .ctx .st{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+
+  /* ══ 依赖图 ══ */
+  .dep{background:var(--code-bg);border:1px solid var(--border);border-radius:9px;padding:20px;overflow-x:auto;margin:18px 0}
+  .dep svg{display:block;min-width:660px;margin:0 auto}
+
+  /* ══ 分层图 ══ */
+  .layers{display:grid;gap:10px;margin:18px 0}
+  .layer{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:16px 20px;position:relative}
+  .layer.l1{border-left:4px solid var(--accent)}
+  .layer.l2{border-left:4px solid var(--purple)}
+  .layer.l3{border-left:4px solid var(--ok);background:rgba(52,211,153,.05)}
+  .layer.l4{border-left:4px solid var(--fg-faint)}
+  .layer .lt{font-weight:700;font-size:.98rem;color:var(--fg);margin-bottom:3px}
+  .layer .ln{font-size:12.5px;color:var(--fg-faint);margin-bottom:8px}
+  .layer ul{margin:0 0 0 18px;font-size:13.3px}
+  .layer li{margin-bottom:3px}
+  .layer .star{color:var(--ok);font-weight:800}
+
+  /* ══ 规则表 ══ */
+  .rules{display:grid;gap:8px;margin:16px 0}
+  .rule{display:flex;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:13px 16px;align-items:flex-start}
+  .rule .rk{font-family:ui-monospace,monospace;font-weight:800;color:var(--purple);flex:none;font-size:.92rem}
+  .rule .rv{font-size:13.8px;color:var(--fg)}
+  .rule .rv em{color:var(--err);font-style:normal;font-weight:700}
+
+  /* ══ 迁移阶段 ══ */
+  .phases{display:grid;gap:12px;margin:18px 0}
+  .phase{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:16px 20px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+  .phase .pn{font-family:ui-monospace,monospace;font-weight:800;font-size:1.05rem;color:var(--purple);background:rgba(167,139,250,.12);
+             border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:6px 12px;white-space:nowrap}
+  .phase .pt{font-weight:700;font-size:1rem;color:var(--fg);margin-bottom:5px}
+  .phase .pd{font-size:13.5px;color:var(--fg-dim)}
+
+  .track2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .track{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:18px 20px}
+  .track .th{font-weight:700;font-size:.98rem;color:var(--fg);margin-bottom:8px}
+  .track ul{margin:0 0 0 18px;font-size:13.5px}
+
+  details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg);overflow:hidden}
+  summary{padding:13px 18px;cursor:pointer;font-weight:600;font-size:14.5px;list-style:none;
+          display:flex;align-items:center;gap:10px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.2s;flex:none}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary:hover{background:var(--bg3)}
+  .dbody{padding:0 18px 16px;border-top:1px solid var(--border)}
+  .dbody > *:first-child{margin-top:14px}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+  .kbd{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg3);border:1px solid var(--border);
+       border-bottom-width:2px;border-radius:4px;padding:1px 6px}
+
+  @media (max-width: 820px){
+    .wrap{padding:0 16px 72px}
+    header{padding:34px 0 30px;margin-bottom:26px}
+    h1{font-size:1.5rem;line-height:1.32}
+    .sub{font-size:.95rem;line-height:1.7}
+    .eyebrow{font-size:11px;padding:3px 11px;margin-bottom:14px}
+    .meta{gap:7px;margin-top:18px}
+    .chip{font-size:11px;padding:4px 9px}
+
+    section{padding:20px 17px;margin-bottom:18px;border-radius:9px}
+    h2{font-size:1.12rem;gap:10px;padding-bottom:12px}
+    h2 .num{width:26px;height:26px;font-size:.82rem;border-radius:7px}
+    h3{font-size:.98rem;margin:20px 0 8px}
+    p,li{font-size:14.5px;line-height:1.72}
+    ul,ol{margin-left:18px}
+
+    .scrollhint{
+      display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg-faint);
+      margin:-4px 0 8px;user-select:none;
+    }
+    .scrollhint::after{content:"⟶";color:var(--accent);font-size:14px}
+
+    table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;font-size:13px}
+    th,td{padding:8px 11px}
+
+    table.stack2{display:block;overflow-x:visible;white-space:normal}
+    table.stack2 thead{display:none}
+    table.stack2 tr{display:block;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:3px 0;margin-bottom:10px}
+    table.stack2 tr:last-child{margin-bottom:0}
+    table.stack2 tr:nth-child(even) td{background:none}
+    table.stack2 td{display:block;border:none;padding:6px 14px;white-space:normal;width:auto !important}
+    table.stack2 td:first-child{
+      font-weight:700;font-size:12.5px;color:var(--fg);letter-spacing:.02em;padding-bottom:1px;
+    }
+    table.stack2 td + td{border-top:1px dashed var(--border);padding-top:8px;padding-bottom:8px}
+    table.stack2 td:first-child:empty{display:none}
+
+    pre{padding:13px 14px;font-size:12px;line-height:1.65;border-radius:7px;overflow-x:auto}
+    pre code{font-size:12px;white-space:pre;display:block}
+    p a, li a, td a{overflow-wrap:anywhere;word-break:break-word}
+
+    .ctxs{grid-template-columns:1fr}
+    .track2{grid-template-columns:1fr}
+    .phase{grid-template-columns:1fr;gap:10px}
+    .phase .pn{justify-self:start}
+    .rule{flex-direction:column;gap:4px}
+    .copy{position:static;display:block;margin:6px 0 0 auto}
+    .prewrap{padding-top:2px}
+    .dep{padding:14px 10px}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    header{background:#4c1d95 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{box-shadow:none;border-color:#cbd5e1}
+    .copy,.scrollhint{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">ADR-004 · Domain-Driven Design</span>
+    <h1>DDD 系统架构：五个限界上下文</h1>
+    <p class="sub">
+      把「饲料法规智能体」从 <b>1059 行单文件 Worker</b> 重构为 <b>按业务语义划分的限界上下文</b>。
+      核心主张：<b>按领域划分，而不是按技术分层</b> —— 经典 DDD 的全套仓储/工厂/规格在 Serverless 栈上换不来可测性收益，
+      但「规则引擎该放哪、变更监控归谁管」这个问题必须现在解决，否则对档方案开工就是第二遍同样的混乱。
+    </p>
+    <div class="meta">
+      <span class="chip">状态: Proposed</span>
+      <span class="chip">基线: v1.0.0-production</span>
+      <span class="chip">日期: 2026-10-28</span>
+      <span class="chip">决策者: qingmang (青芒 CTO)</span>
+      <span class="chip">技术栈不变: Workers + D1 + Pages</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">重构动因：三个结构性负债</a></li>
+    <li><a href="#s2">五个限界上下文</a></li>
+    <li><a href="#s3">依赖规则（强制）</a></li>
+    <li><a href="#s4">分层与 Serverless 适配</a></li>
+    <li><a href="#s5">目录结构（目标）</a></li>
+    <li><a href="#s6">数据所有权与表归属</a></li>
+    <li><a href="#s7">领域事件</a></li>
+    <li><a href="#s8">现状 → 目标映射（可执行）</a></li>
+    <li><a href="#s9">取舍：否决了什么</a></li>
+    <li><a href="#s10">风险与应对</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════ 1 ══════════ -->
+<section id="s1">
+  <h2><span class="num">1</span>重构动因：三个结构性负债</h2>
+
+  <p>当前系统能跑、指标达标（recall@10 76.0% / MRR 0.647），但存在三个结构性负债：</p>
+
+  <table class="stack2">
+    <thead><tr><th>负债</th><th>具体表现</th><th>触发场景</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>L1 · 关注点混杂</b></td>
+        <td>路由分发、检索算法、LLM 调用、引用校验、D1 SQL 全部平铺在一个文件，26 个函数无模块边界</td>
+        <td>改检索逻辑要读懂 RAG 逻辑；改 prompt 怕碰坏检索</td>
+      </tr>
+      <tr>
+        <td><b>L2 · 语义无边界</b></td>
+        <td>6 组表 + <code>articles_fts</code> 共处一个 schema，没有「这是哪个领域的模型」的概念</td>
+        <td>无法界定「规则库该放哪张表」「案例库归谁」</td>
+      </tr>
+      <tr>
+        <td><b>L3 · 能力扩展无落点</b></td>
+        <td>方案文档里的规则引擎 / 变更监控 / 审核预审 / 案例库，<b>加任何一项都只能继续往 <code>index.ts</code> 塞函数</b></td>
+        <td>对档方案（4–6 周）开工即失控</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box purple">
+    <span class="t">关键判断</span>
+    <b>L1/L2 是代码组织问题，值得现在修；L3 是架构容量问题，必须现在修</b> —— 否则对档方案开工就是第二遍同样的混乱。
+    <br><br>
+    <b>但</b>：DDD 在这个项目有真实风险 —— 技术栈是 Cloudflare 全 Serverless（Workers + D1 + Pages），<b>没有 JVM、没有应用服务器、没有 DI 容器</b>。
+    经典 DDD 的「聚合根 / 仓储 / 领域服务 / 防腐层」若照搬成目录结构，会变成<b>换皮</b>：目录分了，依赖还是乱的。
+  </div>
+</section>
+
+<!-- ══════════ 2 ══════════ -->
+<section id="s2">
+  <h2><span class="num">2</span>五个限界上下文</h2>
+
+  <p>切分依据是<b>「法规的什么性质决定它归谁管」</b>，而非技术分层。</p>
+
+  <div class="ctxs">
+    <div class="ctx c1">
+      <div class="hd"><span class="id">①</span><span class="nm">法规知识库</span><span class="kind core">核心域</span></div>
+      <div class="ub">Regulation</div>
+      <dl>
+        <dt>通用语言</dt><dd>法规文档 / 章节 / 条文 / 目录 / 版本</dd>
+        <dt>聚合根</dt><dd><code>RegulationDocument</code>（Document→Chapter→Article 严格层级）</dd>
+        <dt>不变量</dt><dd>一个 Article 必属一个 Chapter，一个 Chapter 必属一个 Document</dd>
+        <dt>约束</dt><dd><b>只读</b> —— 法规是事实，不是可编辑对象</dd>
+        <dt>现状</dt><dd>已上线，196 文档 / 529 章 / 3145 条文</dd>
+      </dl>
+      <div class="st"><span class="b b-ok">已实现</span> <code>listDocuments</code> / <code>getCatalog</code> / <code>getChapter</code> / <code>getArticle</code></div>
+    </div>
+
+    <div class="ctx c2">
+      <div class="hd"><span class="id">②</span><span class="nm">合规规则</span><span class="kind core">核心域</span></div>
+      <div class="ub">Compliance</div>
+      <dl>
+        <dt>通用语言</dt><dd>物质 / 动物种类 / 限量 / 禁用 / 使用条件 / 规则 / 规则版本</dd>
+        <dt>聚合根</dt><dd><code>ComplianceRuleSet</code></dd>
+        <dt>不变量</dt><dd>规则必绑定 <code>sourceArticleId</code>；同物质+动物+生效日不得冲突；每条规则必属一个 RuleVersion</dd>
+        <dt>核心服务</dt><dd><code>ComplianceEvaluator</code> —— 未覆盖时<b>必须</b>返回「未覆盖」，禁止返回合规</dd>
+        <dt>现状</dt><dd><b>完全不存在</b> —— 快档方案的落点</dd>
+      </dl>
+      <div class="st"><span class="b b-err">待建</span> 零代码，全仓 grep 无命中</div>
+    </div>
+
+    <div class="ctx c3">
+      <div class="hd"><span class="id">③</span><span class="nm">问答</span><span class="kind sup">支撑域</span></div>
+      <div class="ub">Inquiry</div>
+      <dl>
+        <dt>通用语言</dt><dd>问题 / 检索证据 / 答案 / 引用</dd>
+        <dt>聚合根</dt><dd>无 —— 无状态领域服务 <code>InquiryService</code></dd>
+        <dt>核心服务</dt><dd><code>CitationValidator</code> —— <b>这是领域服务，不是工具函数</b></dd>
+        <dt>为何重要</dt><dd>「引用必须可溯源」是<b>业务规则</b>（方案文档「合规优先」），不是技术细节。它决定答案能不能对外发布</dd>
+      </dl>
+      <div class="st"><span class="b b-ok">已实现</span> <code>ragQA</code> / <code>ragQAStream</code> / <code>validateCitations</code></div>
+    </div>
+
+    <div class="ctx c4">
+      <div class="hd"><span class="id">④</span><span class="nm">知识图谱</span><span class="kind sup">支撑域</span></div>
+      <div class="ub">Graph</div>
+      <dl>
+        <dt>通用语言</dt><dd>实体 / 关系 / 社区</dd>
+        <dt>聚合根</dt><dd><code>Entity</code></dd>
+        <dt>不变量</dt><dd>实体名在同一 type 下唯一</dd>
+        <dt>现状</dt><dd><code>entities</code> 表<b>已建但为空</b>，<code>/api/entity</code> 实测 <code>entity_not_found</code></dd>
+      </dl>
+      <div class="st"><span class="b b-warn">空壳保留</span> 前端组件已就位，等真实用例再投实现</div>
+    </div>
+
+    <div class="ctx c5">
+      <div class="hd"><span class="id">⑤</span><span class="nm">法规监测</span><span class="kind sup">支撑域</span></div>
+      <div class="ub">Monitoring</div>
+      <dl>
+        <dt>通用语言</dt><dd>发布源 / 公告 / 版本差异 / 影响面 / 订阅</dd>
+        <dt>聚合根</dt><dd><code>RegulationRelease</code>（公告 + 差异 + 影响评估）</dd>
+        <dt>不变量</dt><dd>算不出影响面则标记「影响面未知」，<b>不推送</b></dd>
+        <dt>解耦方式</dt><dd>经<b>领域事件</b> <code>RegulationReleaseDetected</code> 影响 ①，① 不知道谁在监测</dd>
+      </dl>
+      <div class="st"><span class="b b-err">待建</span> 对档方案 M4 阶段，按需展开</div>
+    </div>
+  </div>
+
+  <h3>为什么这样切</h3>
+  <ul>
+    <li><b>① 与 ② 分离</b> —— 法规原文是<b>事实</b>（不可变），限量规则是<b>判定依据</b>（可随公告更新）。把两者混在一起，改规则就会碰到正文。</li>
+    <li><b>③ 是编排者不是领域</b> —— 问答不拥有任何业务数据，它只调用 ①②④ 并整合。这是「支撑域」的标准形态。</li>
+    <li><b>④ 暂不投</b> —— 图谱能力（关系推理）对当前「找条款」场景收益不明，而运维成本（索引重建 + 增量维护）不低。<b>先留接口，不投实现。</b></li>
+    <li><b>⑤ 用事件解耦</b> —— 只读核心域 ① 的写入只能由外部版本变更驱动，事件表达最自然。</li>
+  </ul>
+</section>
+
+<!-- ══════════ 3 ══════════ -->
+<section id="s3">
+  <h2><span class="num">3</span>依赖规则（强制）</h2>
+
+  <div class="dep">
+  <svg viewBox="0 0 700 300" width="700" height="300" role="img" aria-label="上下文依赖关系图">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+      </marker>
+      <marker id="ar2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#a78bfa"/>
+      </marker>
+    </defs>
+
+    <!-- Inquiry -->
+    <rect x="240" y="12" width="220" height="46" rx="9" fill="rgba(56,189,248,.14)" stroke="#38bdf8" stroke-width="1.6"/>
+    <text x="350" y="33" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="700" font-family="sans-serif">③ 问答 Inquiry</text>
+    <text x="350" y="49" text-anchor="middle" fill="#94a3b8" font-size="10.5" font-family="sans-serif">支撑域 · 应用编排</text>
+
+    <!-- Regulation -->
+    <rect x="30" y="140" width="190" height="52" rx="9" fill="rgba(52,211,153,.12)" stroke="#34d399" stroke-width="1.6"/>
+    <text x="125" y="161" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="sans-serif">① 法规知识库</text>
+    <text x="125" y="178" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">核心域 · 只读</text>
+
+    <!-- Compliance -->
+    <rect x="255" y="140" width="190" height="52" rx="9" fill="rgba(244,114,182,.12)" stroke="#f472b6" stroke-width="1.6"/>
+    <text x="350" y="161" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="sans-serif">② 合规规则</text>
+    <text x="350" y="178" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">核心域 · 只读 · 待建</text>
+
+    <!-- Graph -->
+    <rect x="480" y="140" width="190" height="52" rx="9" fill="rgba(251,191,36,.12)" stroke="#fbbf24" stroke-width="1.6"/>
+    <text x="575" y="161" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="sans-serif">④ 知识图谱</text>
+    <text x="575" y="178" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">支撑域 · 空壳</text>
+
+    <!-- Monitoring -->
+    <rect x="30" y="240" width="190" height="46" rx="9" fill="rgba(167,139,250,.12)" stroke="#a78bfa" stroke-width="1.6"/>
+    <text x="125" y="259" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700" font-family="sans-serif">⑤ 法规监测</text>
+    <text x="125" y="275" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">支撑域 · 待建</text>
+
+    <!-- arrows from Inquiry -->
+    <path d="M280 58 L145 138" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+    <path d="M350 58 L350 138" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+    <path d="M420 58 L555 138" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+
+    <!-- event arrow 5 -> 1 -->
+    <path d="M125 240 L125 196" stroke="#a78bfa" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#ar2)"/>
+    <text x="133" y="220" fill="#a78bfa" font-size="10.5" font-family="sans-serif" font-weight="600">领域事件</text>
+
+    <!-- ACL -->
+    <rect x="500" y="240" width="170" height="42" rx="8" fill="rgba(148,163,184,.10)" stroke="#64748b" stroke-width="1.3" stroke-dasharray="4 3"/>
+    <text x="585" y="257" text-anchor="middle" fill="#94a3b8" font-size="11.5" font-weight="700" font-family="sans-serif">ACL 防腐层</text>
+    <text x="585" y="272" text-anchor="middle" fill="#64748b" font-size="9.5" font-family="sans-serif">LLM / bge / 政府站点</text>
+    <path d="M440 261 L500 261" stroke="#64748b" stroke-width="1.3" fill="none" marker-end="url(#ar)"/>
+
+    <text x="350" y="105" text-anchor="middle" fill="#64748b" font-size="10.5" font-family="sans-serif">依赖方向单一：③ → ①②④</text>
+  </svg>
+  </div>
+
+  <div class="rules">
+    <div class="rule"><span class="rk">R1</span><span class="rv"><b>上下文间只经 ACL 通信</b> —— 禁止跨上下文直接 JOIN 对方表。② 要读条文原文，必须经 <code>RegulationRepository</code> + ACL，<em>不得</em> <code>SELECT ... FROM articles</code></span></div>
+    <div class="rule"><span class="rk">R2</span><span class="rv"><b>依赖方向单一</b> —— ③ → ①②④；⑤ --事件--> ①。<em>禁止</em> ① → ③（核心域不知道被谁调用）</span></div>
+    <div class="rule"><span class="rk">R3</span><span class="rv"><b>外部系统一律 ACL</b> —— LLM / bge / 政府网站全部经防腐层。<em>领域层不得出现 <code>fetch()</code></em></span></div>
+    <div class="rule"><span class="rk">R4</span><span class="rv"><b>只读核心域</b> —— ① ② 的表只允许经由各自仓储写入，<em>禁止跨上下文写</em></span></div>
+    <div class="rule"><span class="rk">R5</span><span class="rv"><b>领域服务不依赖框架</b> —— <code>ComplianceEvaluator</code> / <code>CitationValidator</code> <em>不得 import Workers/D1 类型</em></span></div>
+  </div>
+
+  <div class="box warn">
+    <span class="t">违反即 code review 打回</span>
+    这五条不是文档约定，是<b>可以用测试自动校验的规则</b> —— 见第 10 节「架构测试」。
+  </div>
+</section>
+
+<!-- ══════════ 4 ══════════ -->
+<section id="s4">
+  <h2><span class="num">4</span>分层与 Serverless 适配</h2>
+
+  <div class="layers">
+    <div class="layer l1">
+      <div class="lt">接口层 Interface</div>
+      <div class="ln">Controllers / DTO / 防腐层 ACL</div>
+      <ul><li>HTTP 路由 · 请求校验 · 响应组装 · 外部系统防腐层</li></ul>
+    </div>
+    <div class="layer l2">
+      <div class="lt">应用层 Application</div>
+      <div class="ln">Use Cases / Orchestration —— 编排，不写业务规则</div>
+      <ul><li><code>InquiryService</code> · <code>ComplianceCheckUseCase</code> · <code>ReleaseDetectUseCase</code></li></ul>
+    </div>
+    <div class="layer l3">
+      <div class="lt"><span class="star">★</span> 领域层 Domain</div>
+      <div class="ln">Entities / ValueObjects / Services —— <b>纯 TS，零框架依赖，零 I/O，100% 可单测</b></div>
+      <ul>
+        <li><code>RegulationDocument</code> · <code>ComplianceRuleSet</code> · <code>Entity</code></li>
+        <li><code>ComplianceEvaluator</code> · <code>CitationValidator</code> —— 两条核心业务规则都在这层</li>
+      </ul>
+    </div>
+    <div class="layer l4">
+      <div class="lt">基础设施层 Infrastructure</div>
+      <div class="ln">Repositories / Adapters</div>
+      <ul><li>D1Repository 实现 · bgeClient · llmClient · 爬虫适配器</li></ul>
+    </div>
+  </div>
+
+  <h3>Serverless 适配说明</h3>
+  <table class="stack2">
+    <thead><tr><th>经典 DDD</th><th>本项目适配</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>Spring DI 容器</td><td><b>手写 Composition Root</b>（<code>index.ts</code> 顶层 new 出所有仓储/服务）</td><td>Workers 无 DI 容器；手写反而更透明，依赖关系一眼可见</td></tr>
+      <tr><td>Repository 接口 + 实现分离</td><td>接口放 domain 层，实现放 infrastructure</td><td>领域层可 mock，测试不碰 D1</td></tr>
+      <tr><td>领域事件总线</td><td>Workers <code>ctx.waitUntil()</code> + 简单事件分发</td><td>不引入外部 MQ；事件量小</td></tr>
+      <tr><td>数据库事务</td><td>D1 单库 + 单次 batch</td><td>D1 不支持跨表事务，<b>领域边界设计已规避此需求</b></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ 5 ══════════ -->
+<section id="s5">
+  <h2><span class="num">5</span>目录结构（目标）</h2>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>query/worker/src/
+├── interfaces/                    # 接口层
+│   ├── http/
+│   │   ├── router.ts              # 路由分发(从 index.ts 抽出)
+│   │   ├── routes/
+│   │   │   ├── inquiry.routes.ts       # /api/qa
+│   │   │   ├── regulation.routes.ts    # /api/documents, catalog, chapter, article
+│   │   │   ├── retrieval.routes.ts    # /api/search
+│   │   │   └── graph.routes.ts         # /api/entity
+│   │   └── dto.ts
+│   ├── acl/                       # 防腐层
+│   │   ├── llm.acl.ts             # provider 无关的 LLM 调用
+│   │   ├── embedding.acl.ts       # bge-m3 客户端
+│   │   └── regulation.acl.ts      # 外部法规源(未来 ⑤ 用)
+│   └── composition-root.ts        # 组装所有依赖
+│
+├── application/                   # 应用层
+│   ├── inquiry/
+│   │   ├── inquiry.service.ts     # 检索→生成→校验
+│   │   └── prompt-builder.ts
+│   ├── compliance/
+│   │   └── compliance-check.usecase.ts   # 快档新增
+│   └── monitoring/
+│       └── release-detect.usecase.ts     # 对档新增
+│
+├── domain/                        # ★ 领域层(纯 TS,零依赖)
+│   ├── regulation/
+│   │   ├── regulation-document.aggregate.ts
+│   │   ├── article.vo.ts
+│   │   └── regulation-query.service.ts
+│   ├── compliance/
+│   │   ├── compliance-rule-set.aggregate.ts
+│   │   ├── limit-rule.vo.ts
+│   │   ├── usage-declaration.vo.ts
+│   │   └── compliance-evaluator.service.ts   # ★ 核心
+│   ├── inquiry/
+│   │   ├── evidence.vo.ts
+│   │   ├── citation.vo.ts
+│   │   └── citation-validator.service.ts     # ★ 核心
+│   ├── graph/
+│   │   └── entity.aggregate.ts
+│   └── shared/
+│       ├── domain-event.ts
+│       └── rule-version.vo.ts
+│
+└── infrastructure/                # 基础设施层
+    ├── persistence/
+    │   ├── d1/
+    │   │   ├── regulation.repository.impl.ts
+    │   │   ├── compliance.repository.impl.ts
+    │   │   └── graph.repository.impl.ts
+    │   └── retrieval/
+    │       └── hybrid-retriever.adapter.ts    # FTS5 + bge + RRF
+    ├── llm/
+    │   └── openai-compatible.client.ts
+    └── embedding/
+        └── bge.client.ts</code></pre>
+  </div>
+</section>
+
+<!-- ══════════ 6 ══════════ -->
+<section id="s6">
+  <h2><span class="num">6</span>数据所有权与表归属</h2>
+
+  <table class="stack2">
+    <thead><tr><th>表</th><th>归属上下文</th><th>写权限</th></tr></thead>
+    <tbody>
+      <tr><td><code>documents</code> / <code>chapters</code> / <code>articles</code></td><td>① 法规知识库</td><td>仅 ① 的仓储（经 ⑤ 事件触发）</td></tr>
+      <tr><td><code>articles_fts</code></td><td>① 法规知识库</td><td>同上（FTS 影子表）</td></tr>
+      <tr><td><code>catalog</code></td><td>① 法规知识库</td><td>同上（书籍原版层级）</td></tr>
+      <tr><td><code>compliance_rules</code> / <code>rule_versions</code></td><td>② 合规规则</td><td>仅 ② 的仓储 <span class="b b-err">待建</span></td></tr>
+      <tr><td><code>entities</code> / <code>entity_articles</code></td><td>④ 知识图谱</td><td>仅 ④ 的仓储</td></tr>
+      <tr><td><code>index_meta</code></td><td>④ 知识图谱</td><td>仅 ④ 的仓储</td></tr>
+      <tr><td><code>regulation_releases</code> / <code>subscriptions</code></td><td>⑤ 法规监测</td><td>仅 ⑤ 的仓储 <span class="b b-err">待建</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box danger">
+    <span class="t">⚠️ 发现一处现存的跨上下文外键</span>
+    <code>entity_articles</code> 对 <code>articles</code> 有外键约束 —— 这是<b>跨上下文外键，违反 R1</b>。
+    <br><br>
+    <b>修正方案</b>：图谱上下文改为存 <code>article_ref</code>（逻辑引用，<b>不带 FK</b>），由 ACL 在读取时解析。
+    这样 ④ 可以独立演进，且将来 ① 换存储不影响 ④。
+  </div>
+</section>
+
+<!-- ══════════ 7 ══════════ -->
+<section id="s7">
+  <h2><span class="num">7</span>领域事件</h2>
+
+  <table class="stack2">
+    <thead><tr><th>事件</th><th>发布者</th><th>消费者</th><th>载荷</th></tr></thead>
+    <tbody>
+      <tr><td><code>RegulationReleaseDetected</code></td><td>⑤ 监测</td><td>① 知识库</td><td>新版本文档 id + 差异摘要</td></tr>
+      <tr><td><code>RegulationVersionIngested</code></td><td>① 知识库</td><td>② 合规规则</td><td>需要重算规则的条文 id 列表</td></tr>
+      <tr><td><code>RulesRecalculated</code></td><td>② 合规规则</td><td>⑤ 监测</td><td>受影响物质/品类集合 → 推送影响面</td></tr>
+      <tr><td><code>EntityRelationsExtracted</code></td><td>④ 图谱</td><td>③ 问答</td><td>实体 id 列表（供图谱增强检索）</td></tr>
+    </tbody>
+  </table>
+
+  <p>事件用 Workers <code>ctx.waitUntil()</code> 异步派发，<b>失败不阻塞主流程</b>，但必须记录到 <code>index_meta</code> 或日志。</p>
+</section>
+
+<!-- ══════════ 8 ══════════ -->
+<section id="s8">
+  <h2><span class="num">8</span>现状 → 目标映射（可执行）</h2>
+
+  <div class="phases">
+    <div class="phase">
+      <div class="pn">M1 · 1 天</div>
+      <div>
+        <div class="pt">抽离领域层 —— 不改变任何行为</div>
+        <div class="pd">
+          把纯逻辑从 <code>index.ts</code> 抽到 <code>domain/</code>，建立第一批单测。
+          <br><b>映射</b>：<code>validateCitations</code> → <code>domain/inquiry/citation-validator.service.ts</code>；
+          <code>buildRagPrompt</code> → <code>application/inquiry/prompt-builder.ts</code>；
+          <code>llmConfig</code>+<code>fetchWithRetry</code> → <code>interfaces/acl/llm.acl.ts</code>；
+          <code>plainExcerpt</code> → <code>interfaces/acl/regulation.acl.ts</code>；
+          <code>r2Key</code> → <code>infrastructure/persistence/d1/mappers.ts</code>
+          <br><b>验收</b>：现有 34 个单测保持绿 + 新增领域层单测 ≥ 20 个 + CI eval 门禁 recall@10 ≥ 70% 不变
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pn">M2 · 3–5 天</div>
+      <div>
+        <div class="pt">建合规规则上下文 —— 快档核心</div>
+        <div class="pd">
+          <b>交付</b>：<code>compliance_rules</code> 表 + 仓储 + ACL；<code>ComplianceEvaluator</code> 领域服务（纯函数，100% 单测覆盖）；
+          <code>POST /api/compliance/usage</code> 端点；前端「用量合规速查」输入框
+          <br><b>验收</b>：50 条真实限量规则入库 → 输入「维生素C + 猪 + 200mg/kg」返回「合规 + 依据条款原文」；
+          超限量返回「超限 + 超出量 + 依据条款」；未覆盖物质返回「<b>规则未覆盖，需人工确认</b>」（<b>不允许返回合规</b>）
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pn">M3 · 3–4 天</div>
+      <div>
+        <div class="pt">领域层与基础设施层彻底分离</div>
+        <div class="pd">
+          <b>交付</b>：<code>index.ts</code> 从 1059 行 → <b>&lt; 150 行</b>（仅剩 composition root + 路由挂载）；
+          全部 D1 SQL 移入 <code>infrastructure/persistence/</code>；领域层引入 <code>domain/</code> 后单测覆盖率门禁
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pn">M4 · 按需</div>
+      <div>
+        <div class="pt">拆第五上下文 —— 对档方案</div>
+        <div class="pd">
+          ⑤ 监测（爬虫 + 差异检测）落地时，才建 <code>monitoring/</code> 上下文与事件机制。<b>不提前造。</b>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 9 ══════════ -->
+<section id="s9">
+  <h2><span class="num">9</span>取舍：否决了什么</h2>
+
+  <table class="stack2">
+    <thead><tr><th>方案</th><th>优点</th><th>缺点</th><th>选择</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>按领域划分上下文 + DDD 分层</b>（本方案）</td>
+        <td>边界对齐业务语义；规则引擎/监测有明确落点；领域层纯函数可单测</td>
+        <td>1059 行拆成 ~40 文件，短期可读性下降，需靠目录约定与 barrel 导出缓解</td>
+        <td><span class="b b-ok">采用</span></td>
+      </tr>
+      <tr>
+        <td>继续单文件 + 加注释分区</td>
+        <td>零迁移成本</td>
+        <td>L3 必然失控，对档方案开工即第二遍混乱</td>
+        <td><span class="b b-err">否决</span></td>
+      </tr>
+      <tr>
+        <td>照搬经典 DDD（仓储/工厂/规格全套）</td>
+        <td>教条完整</td>
+        <td>Workers 无 DI 容器，大量样板代码换不来可测性收益</td>
+        <td><span class="b b-err">否决</span></td>
+      </tr>
+      <tr>
+        <td>全面迁移 FastAPI + PostgreSQL + Milvus<br><span style="font-size:12px;color:var(--fg-faint)">（架构方案文档原选型）</span></td>
+        <td>匹配 DDD 成熟范式；支持事务/向量库</td>
+        <td>放弃 Serverless 零运维优势；需服务器 + 迁移 3145 条文 + 重建索引；<b>违本项目最大优势</b></td>
+        <td><span class="b b-err">否决</span></td>
+      </tr>
+      <tr>
+        <td>只做分层不做上下文划分</td>
+        <td>改动小</td>
+        <td>规则库/监测归属仍不清，L3 未解决</td>
+        <td><span class="b b-err">否决</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">被否决方案值得记录的原因</span>
+    架构方案文档（第 7 章）假设 FastAPI + Redis + PostgreSQL。实际落地用了 Cloudflare 全 Serverless，
+    这是<b>受约束下的正确偏离</b>（零运维、零付费产品开通、CI 推代码即上线）。
+    <b>DDD 重构不改变这个技术栈</b> —— 它是在现有栈内调整代码组织，不动运行时形态。
+  </div>
+</section>
+
+<!-- ══════════ 10 ══════════ -->
+<section id="s10">
+  <h2><span class="num">10</span>风险与应对</h2>
+
+  <table class="stack2">
+    <thead><tr><th>风险</th><th>等级</th><th>应对</th></tr></thead>
+    <tbody>
+      <tr><td><b>DDD 换皮</b>：目录分了，依赖还是乱的</td><td><span class="b b-err">高</span></td><td>R1–R5 五条强制规则写进 code review checklist；用<b>依赖方向测试（架构测试）</b>自动校验</td></tr>
+      <tr><td>拆文件引入行为回归</td><td><span class="b b-warn">中</span></td><td>M1 阶段<b>严格零行为变更</b>，用现有 34 单测 + 9 e2e + CI eval 门禁三重护栏</td></tr>
+      <tr><td>领域层被基础设施污染（偷偷 import D1）</td><td><span class="b b-warn">中</span></td><td>架构测试：扫描 <code>domain/</code> 目录的 import，发现 <code>D1Database</code> 等即失败</td></tr>
+      <tr><td>只读核心域与「新增法规」流程冲突</td><td><span class="b b-mute">低</span></td><td>写入统一走 ⑤ 的领域事件；① 的仓储提供 <code>ingestRelease()</code> 内部方法</td></tr>
+      <tr><td>过度设计：为不存在的需求建上下文</td><td><span class="b b-warn">中</span></td><td>④ 图谱保持空壳不实现；⑤ 不到需求不建。<b>按需展开</b></td></tr>
+      <tr><td>团队不熟悉 DDD</td><td><span class="b b-warn">中</span></td><td>通用语言表放进代码注释与本文档；context 划分先用 3 周验证再推广</td></tr>
+    </tbody>
+  </table>
+
+  <h3>预期产出</h3>
+  <ol>
+    <li><b>5 个限界上下文</b>，每个有明确的通用语言、聚合根、不变量与依赖规则</li>
+    <li><b>领域层纯 TS 零依赖</b>，100% 可单测，不碰网络不碰数据库</li>
+    <li><b>规则引擎有了确定归属</b>（② 合规规则），快档方案可直接开工</li>
+    <li><b><code>index.ts</code> 从 1059 行瘦身到 &lt;150 行</b>，新人可读</li>
+    <li><b>架构测试自动守护依赖方向</b>，DDD 不靠人的自觉维持</li>
+  </ol>
+
+  <div class="box purple">
+    <span class="t">下一步</span>
+    M1（抽离领域层，1 天）是<b>零风险起步</b> —— 不改行为，只搬代码 + 补单测。
+    M2（合规规则上下文）才是快档方案的技术落点。
+    <br><br>
+    建议顺序：<b>M1 → M2 → M3</b>，M4 留到对档方案启动时。
+  </div>
+</section>
+
+<footer>
+  <p>ADR-004 · DDD 限界上下文架构 · 2026-10-28 · qingmang CTO</p>
+  <p style="margin-top:8px">基线 <span class="kbd">v1.0.0-production</span> · 关联 <span class="kbd">ADR-001</span> <span class="kbd">ADR-003</span> <span class="kbd">architecture-analysis.html</span></p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var mq = window.matchMedia('(max-width: 820px)');
+  function mark(){
+    document.querySelectorAll('table').forEach(function(t){
+      if(t.dataset.hinted) return;
+      if(t.classList.contains('stack2')) return;
+      var hint = document.createElement('div');
+      hint.className = 'scrollhint';
+      hint.textContent = '← 左右滑动查看完整表格';
+      t.parentNode.insertBefore(hint, t);
+      t.dataset.hinted = '1';
+    });
+  }
+  function run(){
+    document.querySelectorAll('.scrollhint').forEach(function(e){e.remove();});
+    document.querySelectorAll('table').forEach(function(t){delete t.dataset.hinted;});
+    if(mq.matches) mark();
+  }
+  if(mq.addEventListener) mq.addEventListener('change', run);
+  window.addEventListener('resize', run);
+  window.addEventListener('load', run);
+  run();
+})();
+
+function cp(btn){
+  var pre = btn.parentElement.querySelector('pre');
+  var txt = pre.innerText;
+  var done = function(){
+    var old = btn.textContent;
+    btn.textContent = '已复制 ✓';
+    btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1800);
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(done).catch(fallback);
+  } else { fallback(); }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+</script>
+
+</body>
+</html>
