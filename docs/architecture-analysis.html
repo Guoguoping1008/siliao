@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>架构分析 · Word 方案 vs 已实现 · siliao RAG</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --purple:#a78bfa;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 100px}
+
+  /* ── header ── */
+  header{
+    background:linear-gradient(135deg,#0c4a6e 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{
+    display:inline-block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+    padding:4px 14px; margin-bottom:18px; font-weight:600;
+  }
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:74ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{
+    background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3);
+    color:#bae6fd; border-radius:6px; padding:5px 12px; font-size:12.5px; font-family:ui-monospace,monospace;
+  }
+  header code{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  /* ── toc ── */
+  nav.toc{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 26px; margin-bottom:40px; box-shadow:var(--shadow);
+  }
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  /* ── sections ── */
+  section{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:30px 32px; margin-bottom:26px; box-shadow:var(--shadow);
+  }
+  h2{
+    font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border);
+  }
+  h2 .num{
+    background:var(--accent);color:#082f49;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none;
+  }
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--code-bg); border:1px solid var(--border); border-radius:4px;
+    padding:1.5px 6px; font-size:.87em; color:#7dd3fc;
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:16px 18px; overflow-x:auto; margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.6;
+  }
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  /* ── callouts ── */
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+  .box.purple{background:rgba(167,139,250,.09);border-color:var(--purple)}
+  .box.purple .t{color:var(--purple)}
+
+  /* ── steps ── */
+  .step{margin:20px 0;padding:18px 20px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+  .step > .h{font-weight:700;margin-bottom:10px;color:var(--fg);font-size:1rem}
+  .step > .h .b{
+    display:inline-grid;place-items:center;width:23px;height:23px;border-radius:6px;
+    background:var(--bg3);color:var(--accent);font-size:12.5px;font-weight:800;margin-right:9px;vertical-align:1px;
+  }
+  .step p:last-child,.step pre:last-child,.step ul:last-child,.step ol:last-child{margin-bottom:0}
+
+  /* ── copy button ── */
+  .prewrap{position:relative}
+  .copy{
+    position:absolute;top:9px;right:9px;background:var(--bg3);border:1px solid var(--border);
+    color:var(--fg-dim);border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;
+    font-family:inherit;transition:.15s;z-index:2;
+  }
+  .copy:hover{background:var(--accent);color:#082f49;border-color:var(--accent)}
+  .copy.done{background:var(--ok);color:#052e16;border-color:var(--ok)}
+
+  /* ── table ── */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+
+  /* ── badges ── */
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+  .b-mute{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+
+  /* ── stat cards ── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0}
+  .stat{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:16px 18px}
+  .stat .k{font-size:11.5px;color:var(--fg-faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+  .stat .v{font-size:1.5rem;font-weight:800;color:var(--fg);line-height:1.15;font-family:ui-monospace,monospace}
+  .stat .v.ok{color:var(--ok)} .stat .v.warn{color:var(--warn)} .stat .v.err{color:var(--err)} .stat .v.info{color:var(--accent)}
+  .stat .n{font-size:12.5px;color:var(--fg-dim);margin-top:5px}
+
+  /* ── two-track compare ── */
+  .tracks{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .track{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:20px 22px;border-top:3px solid var(--accent)}
+  .track.fast{border-top-color:var(--ok)}
+  .track.right{border-top-color:var(--purple)}
+  .track h4{margin:0 0 4px;font-size:1.02rem;color:var(--fg)}
+  .track .tl{font-size:12px;color:var(--fg-faint);margin-bottom:14px;font-family:ui-monospace,monospace}
+  .track dl{margin:0;font-size:13.8px}
+  .track dt{font-weight:700;color:var(--fg-dim);font-size:12px;letter-spacing:.04em;text-transform:uppercase;margin-top:12px}
+  .track dd{margin:3px 0 0;color:var(--fg)}
+
+  /* ── endpoint cards ── */
+  .eps{display:grid;gap:10px;margin:16px 0}
+  .ep{display:flex;align-items:center;gap:14px;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:12px 16px;flex-wrap:wrap}
+  .ep .url{font-family:ui-monospace,monospace;font-size:13px;color:#7dd3fc;word-break:break-all;flex:1;min-width:260px}
+  .ep .desc{color:var(--fg-dim);font-size:13px}
+
+  /* ── docx cards ── */
+  .docx{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin:14px 0}
+  .docx .fn{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--accent);margin-bottom:5px}
+  .docx .mt{font-weight:700;font-size:1rem;color:var(--fg);margin-bottom:8px}
+
+  /* ── flow diagram ── */
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0;font-size:13px}
+  .flow .n{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px 13px;color:var(--fg);font-weight:600}
+  .flow .a{color:var(--accent);font-weight:800;font-size:16px}
+  .flow .n.on{background:rgba(52,211,153,.14);border-color:var(--ok);color:var(--ok)}
+  .flow .n.off{background:rgba(248,113,113,.1);border-color:var(--err);color:var(--err);opacity:.75}
+
+  details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg);overflow:hidden}
+  summary{padding:13px 18px;cursor:pointer;font-weight:600;font-size:14.5px;list-style:none;
+          display:flex;align-items:center;gap:10px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.2s;flex:none}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary:hover{background:var(--bg3)}
+  .dbody{padding:0 18px 16px;border-top:1px solid var(--border)}
+  .dbody > *:first-child{margin-top:14px}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+  .kbd{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg3);border:1px solid var(--border);
+       border-bottom-width:2px;border-radius:4px;padding:1px 6px}
+
+  /* ══════════ 移动端 / H5 适配 ══════════ */
+  @media (max-width: 820px){
+    .wrap{padding:0 16px 72px}
+    header{padding:34px 0 30px;margin-bottom:26px}
+    h1{font-size:1.5rem;line-height:1.32}
+    .sub{font-size:.95rem;line-height:1.7}
+    .eyebrow{font-size:11px;padding:3px 11px;margin-bottom:14px}
+    .meta{gap:7px;margin-top:18px}
+    .chip{font-size:11px;padding:4px 9px}
+
+    section{padding:20px 17px;margin-bottom:18px;border-radius:9px}
+    h2{font-size:1.12rem;gap:10px;padding-bottom:12px}
+    h2 .num{width:26px;height:26px;font-size:.82rem;border-radius:7px}
+    h3{font-size:.98rem;margin:20px 0 8px}
+    p,li{font-size:14.5px;line-height:1.72}
+    ul,ol{margin-left:18px}
+
+    .scrollhint{
+      display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg-faint);
+      margin:-4px 0 8px;user-select:none;
+    }
+    .scrollhint::after{content:"⟶";color:var(--accent);font-size:14px}
+
+    table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;font-size:13px}
+    th,td{padding:8px 11px}
+
+    table.stack2{display:block;overflow-x:visible;white-space:normal}
+    table.stack2 thead{display:none}
+    table.stack2 tr{display:block;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:3px 0;margin-bottom:10px}
+    table.stack2 tr:last-child{margin-bottom:0}
+    table.stack2 tr:nth-child(even) td{background:none}
+    table.stack2 td{display:block;border:none;padding:6px 14px;white-space:normal;
+      width:auto !important}
+    table.stack2 td:first-child{
+      font-weight:700;font-size:12.5px;color:var(--fg);
+      letter-spacing:.02em;padding-bottom:1px;
+    }
+    table.stack2 td + td{border-top:1px dashed var(--border);padding-top:8px;padding-bottom:8px}
+    table.stack2 td:first-child:empty{display:none}
+
+    pre{padding:13px 14px;font-size:12px;line-height:1.65;border-radius:7px;
+        overflow-x:auto;-webkit-overflow-scrolling:touch}
+    pre code{font-size:12px;white-space:pre;display:block}
+
+    p a, li a, td a{overflow-wrap:anywhere;word-break:break-word}
+
+    /* 双档 → 纵向堆叠 */
+    .tracks{grid-template-columns:1fr;gap:12px}
+    .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+    .stat{padding:13px 14px}
+    .stat .v{font-size:1.25rem}
+    .flow{gap:6px}
+    .flow .n{padding:6px 10px;font-size:12px}
+    .copy{position:static;display:block;margin:6px 0 0 auto}
+    .prewrap{padding-top:2px}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    header{background:#0c4a6e !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{box-shadow:none;border-color:#cbd5e1}
+    .copy,.scrollhint{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">Architecture Review · CTO</span>
+    <h1>架构分析：Word 方案文档 vs 已实现系统</h1>
+    <p class="sub">
+      对 <b>《面向饲料法规的智能体》</b>（构想稿）与 <b>《饲料法规智能体架构方案》</b>（V1.0 正式方案）两份 Word 文档，
+      与仓库 <b>实际落地的代码</b>、<b>生产环境实测结果</b> 做三方对照。
+      结论：系统当前是<b>纯 RAG 检索问答系统</b>，方案中的「规则引擎 + 知识图谱 + 变更监控」三大件尚未开工。
+    </p>
+    <div class="meta">
+      <span class="chip">基线 tag: v1.0.0-production</span>
+      <span class="chip">commit: b4645d7</span>
+      <span class="chip">branch: deploy/c-b-hybrid</span>
+      <span class="chip">日期: 2026-10-28</span>
+      <span class="chip">决策者: qingmang (青芒 CTO)</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">Tag 基线 —— 已打并推送</a></li>
+    <li><a href="#s2">《面向饲料法规的智能体》文档分析</a></li>
+    <li><a href="#s3">《饲料法规智能体架构方案》文档分析</a></li>
+    <li><a href="#s4">已实现能力清单（生产实测）</a></li>
+    <li><a href="#s5">未实现能力清单（代码级验证）</a></li>
+    <li><a href="#s6">关键差距判断</a></li>
+    <li><a href="#s7">下一阶段两档方案</a></li>
+    <li><a href="#s8">CTO 否决线</a></li>
+    <li><a href="#s9">验证方法与证据来源</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════ 1 ══════════ -->
+<section id="s1">
+  <h2><span class="num">1</span>Tag 基线 —— 已打并推送</h2>
+
+  <div class="box ok">
+    <span class="t">✓ 已完成并经远端回读核对</span>
+    <code>v1.0.0-production</code> 指向 annotated tag 对象 <code>8450306</code>，解引用到 commit <code>b4645d7</code>。
+    HEAD 与 <code>origin/deploy/c-b-hybrid</code> 完全一致，无未推送提交。
+  </div>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>$ git tag -a v1.0.0-production -m "饲料法规智能体 v1.0.0 · 生产基线 ..." b4645d7
+$ git push origin v1.0.0-production
+ * [new tag]         v1.0.0-production -&gt; v1.0.0-production
+
+$ git ls-remote --tags origin | grep v1.0.0
+8450306b9c3c632ee4ad4d8b25c2063a2fe56301   refs/tags/v1.0.0-production
+b4645d7c1ceaf920691d74973a2d0605e7463073   refs/tags/v1.0.0-production^{}</code></pre>
+  </div>
+
+  <h3>Tag 注释记录的内容</h3>
+  <ul>
+    <li><b>语料</b>：OCR 1021 页 → 196 文档 / 529 章 / 3145 条文（<code>minimax/</code> 树）</li>
+    <li><b>检索</b>：D1 FTS5 trigram（phrase 优先 + bigram RRF + 标题加权）⊕ bge-m3 语义 hybrid</li>
+    <li><b>问答</b>：MiniMax-Text-01 流式 RAG，引用逐条校验（幻觉标红）</li>
+    <li><b>前端</b>：Vite + React 18 + Tailwind，目录树 / 检索 / 条文 / 实体 / QA 五视图</li>
+    <li><b>评测</b>：recall@10 76.0% / MRR 0.647 / 业务 query MRR 0.717，CI 门禁 70%</li>
+    <li><b>部署</b>：Cloudflare Pages + Workers + D1，push 即自动部署</li>
+    <li><b>未实现</b>：规则引擎 / 结构化规则库 / 变更监控 Agent / 审核预审 Agent / GraphRAG</li>
+  </ul>
+</section>
+
+<!-- ══════════ 2 ══════════ -->
+<section id="s2">
+  <h2><span class="num">2</span>《面向饲料法规的智能体》文档分析</h2>
+
+  <div class="docx">
+    <div class="fn">E:\workspace\siliao\面向饲料法规的智能体.docx</div>
+    <div class="mt">早期需求构想稿（63 行）—— 不是落地方案</div>
+    <p>核心是一个 5 步 Agent 流程，以「这种预混料在猪饲料中的添加量合规吗？」为示例问题。</p>
+  </div>
+
+  <div class="flow">
+    <span class="n">Step1 意图识别</span><span class="a">→</span>
+    <span class="n">Step2 任务拆解</span><span class="a">→</span>
+    <span class="n">Step3 工具调用</span><span class="a">→</span>
+    <span class="n">Step4 结果融合</span><span class="a">→</span>
+    <span class="n on">Step5 输出生成</span>
+  </div>
+
+  <p>Step1 提取实体（产品类型 / 动物种类 / 属性），Step3 分派三类工具：<b>向量检索</b>、<b>知识图谱</b>、<b>规则引擎</b>。</p>
+
+  <h3>四大功能模块</h3>
+  <table class="stack2">
+    <thead><tr><th>模块</th><th>子能力</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>① 法规检索</td>
+        <td>语义检索（自然语言查询）· 层级导航（条例→办法→公告→条款）· 版本追溯（修订记录与现行有效版本）</td>
+      </tr>
+      <tr>
+        <td>② 合规审查</td>
+        <td>配方审查（比对禁用清单和限量标准）· 标签审查（GB 10648）· 企业资质审查（生产许可证、批准文号有效性）</td>
+      </tr>
+      <tr>
+        <td>③ 风险预警</td>
+        <td>法规变更预警（监测农业农村部新公告）· 抽检结果预警 · 合规日历（换证/年检/过渡期）</td>
+      </tr>
+      <tr>
+        <td>④ 知识问答</td>
+        <td>多轮对话追问 · 引用自动标注到具体条款（如《条例》第十四条第二款）· 复杂问题拆解后分步回答</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>架构主张</h3>
+  <div class="box purple">
+    <span class="t">RAG + 知识图谱 + 规则引擎 三者互补</span>
+    「RAG 解决语义理解、知识图谱解决关系推理、规则引擎解决精确计算，三者互补，
+    能够覆盖饲料法规场景中从『模糊查询』到『精确合规判定』的完整需求链。」
+    <br><br>
+    <b>对照现实</b>：这三件里，RAG 已落地，知识图谱是空表，规则引擎是零代码。
+  </div>
+
+  <h3>数据更新机制（文档自述的关键难点）</h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>农业农村部官网 / 国家饲料质量检验中心
+        │
+        ▼  公告监测爬虫（每日定时）
+        │
+        ▼  变更检测 → 增量更新向量库 + 图谱 + 规则引擎
+        │
+        ▼
+  影响分析 → 向订阅用户推送预警</code></pre>
+  </div>
+
+  <p class="b b-err">完全未实现</p>
+  <p>仓库内无爬虫代码、无定时任务、无订阅推送逻辑。</p>
+</section>
+
+<!-- ══════════ 3 ══════════ -->
+<section id="s3">
+  <h2><span class="num">3</span>《饲料法规智能体架构方案》文档分析</h2>
+
+  <div class="docx">
+    <div class="fn">E:\workspace\siliao\饲料法规智能体架构方案.docx</div>
+    <div class="mt">正式技术方案（233 行）—— 十章完整版，V1.0，2026-10-28</div>
+    <p>副标题：面向合规问答、配方校验、法规监控与材料预审的智能体系统设计</p>
+  </div>
+
+  <h3>五层架构</h3>
+  <table class="stack2">
+    <thead><tr><th>层级</th><th>核心组成</th><th>职责定位</th></tr></thead>
+    <tbody>
+      <tr><td>应用层</td><td>法规问答、合规校验工作台、变更监控简报、API/插件</td><td>面向不同角色的产品化交付入口</td></tr>
+      <tr><td>智能体核心层</td><td>意图理解、任务规划（Planner）、四个子智能体（问答/校验/监控/审核）、结论整合、记忆体系</td><td>任务拆解、多智能体协作与结果汇聚</td></tr>
+      <tr><td>能力层</td><td>RAG 检索、规则引擎、法规引用定位、OCR 解析、报告生成</td><td>可复用的原子能力服务</td></tr>
+      <tr><td>数据与知识层</td><td>法规知识库（条款级）、目录/限量库、案例库、向量+全文双索引</td><td>领域知识沉淀与检索底座</td></tr>
+      <tr><td>治理与安全（贯穿）</td><td>版本化、溯源审计、权限、评测与监控</td><td>保障合规性、可审计性与持续质量</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">架构要点（文档原话）</span>
+    「智能体不直接生成监管结论，而是『<b>检索引用 → 规则校验 → 模型整合</b>』三段式得出结论，
+    任何环节不可溯源时<b>拒答并转人工</b>。」
+  </div>
+
+  <h3>四条设计原则 —— 可直接作为验收标准</h3>
+  <table class="stack2">
+    <thead><tr><th>原则</th><th>说明</th><th>落地状态</th></tr></thead>
+    <tbody>
+      <tr><td>合规优先</td><td>监管结论必须可溯源（条款号 + 原文），禁止无依据作答</td><td><span class="b b-warn">部分</span> 引用校验有雏形</td></tr>
+      <tr><td>规则与模型双轨</td><td>量化硬约束用确定性规则引擎，语义判断用 LLM，<b>冲突时以规则为准</b></td><td><span class="b b-err">未落地</span> 规则引擎不存在</td></tr>
+      <tr><td>人在回路</td><td>对外提交的合规结论必须经人工确认，系统定位「辅助审核」而非「自动批准」</td><td><span class="b b-err">未落地</span></td></tr>
+      <tr><td>知识时效可审计</td><td>知识库版本化，每条答案绑定法规版本快照，历史结论可回溯</td><td><span class="b b-err">未落地</span> 无 version 绑定</td></tr>
+    </tbody>
+  </table>
+
+  <h3>数据与知识层 · 覆盖范围</h3>
+  <table class="stack2">
+    <thead><tr><th>知识类别</th><th>内容示例</th><th>更新频率</th></tr></thead>
+    <tbody>
+      <tr><td>法律法规</td><td>《饲料和饲料添加剂管理条例》及修订</td><td>低（按修订）</td></tr>
+      <tr><td>部门规章</td><td>《生产许可管理办法》《进口饲料和饲料添加剂登记管理办法》</td><td>低</td></tr>
+      <tr><td>规范性文件</td><td>农业农村部公告（原料目录增补、添加剂品种调整）</td><td>高</td></tr>
+      <tr><td>目录与限量</td><td>《饲料原料目录》《饲料添加剂安全使用规范》《饲料卫生标准》限量表</td><td>中</td></tr>
+      <tr><td>标准文档</td><td>GB/T 产品标准、检测方法标准、标签强制标示要求</td><td>中</td></tr>
+    </tbody>
+  </table>
+
+  <h3>子智能体分工</h3>
+  <table class="stack2">
+    <thead><tr><th>子智能体</th><th>触发场景</th><th>核心动作</th></tr></thead>
+    <tbody>
+      <tr><td>问答 Agent</td><td>「XX 原料能不能用于 XX 饲料」</td><td>检索 → 引用 → 结构化作答（结论 + 依据 + 注意事项）</td></tr>
+      <tr><td>校验 Agent</td><td>配方/标签/申报材料合规核查</td><td>解析输入 → 规则引擎全量比对 → LLM 补充语义项 → 风险分级报告</td></tr>
+      <tr><td>监控 Agent</td><td>定时任务</td><td>抓取法规发布源 → 差异比对 → 变更摘要 + 影响面分析</td></tr>
+      <tr><td>审核 Agent</td><td>许可/备案材料预审</td><td>清单核对 → 缺项标注 → 生成预审意见供人工复核</td></tr>
+    </tbody>
+  </table>
+
+  <h3>实施路径（文档规划）</h3>
+  <table class="stack2">
+    <thead><tr><th>阶段</th><th>周期</th><th>交付物</th><th>验收标准</th></tr></thead>
+    <tbody>
+      <tr><td>一期 知识底座</td><td>6–8 周</td><td>法规知识库 v1（五大类入库）+ 双路检索</td><td>抽样问答引用准确率 ≥ 95%</td></tr>
+      <tr><td>二期 问答与监控</td><td>4–6 周</td><td>问答 Agent + 法规变更监控 MVP</td><td>内测用户满意度 ≥ 80%</td></tr>
+      <tr><td>三期 合规校验</td><td>6–8 周</td><td>规则库 v1（原料/限量/标签）+ 校验工作台</td><td>人工复核一致性 ≥ 90%</td></tr>
+      <tr><td>四期 审核与开放</td><td>4–6 周</td><td>材料预审 Agent + 开放 API</td><td>API 接入 1 个以上业务系统</td></tr>
+    </tbody>
+  </table>
+
+  <h3>技术选型（文档建议 vs 实际）</h3>
+  <table class="stack2">
+    <thead><tr><th>模块</th><th>文档推荐</th><th>实际采用</th><th>差异</th></tr></thead>
+    <tbody>
+      <tr><td>智能体框架</td><td>LangGraph / 自研状态机</td><td>无框架，单文件 Worker 路由</td><td>单 Agent，未做 Planner–Executor</td></tr>
+      <tr><td>LLM</td><td>国产合规大模型（DeepSeek / Qwen），建议私有化</td><td>MiniMax-Text-01（公网 API）</td><td>DeepSeek 余额 402，私有化未做</td></tr>
+      <tr><td>Embedding</td><td>BGE-M3</td><td>bge-m3 ✓ 自建容器</td><td>一致</td></tr>
+      <tr><td>向量库</td><td>Milvus / Elasticsearch / pgvector</td><td>D1 FTS5 + 外部 bge 服务</td><td>非向量库，靠 hybrid 补</td></tr>
+      <tr><td>规则引擎</td><td>自研 DSL + Python 执行器</td><td>—</td><td>未实现</td></tr>
+      <tr><td>OCR</td><td>PaddleOCR</td><td>MiniMax API OCR + 表格重建脚本</td><td>换供应商，效果已达标</td></tr>
+      <tr><td>服务化</td><td>FastAPI + Redis + PostgreSQL</td><td>Cloudflare Workers + D1</td><td>整体技术栈换成 Serverless</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <span class="t">选型差异的根因</span>
+    文档的选型表假设<b>自建服务器 + 关系库 + 长驻进程</b>；实际落地走的是
+    <b>Cloudflare 全 Serverless</b>（Workers + D1 + Pages），零运维成本、零付费产品开通。
+    这是<b>受约束下的正确偏离</b>，但代价是：规则引擎、图谱、爬虫这些需要长驻状态和重计算的组件，
+    在当前栈上没有落点 —— 这不是执行力问题，是<b>架构栈的承载边界问题</b>。
+  </div>
+
+  <h3>风险与应对（文档已识别）</h3>
+  <table class="stack2">
+    <thead><tr><th>风险</th><th>等级</th><th>应对</th><th>当前状态</th></tr></thead>
+    <tbody>
+      <tr><td>模型幻觉引用不存在的条款</td><td>高</td><td>引用定位器逐条校验，失败即拒答并转人工</td><td><span class="b b-ok">已实现</span></td></tr>
+      <tr><td>地方细则与国家法规冲突</td><td>中</td><td>知识库分层存储并标注效力位阶</td><td><span class="b b-err">未做</span></td></tr>
+      <tr><td>法规更新滞后导致过期结论</td><td>中</td><td>监控 Agent 双源比对，过期答案加「已修订」提示</td><td><span class="b b-err">未做</span></td></tr>
+      <tr><td>规则覆盖不全造成漏检</td><td>中</td><td>校验报告区分「规则判定」与「模型判断」</td><td><span class="b b-err">规则库不存在</span></td></tr>
+      <tr><td>用户将辅助结论当最终批复</td><td>中</td><td>全部对外输出标注「辅助意见，不构成监管结论」</td><td><span class="b b-warn">部分</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ 4 ══════════ -->
+<section id="s4">
+  <h2><span class="num">4</span>已实现能力清单（生产实测）</h2>
+
+  <div class="stats">
+    <div class="stat"><div class="k">条文总数</div><div class="v info">3145</div><div class="n">196 文档 / 529 章</div></div>
+    <div class="stat"><div class="k">检索 recall@10</div><div class="v ok">76.0%</div><div class="n">CI 门禁 ≥ 70%</div></div>
+    <div class="stat"><div class="k">检索 MRR</div><div class="v ok">0.647</div><div class="n">业务 query 0.717</div></div>
+    <div class="stat"><div class="k">前端测试</div><div class="v ok">34/34</div><div class="n">vitest</div></div>
+    <div class="stat"><div class="k">E2E 测试</div><div class="v ok">9/9</div><div class="n">Playwright</div></div>
+    <div class="stat"><div class="k">生产状态</div><div class="v ok">在线</div><div class="n">Pages + Workers + D1</div></div>
+  </div>
+
+  <table class="stack2">
+    <thead><tr><th>能力</th><th>实现方式</th><th>验证证据</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>语料底座</td>
+        <td>OCR 1021 页 → <b>196 文档 / 529 章 / 3145 条文</b>，<code>minimax/</code> 章/节/文件三层树</td>
+        <td>D1 实测；<code>build/export/ingest_minimax.py</code></td>
+      </tr>
+      <tr>
+        <td>法规检索</td>
+        <td>D1 FTS5 trigram：<b>phrase 优先 + bigram RRF + 标题加权 3x</b> ⊕ bge-m3 语义 hybrid</td>
+        <td>生产 <code>/api/search</code> 实测返回带 <code>chapter_title</code> / <code>excerpt</code> 的 hit</td>
+      </tr>
+      <tr>
+        <td>知识问答</td>
+        <td>MiniMax-Text-01 流式 RAG + <b>引用逐条校验（幻觉标红）</b></td>
+        <td>生产 <code>/api/qa</code> 实测：问维生素C添加量，正确返回《饲料添加剂安全使用规范》条目 + 动物×mg/kg 表格</td>
+      </tr>
+      <tr>
+        <td>层级导航</td>
+        <td>书籍原版层级 + 文号 + 起始页</td>
+        <td><code>/api/catalog</code> + 前端 <code>CatalogTree</code></td>
+      </tr>
+      <tr>
+        <td>前端应用</td>
+        <td>Vite + React 18 + Tailwind，6 条路由</td>
+        <td><code>web/src/main.tsx:20-26</code></td>
+      </tr>
+      <tr>
+        <td>评测体系</td>
+        <td>检索 eval + faithfulness eval + CI 硬门禁</td>
+        <td><code>evals/eval_minimax.py</code>；CI 断言 recall@10 ≥ 70%</td>
+      </tr>
+      <tr>
+        <td>自动化部署</td>
+        <td>push → CI 验证 → 部署 Worker + Pages → 回读生产 API 校验</td>
+        <td><code>.github/workflows/deploy.yml</code></td>
+      </tr>
+      <tr>
+        <td>实体图谱</td>
+        <td><code>entities</code> / <code>entity_articles</code> 表 + <code>/api/entity/:name</code> + <code>EntityGraph</code></td>
+        <td><b>表结构在，生产查「抗生素」返回 <code>entity_not_found</code> —— 空表，壳而已</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>生产地址（实测可达）</h3>
+  <div class="eps">
+    <div class="ep"><span class="b b-ok">前端</span><span class="url">https://siliao-web.pages.dev</span><span class="desc">Cloudflare Pages，产物 <code>web/dist</code></span></div>
+    <div class="ep"><span class="b b-ok">API 代理</span><span class="url">https://siliao-web.pages.dev/api/*</span><span class="desc">Pages Functions，实测走这条</span></div>
+    <div class="ep"><span class="b b-warn">Worker 直连</span><span class="url">https://siliao-api.guoguoping.workers.dev</span><span class="desc">本次实测超时（http=000, 21s）</span></div>
+    <div class="ep"><span class="b b-ok">bge 语义层</span><span class="url">https://ns.hbnongfengyuan.cn</span><span class="desc">自建服务器 Docker + nginx</span></div>
+    <div class="ep"><span class="b b-ok">D1</span><span class="url">siliao-db / e406e21e-e770-4c97-822a-57178c347aa6</span><span class="desc">3145 条文，正文在 <code>articles.body</code></span></div>
+  </div>
+
+  <div class="box warn">
+    <span class="t">⚠️ Worker 直连超时</span>
+    本次实测 <code>siliao-api.guoguoping.workers.dev</code> 21 秒超时（http=000），而 Pages 代理路径完全正常。
+    推测为 Worker 自定义域名的 DNS/路由问题，<b>不影响前端使用</b>（前端只走 <code>/api/*</code> 代理）。
+    但运维文档把 Worker 直连列为正式 API 地址，需排查或修正文档。
+  </div>
+</section>
+
+<!-- ══════════ 5 ══════════ -->
+<section id="s5">
+  <h2><span class="num">5</span>未实现能力清单（代码级验证）</h2>
+
+  <p>以下均为<b>全仓 grep 无命中</b>或<b>生产实测为空</b>，非推测。</p>
+
+  <table class="stack2">
+    <thead><tr><th>方案能力</th><th>状态</th><th>验证证据</th></tr></thead>
+    <tbody>
+      <tr><td><b>规则引擎 / 结构化规则库</b></td><td><span class="b b-err">零代码</span></td><td>全仓 grep <code>rule_engine|dsl|规则引擎</code> 无任何命中</td></tr>
+      <tr><td><b>变更监控 Agent</b></td><td><span class="b b-err">未开工</span></td><td>无 crawl / schedule / 定时任务实现</td></tr>
+      <tr><td><b>审核预审 Agent</b></td><td><span class="b b-err">未开工</span></td><td>Worker 无对应路由</td></tr>
+      <tr><td><b>合规校验工作台</b></td><td><span class="b b-err">未开工</span></td><td>前端 6 路由中无校验页</td></tr>
+      <tr><td><b>GraphRAG</b></td><td><span class="b b-warn">仅骨架</span></td><td>只有 <code>prompts/</code> + <code>settings.yaml</code>，<b>从未跑过</b>；README 自述「真跑需 DeepSeek API Key」</td></tr>
+      <tr><td><b>多轮对话记忆</b></td><td><span class="b b-err">未实现</span></td><td>前端无会话状态，<code>QAPage</code> 每次独立提问</td></tr>
+      <tr><td><b>规则库 v1 / 案例库</b></td><td><span class="b b-err">不存在</span></td><td>无对应表或数据</td></tr>
+      <tr><td><b>版本化快照</b></td><td><span class="b b-err">未实现</span></td><td>文档表无 version 绑定字段</td></tr>
+      <tr><td><b>rerank</b></td><td><span class="b b-mute">试过并否决</span></td><td><code>evals/c_c_rerank_report.md</code>：bge-reranker 反而 <b>−10.3pp</b></td></tr>
+    </tbody>
+  </table>
+
+  <h3>rerank 被否决的实测数据（值得记住的负面结论）</h3>
+  <table class="stack2">
+    <thead><tr><th>系统</th><th>正例 R@10 ≥50%</th><th>负例 0 命中</th></tr></thead>
+    <tbody>
+      <tr><td>fts</td><td>47/78 (60.3%)</td><td>7/8 (87.5%)</td></tr>
+      <tr><td>bge</td><td><b>57/78 (73.1%)</b></td><td>7/8 (87.5%)</td></tr>
+      <tr><td>hybrid</td><td>54/78 (69.2%)</td><td>7/8 (87.5%)</td></tr>
+      <tr><td>hybrid + rerank</td><td>51/78 (65.4%)</td><td>7/8 (87.5%)</td></tr>
+      <tr><td>bge + rerank</td><td>49/78 (62.8%)</td><td>7/8 (87.5%)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">结论：C-c 不上 rerank</span>
+    根因三条：① <code>text_limit=400 + max_length=128</code> 截断过短，法规核心信息（条款号、修订日期、罚则金额）常在后半段；
+    ② cross-encoder 对法规检索需要的「同义条款识别 / 章节结构匹配 / 跨条款引用」不敏感；
+    ③ query 是口语短问，text 是书面长条款，语义 gap 大。
+    <br><br>
+    <b>后续方向</b>：C-c′ 短 query 扩展；C-c″ collection-aware 重排（doc_id 加权）；C-d 候选 GPU 跑 bge 后用更大 candidate 池。
+  </div>
+</section>
+
+<!-- ══════════ 6 ══════════ -->
+<section id="s6">
+  <h2><span class="num">6</span>关键差距判断</h2>
+
+  <div class="box danger">
+    <span class="t">核心结论</span>
+    方案里的 <b>「规则引擎 + 知识图谱 + 变更监控」三大件，代码里一个都没有</b>。
+    当前系统是<b>纯 RAG 检索问答系统</b>，能力边界卡在「<b>找到条款并原文引用</b>」。
+  </div>
+
+  <h3>这意味着什么</h3>
+  <ul>
+    <li>构想稿的「预混料添加量是否合规」→ <b>当前答不了</b>。系统只能告诉你「哪些条款规定了添加量」，无法给出「合规 / 不合规」判定。</li>
+    <li>方案文档最核心的「<b>规则与模型双轨</b>」原则尚未落地 —— 因为规则引擎不存在。</li>
+    <li>方案文档「<b>合规校验工作台</b>」「<b>变更监控简报</b>」两个应用层交付物未开工。</li>
+    <li>一期验收标准「抽样问答引用准确率 ≥ 95%」<b>未度量</b> —— 现有 eval 只有 retrieval 指标，没有「引用准确率」这个口径。</li>
+  </ul>
+
+  <h3>能力覆盖度示意</h3>
+  <div class="flow">
+    <span class="n on">法规检索</span><span class="a">·</span>
+    <span class="n on">层级导航</span><span class="a">·</span>
+    <span class="n on">知识问答</span><span class="a">·</span>
+    <span class="n warn" style="border-color:var(--warn);color:var(--warn)">版本追溯</span><span class="a">·</span>
+    <span class="n off">合规审查</span><span class="a">·</span>
+    <span class="n off">风险预警</span><span class="a">·</span>
+    <span class="n off">审核预审</span>
+  </div>
+  <p style="font-size:13px;color:var(--fg-dim)">
+    <span class="b b-ok">绿</span> 已上线 ·
+    <span class="b b-warn">黄</span> 部分 ·
+    <span class="b b-err">红</span> 未开工
+  </p>
+</section>
+
+<!-- ══════════ 7 ══════════ -->
+<section id="s7">
+  <h2><span class="num">7</span>下一阶段两档方案</h2>
+
+  <div class="tracks">
+    <div class="track fast">
+      <h4>快档 · 让现有 RAG 敢接「合规」问题</h4>
+      <div class="tl">1–2 周 · 约 5–7 人天</div>
+      <dl>
+        <dt>做什么</dt>
+        <dd>
+          <ol style="margin-left:18px">
+            <li>抽<b>限量 / 禁用清单</b>结构化表（先手工整理 50–100 条），落 D1 新表 <code>limits(物质, 动物, 上限, 单位, 来源条款)</code></li>
+            <li>Worker 加 <code>POST /api/compliance/usage</code> —— 输入物质+动物+用量 → 查表比对 → 返回「超限 / 合规 + 依据条款原文 + 引用」</li>
+            <li>前端 QA 页加「用量合规速查」输入框</li>
+            <li>引用校验扩展：规则判定结果<b>必须携带 source_article_id，否则拒答</b></li>
+          </ol>
+        </dd>
+        <dt>成本</dt><dd>约 5–7 人天（规则整理占大头）</dd>
+        <dt>风险</dt><dd>规则表覆盖不全 → 漏检。<b>必须显式标注「未覆盖」</b>，不能沉默放过</dd>
+        <dt>技术债</dt><dd>规则表手工维护，无更新流水线</dd>
+        <dt>迁移路径</dt><dd>表结构即 API 契约，后续替换成图谱 / 引擎不影响前端</dd>
+      </dl>
+    </div>
+
+    <div class="track right">
+      <h4>对档 · 补齐方案文档的「合规校验工作台」</h4>
+      <div class="tl">4–6 周 · 约 20–25 人天 + 领域专家投入</div>
+      <dl>
+        <dt>做什么</dt>
+        <dd>
+          <ol style="margin-left:18px">
+            <li>规则库工程化：DSL 表达「品类×物质×限量」，规则引擎执行器 + 规则版本化</li>
+            <li>爬虫 + 变更检测流水线（农业农村部公告 → 差异比对 → 影响分析）</li>
+            <li>GraphRAG 跑通（实体抽取 + 关系推理），补 <code>entities</code> 空表</li>
+            <li>多轮会话记忆 + 用户画像</li>
+            <li>人在回路工作流：风险分级报告 + 人工复核 + 申诉</li>
+            <li>评测升级：把「抽样问答引用准确率 ≥ 95%」变成 CI 硬门禁</li>
+          </ol>
+        </dd>
+        <dt>成本</dt><dd>约 20–25 人天 + 规则整理的领域专家投入</dd>
+        <dt>风险</dt><dd>爬虫依赖政府站点结构，站点改版即失效；GraphRAG 成本不可控</dd>
+        <dt>技术债</dt><dd>D1 FTS5 不是真正的向量库，语料再大一个量级要迁 Milvus / pgvector</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="box info">
+    <span class="t">推荐路径</span>
+    先做<b>快档的规则表</b> —— 它是「合规审查」整条业务线的唯一入口，且手工整理 50–100 条就能验证整条链路
+    （用户输入 → 判定 → 带原文引用）。这条链路跑通后，无论后面走哪档都不浪费。
+    <br><br>
+    更稳的做法：<b>先盘点语料里有多少条限量表数据可自动抽取</b> ——
+    《饲料添加剂安全使用规范》实测已含「动物×mg/kg」结构化表格，
+    能自动抽就先自动抽再人工校，比纯手工整理快一个数量级。
+  </div>
+</section>
+
+<!-- ══════════ 8 ══════════ -->
+<section id="s8">
+  <h2><span class="num">8</span>CTO 否决线</h2>
+
+  <p>以下两项不会因为「快」而放行：</p>
+
+  <div class="step">
+    <div class="h"><span class="b">1</span>无引用即输出 —— 合规结论没有条款原文支撑，一律拒答</div>
+    <p>当前 citation 校验已有雏形，要往严了做。这条直接对应方案文档「合规优先」原则，也是本系统唯一不可协商的底线。</p>
+  </div>
+
+  <div class="step">
+    <div class="h"><span class="b">2</span>静默漏检 —— 规则表没覆盖到的物质，必须返回「规则未覆盖，需人工确认」</div>
+    <p>绝不能返回「合规」。对应方案文档风险表的「规则覆盖不全造成漏检」及应对措施：校验报告必须区分「规则判定」与「模型判断」。</p>
+  </div>
+
+  <h3>其余事项的处置权</h3>
+  <table class="stack2">
+    <thead><tr><th>事项</th><th>权限归属</th></tr></thead>
+    <tbody>
+      <tr><td>安全 / 数据完整性 / 不可逆数据迁移</td><td><b>CTO 否决权</b>，不因进度放行</td></tr>
+      <tr><td>规则库覆盖范围与优先级排序</td><td>业务拍板（需领域专家参与）</td></tr>
+      <tr><td>快档 vs 对档的节奏选择</td><td>业务拍板</td></tr>
+      <tr><td>评测集 query 来源（脚本生成 vs 业务方提供真实 query）</td><td>业务拍板，影响指标可信度</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ 9 ══════════ -->
+<section id="s9">
+  <h2><span class="num">9</span>验证方法与证据来源</h2>
+
+  <p>本文所有结论均可复现，方法如下：</p>
+
+  <table class="stack2">
+    <thead><tr><th>结论</th><th>验证手段</th></tr></thead>
+    <tbody>
+      <tr><td>Tag 已推送且远端一致</td><td><code>git ls-remote --tags origin | grep v1.0.0</code> 回读 hash</td></tr>
+      <tr><td>生产检索可用</td><td><code>curl https://siliao-web.pages.dev/api/search?q=...</code> 实测返回 hit</td></tr>
+      <tr><td>生产问答可用且引用真实</td><td><code>curl -X POST .../api/qa -d '{"q":"...维生素C..."}'</code>，返回答案 + <code>citations[].excerpt</code> 含《饲料添加剂安全使用规范》表格原文</td></tr>
+      <tr><td>实体表为空</td><td><code>curl .../api/entity/抗生素</code> → <code>{"error":"entity_not_found"}</code></td></tr>
+      <tr><td>规则引擎不存在</td><td>全仓 grep <code>rule_engine|dsl|规则引擎</code>（排除 node_modules）无命中</td></tr>
+      <tr><td>变更监控未开工</td><td>grep crawl / schedule / cron 在 query、build、.github 下无实现命中</td></tr>
+      <tr><td>GraphRAG 未跑过</td><td><code>build/graphrag/</code> 仅 <code>prompts/</code> + <code>settings.yaml</code>；README 自述需 DeepSeek Key</td></tr>
+      <tr><td>rerank 被否决</td><td><code>evals/c_c_rerank_report.md</code> 实测表</td></tr>
+      <tr><td>Worker 直连超时</td><td><code>curl -o /dev/null -w "http=%{http_code} time=%{time_total}"</code> → http=000, 21.0s</td></tr>
+    </tbody>
+  </table>
+
+  <h3>引用的仓库文档</h3>
+  <ul>
+    <li><code>README.md</code> —— 形态、性能基线、目录结构</li>
+    <li><code>docs/deployment-info.md</code> —— 生产资源清单、性能基线、待办</li>
+    <li><code>docs/adr/0003-minimax-corpus-rebuild-and-bigram-retrieval.md</code> —— 检索路径重构的完整决策记录与踩坑</li>
+    <li><code>docs/adr/0001-fts5-trigram-search.md</code> —— 检索后端选型</li>
+    <li><code>evals/c_c_rerank_report.md</code> —— rerank 负面结论</li>
+    <li><code>.github/workflows/ci.yml</code> —— 评测硬门禁</li>
+  </ul>
+</section>
+
+<footer>
+  <p>架构分析 · 饲料法规智能体（Feed-Reg Agent） · 2026-10-28 · qingmang CTO</p>
+  <p style="margin-top:8px">基线 <span class="kbd">v1.0.0-production</span> → <span class="kbd">b4645d7</span> · 关联文档 <span class="kbd">docs/adr/0001-0003</span></p>
+</footer>
+
+</div>
+
+<script>
+/* 移动端表格滚动提示 —— 3+ 列的表要能滑, 但得让用户知道 */
+(function(){
+  var mq = window.matchMedia('(max-width: 820px)');
+  function mark(){
+    document.querySelectorAll('table').forEach(function(t){
+      if(t.dataset.hinted) return;
+      if(t.classList.contains('stack2')) return;
+      var hint = document.createElement('div');
+      hint.className = 'scrollhint';
+      hint.textContent = '← 左右滑动查看完整表格';
+      t.parentNode.insertBefore(hint, t);
+      t.dataset.hinted = '1';
+    });
+  }
+  function run(){
+    document.querySelectorAll('.scrollhint').forEach(function(e){e.remove();});
+    document.querySelectorAll('table').forEach(function(t){delete t.dataset.hinted;});
+    if(mq.matches) mark();
+  }
+  if(mq.addEventListener) mq.addEventListener('change', run);
+  window.addEventListener('resize', run);
+  window.addEventListener('load', run);
+  run();
+})();
+
+function cp(btn){
+  var pre = btn.parentElement.querySelector('pre');
+  var txt = pre.innerText;
+  var done = function(){
+    var old = btn.textContent;
+    btn.textContent = '已复制 ✓';
+    btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1800);
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(done).catch(fallback);
+  } else { fallback(); }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+</script>
+
+</body>
+</html>
