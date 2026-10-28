@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>功能设计 · 面向饲料法规的智能体 · siliao RAG</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --purple:#a78bfa; --pink:#f472b6;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px 100px}
+
+  header{
+    background:linear-gradient(135deg,#134e4a 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{
+    display:inline-block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ok); border:1px solid var(--ok); border-radius:999px;
+    padding:4px 14px; margin-bottom:18px; font-weight:600;
+  }
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:80ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{
+    background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.3);
+    color:#a7f3d0; border-radius:6px; padding:5px 12px; font-size:12.5px; font-family:ui-monospace,monospace;
+  }
+  header code{background:rgba(148,163,184,.18);border-color:rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  nav.toc{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 26px; margin-bottom:40px; box-shadow:var(--shadow);
+  }
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  section{
+    background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:30px 32px; margin-bottom:26px; box-shadow:var(--shadow);
+  }
+  h2{
+    font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border);
+  }
+  h2 .num{
+    background:var(--ok);color:#052e16;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none;
+  }
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  h4{font-size:.95rem;margin:18px 0 8px;color:var(--fg-dim)}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--code-bg); border:1px solid var(--border); border-radius:4px;
+    padding:1.5px 6px; font-size:.87em; color:#7dd3fc;
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-left:3px solid var(--accent);
+    border-radius:8px; padding:16px 18px; overflow-x:auto; margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.6;
+  }
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+  .box.purple{background:rgba(167,139,250,.09);border-color:var(--purple)}
+  .box.purple .t{color:var(--purple)}
+
+  .prewrap{position:relative}
+  .copy{
+    position:absolute;top:9px;right:9px;background:var(--bg3);border:1px solid var(--border);
+    color:var(--fg-dim);border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;
+    font-family:inherit;transition:.15s;z-index:2;
+  }
+  .copy:hover{background:var(--accent);color:#082f49;border-color:var(--accent)}
+  .copy.done{background:var(--ok);color:#052e16;border-color:var(--ok)}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+  .b-purple{background:rgba(167,139,250,.16);color:var(--purple);border:1px solid rgba(167,139,250,.35)}
+  .b-mute{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .stat{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:15px 17px}
+  .stat .k{font-size:11.5px;color:var(--fg-faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+  .stat .v{font-size:1.45rem;font-weight:800;color:var(--fg);line-height:1.15;font-family:ui-monospace,monospace}
+  .stat .v.ok{color:var(--ok)} .stat .v.warn{color:var(--warn)} .stat .v.err{color:var(--err)} .stat .v.info{color:var(--accent)}
+  .stat .n{font-size:12.5px;color:var(--fg-dim);margin-top:4px}
+
+  /* ══ 进度条 ══ */
+  .mods{display:grid;gap:11px;margin:18px 0}
+  .mod{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:14px 18px}
+  .mod .mh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .mod .mn{font-weight:700;font-size:.98rem;color:var(--fg)}
+  .mod .mt{font-size:12px;color:var(--fg-faint);font-family:ui-monospace,monospace}
+  .bar{height:16px;border-radius:4px;background:var(--bg3);overflow:hidden;position:relative;margin:8px 0 6px}
+  .bar i{display:block;height:100%;border-radius:4px}
+  .bar .f90{width:90%;background:linear-gradient(90deg,var(--ok),var(--accent))}
+  .bar .f60{width:60%;background:linear-gradient(90deg,var(--warn),var(--accent))}
+  .bar .f30{width:30%;background:linear-gradient(90deg,var(--err),var(--warn))}
+  .bar .f10{width:10%;background:var(--err)}
+  .mod .mn2{font-size:12.8px;color:var(--fg-dim)}
+
+  /* ══ 流程 ══ */
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:14px 0;font-size:12.5px}
+  .flow .n{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--fg);font-weight:600}
+  .flow .n.hi{border-color:var(--ok);color:var(--ok)}
+  .flow .n.new{border-color:var(--pink);color:var(--pink)}
+  .flow .a{color:var(--accent);font-weight:800;font-size:15px}
+
+  /* ══ 场景卡 ══ */
+  .scenes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:13px;margin:18px 0}
+  .scene{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:16px 18px;border-left:3px solid var(--fg-faint)}
+  .scene.s1{border-left-color:var(--ok)} .scene.s2{border-left-color:var(--warn)}
+  .scene.s3{border-left-color:var(--err)}
+  .scene .sh{font-weight:700;font-size:.96rem;color:var(--fg);margin-bottom:4px}
+  .scene .sd{font-size:12.8px;color:var(--fg-dim);margin-bottom:9px}
+  .scene .sv{font-size:13px}
+
+  /* ══ 规则卡 ══ */
+  .rules{display:grid;gap:9px;margin:16px 0}
+  .rule{display:flex;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:13px 16px;align-items:flex-start}
+  .rule .rk{font-family:ui-monospace,monospace;font-weight:800;color:var(--pink);flex:none;font-size:.92rem}
+  .rule .rv{font-size:13.8px;color:var(--fg)}
+  .rule .rv em{color:var(--err);font-style:normal;font-weight:700}
+
+  details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg);overflow:hidden}
+  summary{padding:13px 18px;cursor:pointer;font-weight:600;font-size:14.5px;list-style:none;
+          display:flex;align-items:center;gap:10px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.2s;flex:none}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary:hover{background:var(--bg3)}
+  .dbody{padding:0 18px 16px;border-top:1px solid var(--border)}
+  .dbody > *:first-child{margin-top:14px}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+  .kbd{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg3);border:1px solid var(--border);
+       border-bottom-width:2px;border-radius:4px;padding:1px 6px}
+
+  @media (max-width: 820px){
+    .wrap{padding:0 16px 72px}
+    header{padding:34px 0 30px;margin-bottom:26px}
+    h1{font-size:1.5rem;line-height:1.32}
+    .sub{font-size:.95rem;line-height:1.7}
+    .eyebrow{font-size:11px;padding:3px 11px;margin-bottom:14px}
+    .meta{gap:7px;margin-top:18px}
+    .chip{font-size:11px;padding:4px 9px}
+    section{padding:20px 17px;margin-bottom:18px;border-radius:9px}
+    h2{font-size:1.12rem;gap:10px;padding-bottom:12px}
+    h2 .num{width:26px;height:26px;font-size:.82rem;border-radius:7px}
+    h3{font-size:.98rem;margin:20px 0 8px}
+    p,li{font-size:14.5px;line-height:1.72}
+    ul,ol{margin-left:18px}
+    .scrollhint{
+      display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg-faint);
+      margin:-4px 0 8px;user-select:none;
+    }
+    .scrollhint::after{content:"⟶";color:var(--accent);font-size:14px}
+    table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;font-size:13px}
+    th,td{padding:8px 11px}
+    table.stack2{display:block;overflow-x:visible;white-space:normal}
+    table.stack2 thead{display:none}
+    table.stack2 tr{display:block;background:var(--bg);border:1px solid var(--border);
+      border-radius:8px;padding:3px 0;margin-bottom:10px}
+    table.stack2 tr:last-child{margin-bottom:0}
+    table.stack2 tr:nth-child(even) td{background:none}
+    table.stack2 td{display:block;border:none;padding:6px 14px;white-space:normal;width:auto !important}
+    table.stack2 td:first-child{
+      font-weight:700;font-size:12.5px;color:var(--fg);letter-spacing:.02em;padding-bottom:1px;
+    }
+    table.stack2 td + td{border-top:1px dashed var(--border);padding-top:8px;padding-bottom:8px}
+    table.stack2 td:first-child:empty{display:none}
+    pre{padding:13px 14px;font-size:12px;line-height:1.65;border-radius:7px;overflow-x:auto}
+    pre code{font-size:12px;white-space:pre;display:block}
+    p a, li a, td a{overflow-wrap:anywhere;word-break:break-word}
+    .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+    .stat{padding:12px 13px}
+    .stat .v{font-size:1.2rem}
+    .scenes{grid-template-columns:1fr}
+    .flow{gap:6px}
+    .flow .n{padding:6px 10px;font-size:11.5px}
+    .rule{flex-direction:column;gap:4px}
+    .copy{position:static;display:block;margin:6px 0 0 auto}
+    .prewrap{padding-top:2px}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    header{background:#134e4a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{box-shadow:none;border-color:#cbd5e1}
+    .copy,.scrollhint{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">Functional Design · V1.0</span>
+    <h1>功能设计：面向饲料法规的智能体</h1>
+    <p class="sub">
+      把《面向饲料法规的智能体.docx》的构想落到<b>可排期的功能</b>。
+      每一项都给出<b>真实数据基础</b>与<b>可行性实测</b>——
+      限量表实测抽出 <b>28 条三元组</b>，表格结构 <b>85%</b> 列宽一致。
+      结论：<b>构想稿是对的，但实现顺序应该是「先做能做的，再做需要新数据的」。</b>
+    </p>
+    <div class="meta">
+      <span class="chip">需求来源: 面向饲料法规的智能体.docx</span>
+      <span class="chip">日期: 2026-10-28</span>
+      <span class="chip">决策者: qingmang (CTO)</span>
+      <span class="chip">架构: ADR-004 限界上下文</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">摘要与能力边界</a></li>
+    <li><a href="#s2">数据基础实测（一切设计的前提）</a></li>
+    <li><a href="#s3">功能一：法规检索（90%）</a></li>
+    <li><a href="#s4">功能二：合规审查（30%）⭐</a></li>
+    <li><a href="#s5">功能三：风险预警（10%）</a></li>
+    <li><a href="#s6">功能四：知识问答（60%）</a></li>
+    <li><a href="#s7">构想稿「数据更新机制」的评价</a></li>
+    <li><a href="#s8">实施路线</a></li>
+    <li><a href="#s9">典型场景可行性裁决</a></li>
+    <li><a href="#s10">风险与应对</a></li>
+    <li><a href="#s11">需要业务方确认的事项</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════ 1 ══════════ -->
+<section id="s1">
+  <h2><span class="num">1</span>摘要与能力边界</h2>
+
+  <div class="stats">
+    <div class="stat"><div class="k">法规检索</div><div class="v ok">90%</div><div class="n">已上线</div></div>
+    <div class="stat"><div class="k">合规审查</div><div class="v err">30%</div><div class="n">规则引擎缺</div></div>
+    <div class="stat"><div class="k">风险预警</div><div class="v err">10%</div><div class="n">数据源缺</div></div>
+    <div class="stat"><div class="k">知识问答</div><div class="v warn">60%</div><div class="n">多轮/记忆缺</div></div>
+    <div class="stat"><div class="k">实测三元组</div><div class="v info">28</div><div class="n">6 文件 / 确定性抽取</div></div>
+    <div class="stat"><div class="k">规则库 v1 目标</div><div class="v ok">50</div><div class="n">条，覆盖 10-15 添加剂</div></div>
+  </div>
+
+  <div class="box info">
+    <span class="t">核心结论</span>
+    <b>能力边界</b>：当前系统是<b>纯 RAG 检索问答</b>。构想稿的「合规判定」需要规则引擎，<b>尚未存在</b>。<br>
+    <b>数据可得性</b>：限量表可<b>确定性抽取</b>。实测 6 个文件抽出 <b>28 条 (物质×动物×限量) 三元组</b>。<br>
+    <b>最大落差</b>：「款/项」粒度未建模 —— 一条含「猪 A、家禽 B、水产 C」的条文无法只引用其中一项。
+  </div>
+
+  <h3>四大模块的落地状态</h3>
+  <div class="mods">
+    <div class="mod">
+      <div class="mh"><span class="mn">（1）法规检索模块</span><span class="mt">可立即做</span><span class="b b-ok">90%</span></div>
+      <div class="bar"><i class="f90"></i></div>
+      <div class="mn2">语义检索 ✅ · 层级导航 ✅ · <b>版本追溯 ❌</b>（缺状态字段 + 历史数据）</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">（2）合规审查模块</span><span class="mt">分三步做</span><span class="b b-err">30%</span></div>
+      <div class="bar"><i class="f30"></i></div>
+      <div class="mn2">配方审查 ❌ · <b>用量判定 ❌</b> · 标签审查 ❌ · 企业资质 ❌（外部数据源）</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">（3）风险预警模块</span><span class="mt">需新数据源</span><span class="b b-err">10%</span></div>
+      <div class="bar"><i class="f10"></i></div>
+      <div class="mn2">变更预警 ❌（爬虫）· 抽检预警 ❌（外部数据）· 合规日历 🟡（部分可做）</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">（4）知识问答模块</span><span class="mt">可增强</span><span class="b b-warn">60%</span></div>
+      <div class="bar"><i class="f60"></i></div>
+      <div class="mn2">引用标注 ✅ · 幻觉标红 ✅ · <b>多轮追问 ❌</b> · 复杂问题拆解 ❌（Planner 暂缓）</div>
+    </div>
+  </div>
+
+  <div class="box purple">
+    <span class="t">一句话判断</span>
+    构想稿是对的，但它的实现顺序应该是「<b>先做能做的，再做需要新数据的</b>」。
+    法规检索与知识问答已上线；合规审查的核心（用量判定）<b>现在就能做</b>；
+    而版本追溯、抽检预警、合规日历<b>都需要新数据源</b>，不能靠现有语料变出来。
+  </div>
+</section>
+
+<!-- ══════════ 2 ══════════ -->
+<section id="s2">
+  <h2><span class="num">2</span>数据基础实测（一切设计的前提）</h2>
+
+  <p>功能能不能做，取决于<b>数据在不在、能不能确定性地取出来</b>。以下全部是本次实测结果。</p>
+
+  <h3>2.1 表格数据可解析性（300 个含表格文件）</h3>
+  <table class="stack2">
+    <thead><tr><th>指标</th><th>实测值</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>含表格文件</td><td><b>300</b></td><td>OCR 表格保留为 HTML <code>&lt;table&gt;</code></td></tr>
+      <tr><td>表格总行数</td><td>4818</td><td>—</td></tr>
+      <tr><td>有效数据行</td><td><b>4291（89.1%）</b></td><td>剔除 <code>—</code> 空行后的真实内容</td></tr>
+      <tr><td><b>列宽一致的文件</b></td><td><b>256 / 300（85%）</b></td><td>✅ 表头可定位，列语义可识别</td></tr>
+      <tr><td>含「数值+单位」的行</td><td>137（占有效行 3.2%）</td><td>限量数据集中在这少数文件</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <span class="t">为什么必须列感知，不能全表正则</span>
+    含数值+单位的行只占有效行的 3.2% —— 数值要么在长句里（<code>猪150～300mg/kg</code>），
+    要么在「质量指标」列（<code>粗蛋白质≥50%</code>）而非限量列。
+    <b>朴素正则会把质量指标误当限量</b> —— 实测确实发生了。
+  </div>
+
+  <h3>2.2 限量三元组抽取可行性</h3>
+  <div class="stats">
+    <div class="stat"><div class="k">抽出三元组</div><div class="v ok">28</div><div class="n">(物质×动物×上限×单位)</div></div>
+    <div class="stat"><div class="k">涉及文件</div><div class="v info">6</div><div class="n">全在《饲料添加剂安全使用规范》</div></div>
+    <div class="stat"><div class="k">朴素正则</div><div class="v warn">22</div><div class="n">漏抽多动物并列格式</div></div>
+  </div>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>实测样本（0324.md，维生素C）:
+
+物质: L-抗坏血酸(维生素C)
+  猪      150～300 mg/kg
+  家禽     50～200 mg/kg
+  犊牛    125～500 mg/kg
+  蛙类    100～150 mg/kg
+  鲤鱼    300～500 mg/kg</code></pre>
+  </div>
+
+  <div class="box ok">
+    <span class="t">这个数字是本设计的锚点</span>
+    v1 规则库按 <b>30–50 条</b> 估算，不多不少，手工校核完全可行，
+    且<b>每条都有原文出处可溯源</b>。
+  </div>
+
+  <h3>2.3 真实存在的 5 种写法（解析器必须覆盖）</h3>
+  <table class="stack2">
+    <thead><tr><th>#</th><th>原文形态</th><th>示例</th><th>难点</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>动物+范围+单位</code></td><td><code>猪150～300mg/kg</code></td><td>基础</td></tr>
+      <tr><td>2</td><td>带冒号</td><td><code>猪：0.15 ～0.5 mg/kg</code></td><td>全角/半角冒号</td></tr>
+      <tr><td>3</td><td><b>多动物并列 + 阶段</b></td><td><code>罗非鱼、鲶鱼—鱼苗300mg/kg—鱼种200mg/kg</code></td><td>一个动物对应<b>两个阶段值</b></td></tr>
+      <tr><td>4</td><td><b>括号内嵌套</b></td><td><code>猪30～50mg/kg(乳猪300～500mg/kg)</code></td><td>括号是<b>例外</b>，不是主值</td></tr>
+      <tr><td>5</td><td><b>多物质共用一条</b></td><td><code>同时使用时，在配合饲料中的总量不得超过150mg/kg</code></td><td>约束对象是<b>组合</b>不是单体</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box danger">
+    <span class="t">格式 4 与 5 是必须做对的</span>
+    <b>格式 4</b>：括号内的 <code>乳猪300～500</code> 是<b>乳猪阶段的独立上限</b>，
+    不能被当成 <code>猪30～50</code> 的一部分，也不能丢弃。<br>
+    <b>格式 5</b>：<code>总量不得超过150mg/kg</code> 不针对单一物质，
+    抽取时必须<b>标记为组合约束</b>，否则会算错。
+  </div>
+
+  <h3>2.4 禁用清单与关键词分布</h3>
+  <table class="stack2">
+    <thead><tr><th>关键词</th><th>命中文件</th><th>判断</th></tr></thead>
+    <tbody>
+      <tr><td>标签</td><td>125</td><td><span class="b b-ok">可做标签审查</span></td></tr>
+      <tr><td>禁用 / 禁止使用 / 不得使用</td><td>39 / 24 / 18</td><td><span class="b b-ok">可做禁用清单</span></td></tr>
+      <tr><td>休药期</td><td>23</td><td><span class="b b-ok">可做停药期规则</span></td></tr>
+      <tr><td>生产许可证</td><td>88</td><td><span class="b b-warn">只有<b>法规条款</b>，无企业实际证件数据</span></td></tr>
+      <tr><td>有效期</td><td>86</td><td><span class="b b-warn">同上</span></td></tr>
+      <tr><td>批准文号</td><td>65</td><td><span class="b b-warn">同上</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box info">
+    <span class="t">关键区分</span>
+    「生产许可证」在语料里是<b>法规条款</b>（规定许可证怎么办理），
+    <b>不是</b>企业的实际许可证数据。企业资质审查需要<b>外部数据源</b>，靠语料做不了。
+  </div>
+
+  <h3>2.5 语料里已存在的「非饲料」法规</h3>
+  <p>
+    <code>03相关法律法规文件</code> 32 份含：《兽药管理条例》《新兽药注册办法》《兽药标签和说明书管理办法》等。
+    方案文档第十章说规范「可复用到兽药领域」—— 但语料里<b>已经有兽药法规</b>，只是没做领域标记。
+    <code>documents</code> 表<b>无 <code>domain</code> 字段</b>，现在只能靠目录名硬编码。
+  </p>
+</section>
+
+<!-- ══════════ 3 ══════════ -->
+<section id="s3">
+  <h2><span class="num">3</span>功能一：法规检索模块（90% 已上线）</h2>
+
+  <table class="stack2">
+    <thead><tr><th>子功能</th><th>实现</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>语义检索</td><td>D1 FTS5（phrase 优先 + bigram RRF + 标题加权）⊕ bge-m3 语义</td><td><span class="b b-ok">✅</span></td></tr>
+      <tr><td>层级导航</td><td>书籍原版层级 + 文号 + 起始页（<code>/api/catalog</code>）</td><td><span class="b b-ok">✅</span></td></tr>
+      <tr><td>全文命中</td><td><code>recall@10 76.0%</code> / <code>MRR 0.647</code> / 业务 query <code>MRR 0.717</code></td><td><span class="b b-ok">✅</span></td></tr>
+      <tr><td><b>版本追溯</b></td><td>缺状态字段 + 缺历史数据</td><td><span class="b b-err">❌</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>版本追溯：两项都缺</h3>
+  <ol>
+    <li><code>articles</code> 表<b>无状态字段</b> —— 不知道某条是否已废止/被修订</li>
+    <li><b>无修订历史数据</b> —— 语料是「2026 版汇编」，只有现行版本，没有历史快照</li>
+  </ol>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>-- 数据模型补齐
+ALTER TABLE documents ADD COLUMN status TEXT DEFAULT 'effective';
+-- effective | superseded | draft | repealed
+
+ALTER TABLE documents ADD COLUMN supersedes_doc_id TEXT;
+-- 被本文档取代的上位文档
+
+ALTER TABLE articles ADD COLUMN version_snapshot TEXT;
+-- 该条文所属的法规版本标识
+
+-- 领域标记（低成本高价值）
+ALTER TABLE documents ADD COLUMN domain TEXT DEFAULT 'feed';
+-- feed | veterinary | pet_food | general</code></pre>
+  </div>
+
+  <div class="box warn">
+    <span class="t">但即使加了字段，历史仍为空</span>
+    真正的历史回溯需要「历史版本 PDF」（需采购/爬取）或「变更时间线」（需 ⑤ 监测）。
+    <b>结论</b>：版本追溯第一期只能做到「标注当前版本 + 标注被取代关系」，
+    真正的历史回溯要等 ⑤ 落地后逐步积累。
+    <br><br>
+    <b>建议</b>：把它从「功能」降级为「数据字段」，先补字段，让 ⑤ 落地时<b>有地方可写</b>。
+    这是 ADR-005 指出的「知识时效可审计」原则的技术前提。
+  </div>
+</section>
+
+<!-- ══════════ 4 ══════════ -->
+<section id="s4">
+  <h2><span class="num">4</span>功能二：合规审查模块（30%）</h2>
+
+  <p>这是构想稿的<b>核心价值主张</b>，也是当前<b>最大的能力缺口</b>。</p>
+
+  <h3>4.1 构想稿的原始设想</h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>用户提问："这种预混料在猪饲料中的添加量合规吗？"
+
+Step 1 意图识别  → 识别为"合规审查"，提取实体：产品类型=预混料、动物种类=猪、属性=添加量
+Step 2 任务拆解  → 子任务1 检索适用条款 / 子任务2 查该动物阶段上限 / 子任务3 比对是否超标
+Step 3 工具调用  → 向量检索 + 知识图谱 + 规则引擎
+Step 4 结果融合  → 法规原文 + 阈值数据 + 比对结果
+Step 5 输出生成  → 合规/不合规 + 依据条款 + 建议调整范围</code></pre>
+  </div>
+
+  <h3>4.2 落地映射 —— 每一步落到哪个组件</h3>
+  <table class="stack2">
+    <thead><tr><th>构想稿步骤</th><th>落地实现</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>Step 1 意图识别</td><td><code>POST /api/compliance/usage</code> 的<b>结构化入参</b>替代 LLM 意图识别</td><td><span class="b b-warn">设计变更</span></td></tr>
+      <tr><td>Step 2 任务拆解</td><td><b>单步判定</b>，无需 Planner（一个物质×一个动物 = 一次比对）</td><td><span class="b b-ok">✅ 简化</span></td></tr>
+      <tr><td>Step 3a 向量检索</td><td><code>HybridRetriever</code>（已上线）</td><td><span class="b b-ok">✅</span></td></tr>
+      <tr><td>Step 3b 知识图谱</td><td><b>改为「目录表查询」</b>（见 4.3）</td><td><span class="b b-warn">设计变更</span></td></tr>
+      <tr><td>Step 3c 规则引擎</td><td><code>ComplianceEvaluator</code>（<b>新建</b>）</td><td><span class="b b-err">❌</span></td></tr>
+      <tr><td>Step 4 结果融合</td><td><code>ComplianceVerdict</code> 值对象</td><td><span class="b b-err">❌</span></td></tr>
+      <tr><td>Step 5 输出生成</td><td>固定模板 + 依据条款原文</td><td><span class="b b-err">❌</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.3 关键设计变更 ①：不用知识图谱查「是否在目录内」</h3>
+  <p>构想稿说「调用知识图谱：查询该产品是否在《饲料添加剂品种目录》中」。</p>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>「L-抗坏血酸(维生素C)」 ∈ 《饲料添加剂品种目录》</code></pre>
+  </div>
+  <p>
+    《饲料添加剂品种目录》在语料里是 <code>02制度文件/04_（四）使用管理/45_饲料添加剂品种目录/</code>，
+    含 23 个表格行。抽成一张 <code>substance_catalog</code> 表后，<b>一次 SQL 精确匹配</b>即可。
+  </p>
+
+  <div class="box purple">
+    <span class="t">为什么不用图谱</span>
+    图谱解决的是<b>多跳关系推理</b>（A→B→C）。「查某物质在不在目录里」是<b>单跳集合查询</b>，
+    上图谱是杀鸡用牛刀，而且图谱当前是<b>空表</b>（<code>entities</code> 实测为空）。<br>
+    <b>保留图谱的价值在于</b>：跨法规的<b>交叉引用关系</b>（如「本条依据《条例》第X条」），
+    那是<b>审核预审</b>场景的需求，不是用量判定。
+  </div>
+
+  <h3>4.4 关键设计变更 ②：意图识别改为结构化入参</h3>
+  <table class="stack2">
+    <thead><tr><th>走 LLM 的问题</th><th>走结构化接口的问题</th></tr></thead>
+    <tbody>
+      <tr><td>「预混料」是产品类型还是物质名？LLM 可能抽错</td><td>入参就分好了字段</td></tr>
+      <tr><td>「200」是 mg/kg 还是 g/kg？LLM 会猜</td><td>单位是必填字段</td></tr>
+      <tr><td>抽错了用户看不出来，还以为得到了结论</td><td>参数错直接 400 报错</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box ok">
+    <span class="t">这正是「规则与模型双轨」的落地</span>
+    <b>量化硬约束用确定性规则引擎，语义判断用 LLM，二者冲突时以规则为准。</b>
+    用量判定<b>必须是确定性接口 + 确定性判定</b>。LLM 只在用户不知道自己要查什么时帮忙
+    （自然语言 → 建议查询），<b>不参与判定本身</b>。
+  </div>
+
+  <h3>4.5 数据模型设计</h3>
+
+  <h4>表 1：<code>compliance_rules</code> —— 规则库</h4>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>CREATE TABLE compliance_rules (
+  rule_id        TEXT PRIMARY KEY,
+  -- 规则类型
+  rule_type      TEXT NOT NULL,     -- limit | prohibition | condition | combination
+  -- 规则主体
+  substance      TEXT,              -- 物质通用名(中文), 组合规则时为 NULL
+  substance_alias TEXT,             -- 英文名/化学名, 用于模糊匹配
+  -- 适用对象
+  species        TEXT,              -- 动物种类
+  stage          TEXT,              -- 阶段(鱼苗/育肥猪…)
+  -- 阈值
+  min_value      REAL,              -- 下限
+  max_value      REAL,              -- 上限
+  unit           TEXT,              -- mg/kg | g/kg | IU/kg | %
+  -- 附加条件
+  condition_text TEXT,              -- 原文条件描述
+  -- 溯源(**必填**, 无出处不允许入库)
+  source_article_id TEXT NOT NULL,  -- 依据条文
+  source_doc_id     TEXT NOT NULL,
+  source_excerpt    TEXT,           -- 原文摘录
+  -- 规则集版本
+  rule_set_version  TEXT NOT NULL,
+  -- 抽取方式
+  extraction_method TEXT,           -- auto | manual
+  -- 审核状态
+  review_status     TEXT DEFAULT 'pending',  -- pending | reviewed | rejected
+  created_at      TEXT DEFAULT (datetime('now')),
+  updated_at      TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_rules_substance ON compliance_rules(substance);
+CREATE INDEX idx_rules_species   ON compliance_rules(species);
+CREATE INDEX idx_rules_status    ON compliance_rules(review_status);</code></pre>
+  </div>
+
+  <h4>表 2：<code>substance_catalog</code> —— 物质目录</h4>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>CREATE TABLE substance_catalog (
+  substance_id   TEXT PRIMARY KEY,
+  name_cn        TEXT NOT NULL,     -- 通用名称
+  name_en        TEXT,              -- 英文名称
+  formula        TEXT,              -- 化学式或描述
+  source         TEXT,              -- 来源
+  spec           TEXT,              -- 含量规格
+  category       TEXT,              -- 添加剂 | 原料 | 载体
+  source_article_id TEXT NOT NULL,  -- 出处(《饲料添加剂品种目录》)
+  rule_set_version TEXT NOT NULL
+);
+
+-- 表 3: 规则集版本
+CREATE TABLE rule_sets (
+  version       TEXT PRIMARY KEY,   -- v2026.10
+  created_at    TEXT,
+  note          TEXT,
+  rules_count   INTEGER,
+  reviewed_by   TEXT
+);</code></pre>
+  </div>
+
+  <div class="box warn">
+    <span class="t">版本化是硬要求</span>
+    方案文档的「知识时效可审计」原则：<b>每条判定结论必须能回溯到「当时用的是哪版规则」</b>。
+    所以 <code>rule_set_version</code> 不是可选项。
+  </div>
+
+  <h3>4.6 领域服务：<code>ComplianceEvaluator</code></h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>// domain/compliance/compliance-evaluator.service.ts
+
+export type VerdictStatus =
+  | "compliant"      // 合规
+  | "exceeded"       // 超限
+  | "prohibited"     // 禁用
+  | "not_covered";   // ⚠️ 规则未覆盖 —— 必须显式出现
+
+export interface ComplianceVerdict {
+  status: VerdictStatus;
+  ruleHits: RuleHit[];
+  suggestion?: {
+    maxAllowed: number;
+    unit: string;
+    message: string;
+  };
+  coverageGap?: {
+    reason: string;
+    relatedArticles: RelatedArticle[];
+  };
+}
+
+export interface RuleHit {
+  ruleId: string;
+  sourceArticleId: string;
+  sourceDocId: string;
+  sourceExcerpt: string;
+  limit: { min?: number; max?: number; unit: string };
+}</code></pre>
+  </div>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>export function evaluate(
+  usage: UsageDeclaration,
+  rules: ComplianceRule[],
+  catalog: SubstanceCatalog | null
+): ComplianceVerdict {
+  // 1. 禁用规则优先 —— 禁用是硬红线, 无条件拒绝
+  const prohibition = rules.find(r =&gt;
+    r.rule_type === "prohibition" &amp;&amp; matches(r, usage));
+  if (prohibition) {
+    return { status: "prohibited", ruleHits: [toHit(prohibition)] };
+  }
+
+  // 2. 限量规则
+  const limits = rules.filter(r =&gt;
+    r.rule_type === "limit" &amp;&amp; matches(r, usage));
+
+  // 3. ⚠️ 无命中 → 必须返回 not_covered, **禁止返回 compliant**
+  if (limits.length === 0) {
+    return {
+      status: "not_covered",
+      ruleHits: [],
+      coverageGap: {
+        reason: "规则库未覆盖该物质/动物组合, 需人工确认",
+        relatedArticles: [],
+      },
+    };
+  }
+
+  // 4. 比对 —— 取所有命中规则中最严的一条
+  const strictest = limits.reduce((a, b) =&gt;
+    (b.max_value ?? Infinity) &lt; (a.max_value ?? Infinity) ? b : a);
+
+  if (usage.value &gt; (strictest.max_value ?? Infinity)) {
+    return {
+      status: "exceeded",
+      ruleHits: limits.map(toHit),
+      suggestion: {
+        maxAllowed: strictest.max_value!,
+        unit: strictest.unit,
+        message: `超出上限 ${usage.value - strictest.max_value} ${strictest.unit}`,
+      },
+    };
+  }
+  // 5. 低于下限
+  if (strictest.min_value !== undefined &amp;&amp; usage.value &lt; strictest.min_value) {
+    return { status: "exceeded", ruleHits: limits.map(toHit),
+      suggestion: { maxAllowed: strictest.max_value!,
+        unit: strictest.unit,
+        message: `低于下限 ${strictest.min_value - usage.value} ${strictest.unit}` } };
+  }
+
+  return { status: "compliant", ruleHits: limits.map(toHit) };
+}</code></pre>
+  </div>
+
+  <div class="rules">
+    <div class="rule"><span class="rk">不变量 1</span><span class="rv">
+      <b>规则未覆盖时必须返回 <code>not_covered</code>，绝不能返回 <code>compliant</code></b><br>
+      依据：「合规优先」+ 风险表「规则覆盖不全造成漏检」。<br>
+      <em>实现细节</em>：<code>evaluate()</code> 里「无命中 → return not_covered」这一分支
+      必须有<b>单测锁死</b>，且用<b>故意构造的未覆盖物质</b>测。这类 bug 极容易在后续重构中被"优化"掉。
+    </span></div>
+    <div class="rule"><span class="rk">不变量 2</span><span class="rv">
+      <b>每条规则必须绑定 <code>source_article_id</code></b>，无出处不允许入库<br>
+      依据：「涉及监管结论的输出必须可溯源（条款号+原文）」。
+    </span></div>
+  </div>
+
+  <h3>4.7 API 设计</h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>POST /api/compliance/usage
+Content-Type: application/json
+
+{
+  "substance": "L-抗坏血酸(维生素C)",
+  "species": "猪",
+  "stage": null,
+  "value": 200,
+  "unit": "mg/kg"
+}
+
+─── 成功响应 ───
+{
+  "status": "compliant",
+  "substance": "L-抗坏血酸(维生素C)",
+  "usage": { "species": "猪", "value": 200, "unit": "mg/kg" },
+  "ruleHits": [{
+    "ruleId": "r_0324_vc_pig",
+    "limit": { "min": 150, "max": 300, "unit": "mg/kg" },
+    "sourceArticleId": "02制度文件_04_（四）使用管理_46_饲料添加剂安全使用规范__p001_s01",
+    "sourceDocId": "02制度文件_04_（四）使用管理_46_饲料添加剂安全使用规范",
+    "sourceExcerpt": "L-抗坏血酸(维生素C)……适用动物 猪150～300mg/kg 家禽50～200mg/kg……"
+  }],
+  "suggestion": null,
+  "evidence": []
+}
+
+─── 未覆盖响应(关键) ───
+{
+  "status": "not_covered",
+  "substance": "某未收录物质",
+  "usage": { "species": "猪", "value": 100, "unit": "mg/kg" },
+  "ruleHits": [],
+  "coverageGap": {
+    "reason": "规则库未覆盖该物质/动物组合, 需人工确认",
+    "relatedArticles": [{
+      "articleId": "...", "chapterTitle": "04_（四）使用管理",
+      "articleNumber": "第一条", "excerpt": "……"
+    }]
+  },
+  "notice": "本结果为辅助意见，不构成监管结论"
+}</code></pre>
+  </div>
+
+  <div class="box info">
+    <span class="t">注意 <code>evidence</code> 字段</span>
+    <code>not_covered</code> 时仍返回<b>检索到的相关条文</b>，
+    让用户能立刻看到「可能相关的条款」并转人工，而不是一个干巴巴的「未覆盖」。
+  </div>
+
+  <h3>4.8 命名匹配策略（工程难点）</h3>
+  <p>用户输入的「维生素C」与规则库里的「L-抗坏血酸(维生素C)」<b>对不上</b>。</p>
+
+  <table class="stack2">
+    <thead><tr><th>级别</th><th>策略</th><th>示例</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>精确匹配</b> <code>name_cn</code></td><td><code>L-抗坏血酸(维生素C)</code> → 命中</td></tr>
+      <tr><td>2</td><td><b>括号别名</b></td><td><code>维生素C</code> → 从 <code>L-抗坏血酸(维生素C)</code> 的括号里提取 → 命中</td></tr>
+      <tr><td>3</td><td><b>别名表</b> <code>substance_alias</code></td><td><code>维生素C</code> / <code>Vitamin C</code> / <code>Ascorbic acid</code> → 命中</td></tr>
+    </tbody>
+  </table>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>export function matchSubstance(
+  input: string,
+  catalog: SubstanceCatalog[]
+): { match: SubstanceCatalog; method: "exact" | "alias" | "fuzzy" } | null {
+  // 1. 精确
+  const exact = catalog.find(c =&gt; c.name_cn === input);
+  if (exact) return { match: exact, method: "exact" };
+
+  // 2. 括号内别名 —— 「L-抗坏血酸(维生素C)」的括号内容
+  for (const c of catalog) {
+    const m = c.name_cn.match(/[（(]([^）)]+)[）)]/);
+    if (m &amp;&amp; m[1] === input) return { match: c, method: "alias" };
+  }
+
+  // 3. 别名表
+  const byAlias = catalog.find(c =&gt;
+    c.name_en?.toLowerCase() === input.toLowerCase());
+  if (byAlias) return { match: byAlias, method: "alias" };
+
+  return null;  // ⚠️ null → not_covered
+}</code></pre>
+  </div>
+
+  <div class="box danger">
+    <span class="t">不做模糊匹配</span>
+    向量相似度匹配出来的「维生素C ≈ 抗坏血酸钙」在合规判定里是<b>危险</b>的 ——
+    抗坏血酸钙和抗坏血酸的限量完全不同。<b>宁可说「未覆盖」，不可猜。</b>
+  </div>
+
+  <h3>4.9 禁用清单（规则类型 <code>prohibition</code>）</h3>
+  <p>从 39 个含「禁用」的文件抽取。典型条款形态（实测）：</p>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>✅ 「严禁在自配料中添加禁用药物、禁用物质及其他有毒有害物质。」
+
+❌ 「不得在饲料生产过程中进行维修、焊接、气割等作业。」
+      ↑ 这条不是禁用物质！是「生产操作禁令」</code></pre>
+  </div>
+
+  <div class="box warn">
+    <span class="t">抽取时必须人工剔除假阳性</span>
+    这正是 <code>review_status</code> 字段存在的理由：
+    <b>自动抽取 → 人工审核 → 才能生效</b>。
+    <br><br>
+    <b>未审核的规则不参与判定</b> —— 这是防止「正则抽错了直接给用户错误结论」的关键闸门。
+  </div>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>自动抽取候选 ──→ review_status='pending'
+      │
+      ├── 人工审核 ──→ 'reviewed' (生效) / 'rejected' (剔除)
+      │
+      └── 判定时只读 review_status='reviewed' 的规则</code></pre>
+  </div>
+
+  <h3>4.10 三阶段落地计划</h3>
+  <table class="stack2">
+    <thead><tr><th>阶段</th><th>内容</th><th>周期</th><th>验收</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>C1 用量速查</b></td>
+        <td>规则表 + <code>ComplianceEvaluator</code> + <code>POST /api/compliance/usage</code> + 前端输入框</td>
+        <td>3-5 天</td>
+        <td>28 条自动抽取规则入库并<b>人工校核</b>；输入「维生素C+猪+200mg/kg」返回合规+原文；输入 500 返回超限+超出量；输入未覆盖物质返回 <b>not_covered</b></td>
+      </tr>
+      <tr>
+        <td><b>C2 配方审查</b></td>
+        <td>批量入参（配方成分表）+ 物质目录表 + 禁用清单</td>
+        <td>5-8 天</td>
+        <td>上传 10 行配方 → 输出逐成分风险报告；禁用成分标红并给出依据条款</td>
+      </tr>
+      <tr>
+        <td><b>C3 标签审查</b></td>
+        <td>GB 10648 强制标示项抽取 + 标签文案检查</td>
+        <td>5-8 天</td>
+        <td>输入标签文案 → 输出缺失项/违规宣称清单，每项带条款出处</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box ok">
+    <span class="t">C1 是快档方案的核心</span>
+    构想稿里最有说服力的场景（「预混料添加量合规吗」）在 <b>C1</b> 就能跑通。
+  </div>
+</section>
+
+<!-- ══════════ 5 ══════════ -->
+<section id="s5">
+  <h2><span class="num">5</span>功能三：风险预警模块（10%）</h2>
+
+  <p><b>这是四个模块里数据缺口最大的。</b>三类预警，三种不同的数据需求。</p>
+
+  <h3>5.1 法规变更预警</h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>农业农村部官网 / 国家饲料质量检验中心
+        │
+        ▼  公告监测爬虫（每日定时）
+        │
+        ▼  变更检测 → 增量更新向量库 + 图谱 + 规则引擎
+        │
+        ▼
+  影响分析 → 向订阅用户推送预警</code></pre>
+  </div>
+
+  <p>构想稿的流水线设计是对的，落地对应：</p>
+  <table class="stack2">
+    <thead><tr><th>阶段</th><th>落地</th><th>ADR-004 归属</th></tr></thead>
+    <tbody>
+      <tr><td>爬虫</td><td>Cloudflare Cron + 爬虫适配器</td><td>⑤ 法规监测</td></tr>
+      <tr><td>变更检测</td><td>新旧文档文本 diff</td><td>⑤</td></tr>
+      <tr><td>增量更新</td><td>事件 <code>RegulationReleaseDetected</code> → ① 知识库</td><td>⑤ --事件--> ①</td></tr>
+      <tr><td>规则重算</td><td>事件 <code>RegulationVersionIngested</code> → ② 合规规则</td><td>① --事件--> ②</td></tr>
+      <tr><td>影响分析</td><td><code>RulesRecalculated</code> → ⑤</td><td>② --事件--> ⑤</td></tr>
+      <tr><td>推送</td><td>订阅 + 简报生成</td><td>⑤</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box ok">
+    <span class="t">基础设施已就位</span>
+    ADR-004 的领域事件契约<b>已经定义好了</b>（<code>domain/shared/domain-event.ts</code>），
+    这条流水线<b>不需要重新设计架构，只需填实现</b>。周期 4-6 周（M4）。
+  </div>
+
+  <p><b>可行性关键</b>：政府网站结构 → 爬虫<b>脆弱</b>（站点改版即失效）。</p>
+  <ul>
+    <li>选择<b>稳定的 RSS/JSON 接口</b>（若有）优于解析 HTML</li>
+    <li>变更检测<b>不依赖精确 diff</b> —— 用「文档指纹 + 标题匹配」做粗粒度检测也可</li>
+    <li>爬虫失败必须<b>告警而非静默</b></li>
+  </ul>
+
+  <h3>5.2 抽检结果预警</h3>
+  <div class="box danger">
+    <span class="t">可行性：低</span>
+    抽检结果由农业农村部定期发布（公告形式，PDF），<b>无 API</b>，需爬取或人工录入。
+    粒度是「产品批次 + 检验结论」，<b>没有企业配方数据</b>，无法直接做「同类产品」关联。
+    <br><br>
+    <b>建议降级</b>为「抽检公告聚合检索」—— 用户订阅「维生素C」，抽检公告里出现该物质时推送。
+    这有价值且可实现，但<b>与构想稿描述的语义不同</b>，需要在产品文档里说清楚，避免期望落差。
+  </div>
+
+  <h3>5.3 合规日历</h3>
+  <table class="stack2">
+    <thead><tr><th>类型</th><th>数据来源</th><th>可得性</th></tr></thead>
+    <tbody>
+      <tr><td>换证/年检</td><td>企业自己的证件到期日</td><td><span class="b b-err">❌ 外部数据</span></td></tr>
+      <tr><td>标准更新过渡期</td><td>标准文本里的「实施日期」条款</td><td><span class="b b-warn">🟡 语料里可能有</span></td></tr>
+    </tbody>
+  </table>
+
+  <p>「过渡期」的技术形态：标准正文常写「本标准自 XXXX 年 XX 月 XX 日起实施，代替 YYYY 版」—— 这在语料里可以正则抽取。</p>
+
+  <div class="box warn">
+    <span class="t">建议</span>
+    第一期只做「<b>法规/标准生效日期日历</b>」，明确<b>不含</b>企业证件到期提醒。
+  </div>
+
+  <h3>5.4 小结</h3>
+  <table class="stack2">
+    <thead><tr><th>子功能</th><th>可行性</th><th>建议</th></tr></thead>
+    <tbody>
+      <tr><td>法规变更预警</td><td><span class="b b-ok">🟢 可做</span></td><td>按 ADR-004 M4 排期（4-6 周）</td></tr>
+      <tr><td>抽检结果预警</td><td><span class="b b-err">🔴 语义要降级</span></td><td>改为「抽检公告聚合检索」，文档需说明</td></tr>
+      <tr><td>合规日历</td><td><span class="b b-warn">🟡 部分可做</span></td><td>只做标准生效日期，不含企业证件</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ 6 ══════════ -->
+<section id="s6">
+  <h2><span class="num">6</span>功能四：知识问答模块（60%）</h2>
+
+  <h3>6.1 已实现</h3>
+  <table class="stack2">
+    <thead><tr><th>能力</th><th>实现</th></tr></thead>
+    <tbody>
+      <tr><td>引用来源自动标注到具体条款</td><td><code>CitationValidator</code>（领域服务）+ 前端引用卡片</td></tr>
+      <tr><td>幻觉引用标红</td><td><code>valid: false</code> → 前端标红</td></tr>
+      <tr><td>流式输出</td><td>SSE <code>meta</code> / <code>chunk</code> / <code>done</code> / <code>error</code> 四事件</td></tr>
+      <tr><td>拒答机制</td><td>system prompt 强制「证据不足则回复未找到相关规定」</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.2 待补 ①：多轮追问（低成本高价值）</h3>
+  <p>构想稿：「支持多轮对话追问 —— 先问限量、再追问某配方的合规性」。当前 <code>QAPage</code> 每次独立提问，无会话状态。</p>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>CREATE TABLE qa_sessions (
+  session_id    TEXT PRIMARY KEY,
+  created_at    TEXT,
+  updated_at    TEXT
+);
+
+CREATE TABLE qa_messages (
+  message_id    TEXT PRIMARY KEY,
+  session_id    TEXT NOT NULL,
+  role          TEXT NOT NULL,      -- user | assistant
+  content       TEXT NOT NULL,
+  -- 本轮检索到的证据(供下一轮做指代消解)
+  evidence_json TEXT,
+  -- 本轮识别出的实体(下一轮可直接复用)
+  entities_json TEXT,
+  created_at    TEXT
+});</code></pre>
+  </div>
+
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>// 从上一轮提取的实体 + 当前问句, 构造补充检索 query
+export function resolveContext(
+  previousEntities: ExtractedEntities[],
+  currentQuestion: string
+): string {
+  // 若当前问句不含已知物质名, 且有历史实体 → 补进 query
+  const hasKnown = previousEntities.some(e =&gt;
+    currentQuestion.includes(e.substance));
+  if (hasKnown || previousEntities.length === 0) return currentQuestion;
+  return `${previousEntities[0].substance} ${currentQuestion}`;
+}</code></pre>
+  </div>
+
+  <div class="box ok">
+    <span class="t">建议列为 C1 的附带项（1 天）</span>
+    成本很低（一个 session 表 + 一次实体回填），但对用户体验提升明显。
+  </div>
+
+  <h3>6.3 待补 ②：复杂问题拆解后分步回答（Planner）—— 暂缓</h3>
+  <table class="stack2">
+    <thead><tr><th>考量</th><th>分析</th></tr></thead>
+    <tbody>
+      <tr><td>当前问题类型</td><td>法规问答大多是<b>单跳检索</b>（找条款、找限量），Planner 收益低</td></tr>
+      <tr><td>真正的复杂问题</td><td>「帮我审查这个配方」→ 需要 意图识别 + 多步工具调用</td></tr>
+      <tr><td>但那个场景</td><td><b>属于合规审查模块</b>，应该走 <code>POST /api/compliance/*</code> 确定性接口，<b>不该走 LLM Planner</b></td></tr>
+      <tr><td>真正的 Planner 场景</td><td>「某原料能否用于猪饲料，同时要符合标签规定」→ 跨模块组合（低频高价值）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box purple">
+    <span class="t">结论</span>
+    <b>合规审查场景不做 LLM Planner</b> —— 走确定性接口。<br>
+    <b>v1 不做</b> Planner。在 M2 完成后，基于真实的复杂提问日志再决定。
+    <br>这与 ADR-004 的「按需展开」原则一致 —— <b>不为不存在的需求建上下文</b>。
+  </div>
+
+  <h3>6.4 待补 ③：答案结构化增强 —— 不做</h3>
+  <p>
+    构想稿期望「合规/不合规 + 依据条款 + 建议调整范围」这种结构化输出。
+    但<b>这是合规审查的输出格式，不是问答的输出格式</b>。问答应该保持「直接答案 + 引用列表」。
+  </p>
+  <div class="box info">
+    <span class="t">不要把两者混在一个 prompt 里</span>
+    <code>/api/qa</code> → 检索问答（已实现）<br>
+    <code>/api/compliance/usage</code> → 合规判定（新建）
+  </div>
+</section>
+
+<!-- ══════════ 7 ══════════ -->
+<section id="s7">
+  <h2><span class="num">7</span>构想稿「数据更新机制」的评价</h2>
+
+  <div class="box info">
+    <span class="t">构想稿的判断是对的</span>
+    「数据更新机制（关键难点）」—— 它确实是整个系统最难的部分。
+  </div>
+
+  <p>但它把三件事混在一起了：</p>
+  <table class="stack2">
+    <thead><tr><th>构想稿描述</th><th>实际是三件事</th><th>难度</th></tr></thead>
+    <tbody>
+      <tr><td>「增量更新向量库」</td><td>文档版本入库 → 重建 embedding</td><td><span class="b b-ok">🟢 中等</span></td></tr>
+      <tr><td>「+ 图谱」</td><td>实体关系重抽</td><td><span class="b b-warn">🟡 中等</span>（且图谱当前是空表）</td></tr>
+      <tr><td>「+ 规则引擎」</td><td><b>规则库重算</b> ← 真正的难点</td><td><span class="b b-err">🔴 高</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>为什么规则重算最难</h3>
+  <div class="prewrap">
+    <button class="copy" onclick="cp(this)">复制</button>
+    <pre><code>一篇新公告 → 哪些规则受影响？
+  ├── 物质名匹配？     (别名映射, 可能漏)
+  ├── 条文号引用匹配？ (跨文档引用, 需解析)
+  └── 目录结构变更？   (新增/删除物质)
+→ 判定「受影响」本身就是不确定的</code></pre>
+  </div>
+
+  <table class="stack2">
+    <thead><tr><th>阶段</th><th>做法</th><th>精度</th></tr></thead>
+    <tbody>
+      <tr><td>v1</td><td><b>物质名精确匹配</b> + 人工触发</td><td>会漏，但漏了只是「规则没更新」，不产生错误结论</td></tr>
+      <tr><td>v2</td><td>加入跨条文引用解析</td><td>更全</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box ok">
+    <span class="t">关键：漏更新规则是安全的</span>
+    漏更新 → 规则库滞后 → 但<b>不会产生错误结论</b>（因为判定依据的是当时的规则库），
+    加上 <code>rule_set_version</code> 就能审计。<b>所以 v1 可以接受漏。</b>
+  </div>
+</section>
+
+<!-- ══════════ 8 ══════════ -->
+<section id="s8">
+  <h2><span class="num">8</span>实施路线</h2>
+
+  <div class="flow">
+    <span class="n hi">M1 ✅ 抽离领域层</span><span class="a">→</span>
+    <span class="n new">C1 用量速查 ⭐</span><span class="a">→</span>
+    <span class="n">C1.5 多轮会话</span><span class="a">→</span>
+    <span class="n">M3 层分离</span><span class="a">→</span>
+    <span class="n">C2 配方审查</span><span class="a">→</span>
+    <span class="n">C3 标签审查</span><span class="a">→</span>
+    <span class="n">M4 变更监控</span>
+  </div>
+
+  <table class="stack2">
+    <thead><tr><th>序</th><th>功能</th><th>周期</th><th>依赖</th><th>对应构想稿</th></tr></thead>
+    <tbody>
+      <tr><td><b>C1</b></td><td><b>用量合规速查</b></td><td>3-5 天</td><td>规则抽取 + 人工校核</td><td>（2）合规审查 ⭐</td></tr>
+      <tr><td>C1.5</td><td>多轮会话追问</td><td>1 天</td><td>session 表</td><td>（4）知识问答</td></tr>
+      <tr><td>M3</td><td>index.ts → &lt;150 行</td><td>3-4 天</td><td>—</td><td>工程</td></tr>
+      <tr><td><b>C2</b></td><td>配方批量审查</td><td>5-8 天</td><td>C1 + 物质目录</td><td>（2）合规审查</td></tr>
+      <tr><td><b>C3</b></td><td>标签审查</td><td>5-8 天</td><td>GB 10648 抽取</td><td>（2）合规审查</td></tr>
+      <tr><td><b>M4</b></td><td>变更监控 + 预警</td><td>4-6 周</td><td>爬虫 + 事件</td><td>（3）风险预警 ⭐</td></tr>
+      <tr><td>—</td><td>合规日历（标准生效日）</td><td>2-3 天</td><td>生效日期抽取</td><td>（3）风险预警</td></tr>
+      <tr><td>—</td><td>抽检公告聚合</td><td>3-5 天</td><td>公告爬取</td><td>（3）降级版</td></tr>
+      <tr><td>—</td><td>抽检/资质预警（企业侧）</td><td>❌</td><td>外部数据源</td><td>（3）暂缓</td></tr>
+      <tr><td>—</td><td>跨模块 Planner</td><td>❌</td><td>真实需求</td><td>（4）暂缓</td></tr>
+    </tbody>
+  </table>
+
+  <h3>与方案文档里程碑的对应</h3>
+  <table class="stack2">
+    <thead><tr><th>方案文档阶段</th><th>本设计的对应</th><th>进度</th></tr></thead>
+    <tbody>
+      <tr><td>一期 知识底座（6-8 周）</td><td>语料 + 双路检索 + 层级导航</td><td><span class="b b-ok">✅ 已超额完成</span></td></tr>
+      <tr><td>二期 问答与监控（4-6 周）</td><td>问答 Agent ✅ / 变更监控 ⏳ M4</td><td><span class="b b-warn">🟡 一半</span></td></tr>
+      <tr><td>三期 合规校验（6-8 周）</td><td><b>C1 + C2 + C3</b></td><td><span class="b b-mute">⏳ 未开工</span></td></tr>
+      <tr><td>四期 审核与开放（4-6 周）</td><td>资质审查 ❌ / 开放 API ⏳</td><td><span class="b b-err">❌ 未开工</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box warn">
+    <span class="t">一期验收标准目前测不了</span>
+    「抽样问答引用准确率 ≥ 95%」—— 现有 eval 只有 retrieval 指标，
+    <b>没有「引用准确率」这个口径</b>。建议随 C1 一起补一个引用准确率 eval 并纳入 CI 门禁。
+  </div>
+</section>
+
+<!-- ══════════ 9 ══════════ -->
+<section id="s9">
+  <h2><span class="num">9</span>典型场景可行性裁决</h2>
+
+  <div class="scenes">
+    <div class="scene s1">
+      <div class="sh">企业品控人员</div>
+      <div class="sd">输入配方自动审查合规性，输出不合规成分及替代建议</div>
+      <div class="sv"><span class="b b-ok">🟢 可做</span>（C1+C2）<br><span style="font-size:12.5px;color:var(--fg-dim)">依据：规则引擎 + 限量抽取</span></div>
+    </div>
+    <div class="scene s2">
+      <div class="sh">法规专员</div>
+      <div class="sd">订阅特定品类法规变更，获取影响分析报告</div>
+      <div class="sv"><span class="b b-warn">🟡 部分</span>（M4 后）<br><span style="font-size:12.5px;color:var(--fg-dim)">爬虫可做，但变更<b>影响分析</b>需规则库成熟</span></div>
+    </div>
+    <div class="scene s2">
+      <div class="sh">监管部门</div>
+      <div class="sd">批量审查企业标签标识，自动标注疑似违规项</div>
+      <div class="sv"><span class="b b-warn">🟡 部分</span>（C3 后）<br><span style="font-size:12.5px;color:var(--fg-dim)">标签规则可做；「批量」需企业标签数据</span></div>
+    </div>
+    <div class="scene s1">
+      <div class="sh">研发人员</div>
+      <div class="sd">查询新原料法规状态（是否在目录内、有无限量）</div>
+      <div class="sv"><span class="b b-ok">🟢 可做</span>（C1）<br><span style="font-size:12.5px;color:var(--fg-dim)">目录表 + 规则表，一次查询</span></div>
+    </div>
+  </div>
+
+  <div class="box danger">
+    <span class="t">关于「替代建议」</span>
+    构想稿说「输出不合规成分及<b>替代建议</b>」。<br>
+    替代建议需要一张「物质 → 可用替代品」映射表 —— 这是<b>新产品审定</b>的知识，
+    语料里<b>没有</b>（语料是法规，不是审定结论库）。<br><br>
+    <b>建议</b>：v1 只给「该物质在 XX 动物下的允许区间」—— 这本身就是调整依据。
+    替代品建议列为<b>待建数据源</b>，不要在文档里承诺。
+  </div>
+</section>
+
+<!-- ══════════ 10 ══════════ -->
+<section id="s10">
+  <h2><span class="num">10</span>风险与应对</h2>
+
+  <table class="stack2">
+    <thead><tr><th>风险</th><th>等级</th><th>应对</th></tr></thead>
+    <tbody>
+      <tr><td><b>规则抽取错误 → 错误结论</b></td><td><span class="b b-err">高</span></td><td>① <code>review_status</code> 闸门（未审核不参与判定）② 每条规则必绑 <code>source_article_id</code> ③ 保留原文摘录供人工复核</td></tr>
+      <tr><td><b>未覆盖被误判为合规</b></td><td><span class="b b-err">高</span></td><td><code>not_covered</code> 独立状态 + <b>单测锁死该分支</b></td></tr>
+      <tr><td>物质别名映射不全</td><td><span class="b b-warn">中</span></td><td>三级匹配；不匹配就 <code>not_covered</code>，<b>不做模糊匹配</b>（抗坏血酸 ≠ 抗坏血酸钙）</td></tr>
+      <tr><td>「款/项」粒度缺失</td><td><span class="b b-warn">中</span></td><td>规则抽取在<b>条级</b>进行，一含多项的条文拆成多条规则，每条标同一 <code>source_article_id</code></td></tr>
+      <tr><td>规则库随公告滞后</td><td><span class="b b-warn">中</span></td><td><code>rule_set_version</code> + 结论绑定版本 + 「已修订」提示（M4 后）</td></tr>
+      <tr><td>禁用清单假阳性</td><td><span class="b b-warn">中</span></td><td>人工审核 + <code>review_status</code>；实例如「不得在生产过程中进行维修」不是物质禁用</td></tr>
+      <tr><td>组合约束被误当单体</td><td><span class="b b-warn">中</span></td><td><code>rule_type='combination'</code> 独立类型，不参与单体判定</td></tr>
+      <tr><td>性能：每次判定查 D1 + 检索</td><td><span class="b b-mute">低</span></td><td>规则库 v1 仅 30-50 条，全量载入内存即可</td></tr>
+      <tr><td>爬虫随政府网站改版失效</td><td><span class="b b-warn">中</span></td><td>优先用 RSS/JSON 接口；解析失败告警而非静默</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════ 11 ══════════ -->
+<section id="s11">
+  <h2><span class="num">11</span>需要业务方确认的事项</h2>
+
+  <table class="stack2">
+    <thead><tr><th>#</th><th>事项</th><th>我的建议</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>规则库 v1 的范围</b>：只做「添加剂用量」还是含「原料质量指标」？</td><td><b>只做添加剂用量</b>。原料目录的质量指标（蛋白质≥50%）语义完全不同，混在一起判定逻辑会崩</td></tr>
+      <tr><td>2</td><td><b>未覆盖时的产品行为</b>：阻断式还是提示式？</td><td><b>提示式 + 强制标注「需人工确认」</b>，不阻断（阻断会让用户绕开系统）</td></tr>
+      <tr><td>3</td><td><b>是否需要「替代建议」</b></td><td>v1 不做，缺数据源</td></tr>
+      <tr><td>4</td><td><b>合规日历是否含企业证件到期</b></td><td>不含（需企业侧数据）</td></tr>
+      <tr><td>5</td><td><b>抽检预警的语义降级</b></td><td>接受「公告聚合检索」版本，需在产品文档写清</td></tr>
+      <tr><td>6</td><td><b>LLM 私有化</b></td><td>维持公网；但 <b>C2 配方审查上线前必须重新评估</b>（配方是企业敏感信息）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box purple">
+    <span class="t">下一步建议</span>
+    先做 <b>C1 用量速查</b>：它是构想稿最有说服力的场景，也是 ADR-004 M2 的技术落点。<br>
+    但在动手前，<b>先完成「限量表结构化抽取」</b>（实测可抽 28 条），
+    并<b>人工校核每一条</b> —— 这是「规则与模型双轨」的技术前提，
+    也是防止「规则抽错了直接给用户错误结论」的唯一闸门。
+  </div>
+</section>
+
+<footer>
+  <p>功能设计 · 面向饲料法规的智能体 · V1.0 · 2026-10-28 · qingmang CTO</p>
+  <p style="margin-top:8px">需求来源 <span class="kbd">面向饲料法规的智能体.docx</span> · 关联 <span class="kbd">ADR-004</span> <span class="kbd">ADR-005</span> <span class="kbd">system-architecture.html</span></p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var mq = window.matchMedia('(max-width: 820px)');
+  function mark(){
+    document.querySelectorAll('table').forEach(function(t){
+      if(t.dataset.hinted) return;
+      if(t.classList.contains('stack2')) return;
+      var hint = document.createElement('div');
+      hint.className = 'scrollhint';
+      hint.textContent = '← 左右滑动查看完整表格';
+      t.parentNode.insertBefore(hint, t);
+      t.dataset.hinted = '1';
+    });
+  }
+  function run(){
+    document.querySelectorAll('.scrollhint').forEach(function(e){e.remove();});
+    document.querySelectorAll('table').forEach(function(t){delete t.dataset.hinted;});
+    if(mq.matches) mark();
+  }
+  if(mq.addEventListener) mq.addEventListener('change', run);
+  window.addEventListener('resize', run);
+  window.addEventListener('load', run);
+  run();
+})();
+
+function cp(btn){
+  var pre = btn.parentElement.querySelector('pre');
+  var txt = pre.innerText;
+  var done = function(){
+    var old = btn.textContent;
+    btn.textContent = '已复制 ✓';
+    btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1800);
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(done).catch(fallback);
+  } else { fallback(); }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+</script>
+
+</body>
+</html>
