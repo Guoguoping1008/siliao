@@ -132,3 +132,9 @@ _m*.png
 _f*.png
 _e*.png
 web/_*.cjs
+
+
+# C1 合规规则灌库产物 —— 由 seed_compliance.py 生成
+# (给 `wrangler d1 execute --file` 回退路径用; 每次灌库重新生成)
+build/export/compliance_rules.sql
+build/export/substance_catalog.sql
