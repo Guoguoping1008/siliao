@@ -130,6 +130,25 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
 
+  # ===== Worker 单元测试 =====
+  worker-test:
+    name: Worker · vitest (领域层 + 架构规则)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: query/worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: query/worker/package-lock.json
+      - run: npm ci
+      # ⚠️ 这套测试包含**架构规则测试** —— ADR-004 的 R1-R5 依赖方向。
+      #    领域层一旦 import infrastructure / interfaces / application, 这里直接红。
+      - run: npm test
+
   # ===== Python eval =====
   eval:
     name: Eval · retrieval + faithfulness
