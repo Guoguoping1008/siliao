@@ -52,6 +52,15 @@ jobs:
         # 从 articles.json 抽 (物质×动物×限量) 三元组
         run: python build/export/extract_compliance_rules.py
 
+      - name: 双语名对照补全
+        # ⚠️ **必须在灌库前跑** ——
+        #    规则里的物质名有 5 条是 OCR 掉的英文名(Niacinamide 等),
+        #    目录里的中文写法与安全使用规范也可能差一两个修饰词
+        #    (「亚硫酸甲萘醌」vs「亚硫酸氢钠甲萘醌」)。
+        #    这一步把它们统一到中文通用名 + 填上 name_en/substance_alias,
+        #    否则领域层的物质名匹配匹配不上 → 明明库里有规则却判 not_covered。
+        run: python build/export/enrich_bilingual_names.py
+
       - name: 探测 D1 权限
         id: d1probe
         env:

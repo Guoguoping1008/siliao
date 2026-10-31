@@ -549,13 +549,27 @@ def extract_catalog(articles):
                 continue
 
             has_scope_col = "适用范围" in hdr_text
+            # ⚠️ **合并表头**: 「通用名称 / 适用范围」这一格里同时含两个关键词,
+            #    但它其实是**两列**(类别 | 通用名称/适用范围)。
+            #    不特判就会走进 A 型分支, 把「适用范围」那一列当成物质名列 ——
+            #    实测导致 L-肉碱酒石酸盐 / 二甲基嘧啶醇亚硫酸甲萘醌 等整行丢失。
+            merged_name_scope = False
+            for h in hdr:
+                if "通用名称" in h and "适用范围" in h:
+                    merged_name_scope = True
+                    break
+
             cur_category = ""   # 合并单元格向下填充
 
             for row in rows:
                 cells = [normalize_cell(c) for c in row]
-                cells = [c for c in cells if c not in EMPTY_CELLS or c == ""]
+                # ⚠️ **空串必须剔除** —— 之前写成
+                #    `if c not in EMPTY_CELLS or c == ""` 会把空串**保留**,
+                #    于是 3 列表的行变成 3 个值(名/范围/空), 走进「3+ 列」分支,
+                #    被误判成 [类别, 物质名, 范围] → 物质名错位 → 整行丢失。
+                cells = [c for c in cells if c and c not in EMPTY_CELLS]
                 # 去掉全空行
-                if not any(cells):
+                if not cells:
                     continue
                 # 表头行跳过
                 if "通用名称" in " ".join(cells) and "适用范围" in " ".join(cells):

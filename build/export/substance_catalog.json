@@ -1,7 +1,7 @@
 {
   "rule_set_version": "v2026.10",
   "note": "物质目录候选 —— review_status='pending'",
-  "count": 314,
+  "count": 387,
   "substances": [
     {
       "name_cn": "L-赖氨酸",
@@ -13,13 +13,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "液体L-赖氨酸（L-赖氨酸含量不低于50%）",
+      "name_cn": "液体L-赖氨酸(L-赖氨酸含量不低于50%)",
       "name_en": "",
       "category": "",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "L-赖氨酸含量不低于50%"
     },
     {
       "name_cn": "L-赖氨酸盐酸盐",
@@ -31,13 +32,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "L-赖氨酸硫酸盐及其发酵副产物（产自谷氨酸棒杆菌、乳糖发酵短杆菌，L-赖氨酸含量不低于51%）",
+      "name_cn": "L-赖氨酸硫酸盐及其发酵副产物(产自谷氨酸棒杆菌、乳糖发酵短杆菌，L-赖氨酸含量不低于51%)",
       "name_en": "",
       "category": "",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自谷氨酸棒杆菌、乳糖发酵短杆菌，L-赖氨酸含量不低于51%"
     },
     {
       "name_cn": "DL-蛋氨酸",
@@ -59,7 +61,7 @@
     },
     {
       "name_cn": "L-色氨酸",
-      "name_en": "",
+      "name_en": "L-Tryptophan",
       "category": "",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -112,13 +114,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "天（门）冬氨酸",
+      "name_cn": "天(门)冬氨酸",
       "name_en": "",
       "category": "",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "门"
     },
     {
       "name_cn": "L-亮氨酸",
@@ -248,7 +251,7 @@
     },
     {
       "name_cn": "蛋氨酸羟基类似物",
-      "name_en": "",
+      "name_en": "Methionine hydroxy analogue",
       "category": "",
       "scope_text": "猪、鸡、牛和水产养殖动物、犬⁴、猫⁴、鸭⁴",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -257,7 +260,7 @@
     },
     {
       "name_cn": "蛋氨酸羟基类似物钙盐",
-      "name_en": "",
+      "name_en": "Methionine hydroxy analogue calcium",
       "category": "",
       "scope_text": "猪、鸡、牛和水产养殖动物、犬⁴、猫⁴",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -302,7 +305,7 @@
     },
     {
       "name_cn": "维生素A乙酸酯",
-      "name_en": "",
+      "name_en": "Vitamin A acetate",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -311,7 +314,7 @@
     },
     {
       "name_cn": "维生素A棕榈酸酯",
-      "name_en": "",
+      "name_en": "Vitamin A palmitate",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -320,7 +323,7 @@
     },
     {
       "name_cn": "β-胡萝卜素",
-      "name_en": "",
+      "name_en": "beta-Carotene",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -328,62 +331,68 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "盐酸硫胺（维生素B1）",
+      "name_cn": "盐酸硫胺(维生素B1)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素B1"
     },
     {
-      "name_cn": "硝酸硫胺（维生素B1）",
+      "name_cn": "硝酸硫胺(维生素B1)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素B1"
     },
     {
-      "name_cn": "核黄素（维生素B2）",
+      "name_cn": "核黄素(维生素B2)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素B2"
     },
     {
-      "name_cn": "盐酸吡哆醇（维生素B6）",
+      "name_cn": "盐酸吡哆醇(维生素B6)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素B6"
     },
     {
-      "name_cn": "氰钴胺（维生素B12）",
+      "name_cn": "氰钴胺(维生素B12)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素B12"
     },
     {
-      "name_cn": "L-抗坏血酸（维生素C）",
+      "name_cn": "L-抗坏血酸(维生素C)",
       "name_en": "",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素C"
     },
     {
       "name_cn": "L-抗坏血酸钙",
-      "name_en": "",
+      "name_en": "Calcium L-α-ascorbate",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -428,7 +437,7 @@
     },
     {
       "name_cn": "天然维生素E",
-      "name_en": "",
+      "name_en": "Natural vitamin E",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -454,17 +463,18 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "亚硫酸氢钠甲萘醌（维生素K3）",
-      "name_en": "",
+      "name_cn": "亚硫酸氢钠甲萘醌(维生素K3)",
+      "name_en": "Menadione sodium bisulfite (MSB)",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "维生素K3"
     },
     {
       "name_cn": "二甲基嘧啶醇亚硫酸甲萘醌",
-      "name_en": "",
+      "name_en": "Menadione dimethyl pyrimidinol bisulfite (MPB)",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -473,7 +483,7 @@
     },
     {
       "name_cn": "烟酸",
-      "name_en": "",
+      "name_en": "Nicotinic acid",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -482,7 +492,7 @@
     },
     {
       "name_cn": "烟酰胺",
-      "name_en": "",
+      "name_en": "Niacinamide",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -518,7 +528,7 @@
     },
     {
       "name_cn": "D-生物素",
-      "name_en": "",
+      "name_en": "D-Biotin",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -527,7 +537,7 @@
     },
     {
       "name_cn": "氯化胆碱",
-      "name_en": "",
+      "name_en": "Choline chloride",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -536,7 +546,7 @@
     },
     {
       "name_cn": "肌醇",
-      "name_en": "",
+      "name_en": "Inositol",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -545,7 +555,7 @@
     },
     {
       "name_cn": "L-肉碱",
-      "name_en": "",
+      "name_en": "L-Carnitine",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -554,7 +564,7 @@
     },
     {
       "name_cn": "L-肉碱盐酸盐",
-      "name_en": "",
+      "name_en": "L-Carnitine hydrochloride",
       "category": "维生素及类维生素",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
@@ -580,6 +590,550 @@
       "review_status": "pending"
     },
     {
+      "name_cn": "25-羟基胆钙化醇(25-羟基维生素D3)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、家禽",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "25-羟基维生素D3"
+    },
+    {
+      "name_cn": "L-肉碱酒石酸盐",
+      "name_en": "L-Carnitine-L-Tartrate",
+      "category": "维生素及类维生素",
+      "scope_text": "宠物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "维生素K1",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "犬、猫",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "酒石酸氢胆碱",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "犬、猫",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氯化钠",
+      "name_en": "Sodium chloride",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "硫酸钠",
+      "name_en": "Sodium sul- fate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸二氢钠",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸氢二钠",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸二氢钾",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸氢二钾",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "轻质碳酸钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氯化钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸氢钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "磷酸二氢钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "乳酸钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "葡萄糖酸钙",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "硫酸镁",
+      "name_en": "Magnesium sulfate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氧化镁",
+      "name_en": "Magnesium oxide",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氯化镁",
+      "name_en": "Magnesium chloride",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "乳酸亚铁",
+      "name_en": "Ferrouslactate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "硫酸亚铁",
+      "name_en": "Ferroussulfate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氧化亚铁",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氯化铁",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "碳酸锌",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "硫酸锌",
+      "name_en": "Zinc sulfate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "碘化钾",
+      "name_en": "Potassium iodide",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "碘酸钾",
+      "name_en": "Potassium iodate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "碘化钠",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "碘酸钠",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氯化钴",
+      "name_en": "Cobalt chloride",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "乙酸钴",
+      "name_en": "Cobalt acetate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "硫酸铜",
+      "name_en": "Coppersulfate",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "亚硒酸钠",
+      "name_en": "Sodium selenite",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋氨酸铜络合物(螯合物)",
+      "name_en": "Zinc methionine complex(chelate)",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "蛋氨酸铁络合物(螯合物)",
+      "name_en": "Zinc methionine complex(chelate)",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "蛋氨酸锰络合物(螯合物)",
+      "name_en": "Zinc methionine complex(chelate)",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "赖氨酸铜络合物(螯合物)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "甘氨酸铜络合物(螯合物)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "甘氨酸铁络合物(螯合物)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "酵母铜",
+      "name_en": "Selenium yeast complex",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "酵母铁",
+      "name_en": "Selenium yeast complex",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "酵母锰",
+      "name_en": "Selenium yeast complex",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "酵母硒",
+      "name_en": "Selenium yeast complex",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "氨基酸铜络合物(氨基酸来源于水解植物蛋白)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "氨基酸来源于水解植物蛋白"
+    },
+    {
+      "name_cn": "氨基酸铁络合物(氨基酸来源于水解植物蛋白)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "氨基酸来源于水解植物蛋白"
+    },
+    {
+      "name_cn": "氨基酸锰络合物(氨基酸来源于水解植物蛋白)",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "氨基酸来源于水解植物蛋白"
+    },
+    {
+      "name_cn": "赖氨酸和谷氨酸锌络合物",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "断奶仔猪、肉仔鸡和蛋鸡",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋白铜",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物（反刍动物除外）",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋白铁",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物（反刍动物除外）",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋白锌",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物（反刍动物除外）",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋白锰",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "养殖动物（反刍动物除外）",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "羟基蛋氨酸类似物络合物(螯合物)合锌",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "奶牛、肉牛、家禽和猪",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "轻基蛋氨酸类似物络合物(螯合物)合锰",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "奶牛、肉牛、家禽和猪",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "轻基蛋氨酸类似物络合物(螯合物)合铜",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "奶牛、肉牛、家禽和猪",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "螯合物"
+    },
+    {
+      "name_cn": "烟酸铬",
+      "name_en": "Chromium nicotinate",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、犬、猫",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "酵母铬",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、犬、猫",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "吡啶甲酸铬",
+      "name_en": "Chromium tripicolinate",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、犬、猫",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "蛋氨酸铬",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、泌乳奶牛、猫、犬",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "丙酸铬",
+      "name_en": "",
+      "category": "维生素及类维生素",
+      "scope_text": "猪、奶牛、肉仔鸡、猫、犬",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s00",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
       "name_cn": "甘氨酸锌",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
@@ -590,7 +1144,7 @@
     },
     {
       "name_cn": "丙酸锌",
-      "name_en": "",
+      "name_en": "Calcium propionate",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "猪、牛和家禽",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -626,7 +1180,7 @@
     },
     {
       "name_cn": "碳酸钴",
-      "name_en": "",
+      "name_en": "Cobalt carbonate",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "反刍动物、猫、狗",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -634,22 +1188,24 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "稀土（铈和镧）壳糖胺螯合盐",
+      "name_cn": "稀土(铈和镧)壳糖胺螯合盐",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "铈和镧"
     },
     {
-      "name_cn": "乳酸锌（α-羟基丙酸锌）",
+      "name_cn": "乳酸锌(α-羟基丙酸锌)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "生长育肥猪、家禽、犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "α-羟基丙酸锌"
     },
     {
       "name_cn": "葡萄糖酸铜",
@@ -715,166 +1271,184 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "二氢碘酸乙二胺（EDDI）",
+      "name_cn": "二氢碘酸乙二胺(EDDI)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "EDDI"
     },
     {
-      "name_cn": "淀粉酶（产自黑曲霉、解淀粉芽孢杆菌、地衣芽孢杆菌、枯草芽孢杆菌、长柄木霉、米曲霉、大麦芽、酸解支链淀粉芽孢杆菌）",
+      "name_cn": "淀粉酶(产自黑曲霉、解淀粉芽孢杆菌、地衣芽孢杆菌、枯草芽孢杆菌、长柄木霉、米曲霉、大麦芽、酸解支链淀粉芽孢杆菌)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、解淀粉芽孢杆菌、地衣芽孢杆菌、枯草芽孢杆菌、长柄木霉、米曲霉、大麦芽、酸解支链淀粉芽孢杆菌"
     },
     {
-      "name_cn": "α-半乳糖苷酶（产自黑曲霉）",
+      "name_cn": "α-半乳糖苷酶(产自黑曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "豆粕",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉"
     },
     {
-      "name_cn": "纤维素酶（产自长柄木霉、黑曲霉、孤独腐质霉、绳状青霉）",
+      "name_cn": "纤维素酶(产自长柄木霉、黑曲霉、孤独腐质霉、绳状青霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自长柄木霉、黑曲霉、孤独腐质霉、绳状青霉"
     },
     {
-      "name_cn": "β-葡聚糖酶（产自黑曲霉、枯草芽孢杆菌、长柄木霉、绳状青霉、解淀粉芽孢杆菌、棘孢曲霉）",
+      "name_cn": "β-葡聚糖酶(产自黑曲霉、枯草芽孢杆菌、长柄木霉、绳状青霉、解淀粉芽孢杆菌、棘孢曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、枯草芽孢杆菌、长柄木霉、绳状青霉、解淀粉芽孢杆菌、棘孢曲霉"
     },
     {
-      "name_cn": "葡萄糖氧化酶（产自特异青霉、黑曲霉）",
+      "name_cn": "葡萄糖氧化酶(产自特异青霉、黑曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "葡萄糖",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自特异青霉、黑曲霉"
     },
     {
-      "name_cn": "脂肪酶（产自黑曲霉、米曲霉）",
+      "name_cn": "脂肪酶(产自黑曲霉、米曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "动物或植物源性油脂或脂肪",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、米曲霉"
     },
     {
-      "name_cn": "麦芽糖酶（产自枯草芽孢杆菌）",
+      "name_cn": "麦芽糖酶(产自枯草芽孢杆菌)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自枯草芽孢杆菌"
     },
     {
-      "name_cn": "β-甘露聚糖酶（产自迟缓芽孢杆菌、黑曲霉、长柄木霉）",
+      "name_cn": "β-甘露聚糖酶(产自迟缓芽孢杆菌、黑曲霉、长柄木霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自迟缓芽孢杆菌、黑曲霉、长柄木霉"
     },
     {
-      "name_cn": "β-半乳糖苷酶（产自黑曲霉）",
+      "name_cn": "β-半乳糖苷酶(产自黑曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉"
     },
     {
-      "name_cn": "菠萝蛋白酶（源自菠萝）",
+      "name_cn": "菠萝蛋白酶(源自菠萝)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "源自菠萝"
     },
     {
-      "name_cn": "木瓜蛋白酶（源自木瓜）",
+      "name_cn": "木瓜蛋白酶(源自木瓜)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "源自木瓜"
     },
     {
-      "name_cn": "胃蛋白酶（源自猪、小牛、小羊、禽类的胃组织）",
+      "name_cn": "胃蛋白酶(源自猪、小牛、小羊、禽类的胃组织)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "犬、猫",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "源自猪、小牛、小羊、禽类的胃组织"
     },
     {
-      "name_cn": "果胶酶（产自黑曲霉、棘孢曲霉）",
+      "name_cn": "果胶酶(产自黑曲霉、棘孢曲霉)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "玉米、小麦",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、棘孢曲霉"
     },
     {
-      "name_cn": "植酸酶（产自黑曲霉、米曲霉、长柄木霉、毕赤酵母）",
+      "name_cn": "植酸酶(产自黑曲霉、米曲霉、长柄木霉、毕赤酵母)",
       "name_en": "",
       "category": "矿物元素及其络（螯）合物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、米曲霉、长柄木霉、毕赤酵母"
     },
     {
-      "name_cn": "蛋白酶（产自黑曲霉、米曲霉、枯草芽孢杆菌、长柄木霉）",
+      "name_cn": "蛋白酶(产自黑曲霉、米曲霉、枯草芽孢杆菌、长柄木霉)",
       "name_en": "",
       "category": "酶制剂",
       "scope_text": "植物和动物蛋白",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自黑曲霉、米曲霉、枯草芽孢杆菌、长柄木霉"
     },
     {
-      "name_cn": "角蛋白酶（产自地衣芽孢杆菌）",
+      "name_cn": "角蛋白酶(产自地衣芽孢杆菌)",
       "name_en": "",
       "category": "酶制剂",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自地衣芽孢杆菌"
     },
     {
-      "name_cn": "木聚糖酶（产自米曲霉、孤独腐质霉、长柄木霉、枯草芽孢杆菌、绳状青霉、黑曲霉、毕赤酵母）",
+      "name_cn": "木聚糖酶(产自米曲霉、孤独腐质霉、长柄木霉、枯草芽孢杆菌、绳状青霉、黑曲霉、毕赤酵母)",
       "name_en": "",
       "category": "微生物",
       "scope_text": "玉米、大麦、黑麦、小麦、高粱、黑小麦、燕麦",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "产自米曲霉、孤独腐质霉、长柄木霉、枯草芽孢杆菌、绳状青霉、黑曲霉、毕赤酵母"
     },
     {
       "name_cn": "地衣芽孢杆菌",
@@ -940,13 +1514,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "德氏乳杆菌乳酸亚种（原名：乳酸乳杆菌）",
+      "name_cn": "德氏乳杆菌乳酸亚种(原名：乳酸乳杆菌)",
       "name_en": "",
       "category": "微生物",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "原名：乳酸乳杆菌"
     },
     {
       "name_cn": "植物乳杆菌",
@@ -1120,13 +1695,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "德氏乳杆菌保加利亚亚种（原名：保加利亚乳杆菌）",
+      "name_cn": "德氏乳杆菌保加利亚亚种(原名：保加利亚乳杆菌)",
       "name_en": "",
       "category": "微生物",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "原名：保加利亚乳杆菌"
     },
     {
       "name_cn": "产丙酸丙酸杆菌",
@@ -1165,17 +1741,18 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "侧孢短芽孢杆菌（原名：鳗弧芽孢杆菌）",
+      "name_cn": "侧孢短芽孢杆菌(原名：鳗弧芽孢杆菌)",
       "name_en": "",
       "category": "微生物",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "原名：鳗弧芽孢杆菌"
     },
     {
       "name_cn": "尿素",
-      "name_en": "",
+      "name_en": "Urea",
       "category": "非蛋白氮",
       "scope_text": "反刍动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1184,7 +1761,7 @@
     },
     {
       "name_cn": "碳酸氢铵",
-      "name_en": "",
+      "name_en": "Ammonium bicarbonate",
       "category": "非蛋白氮",
       "scope_text": "反刍动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1193,7 +1770,7 @@
     },
     {
       "name_cn": "液氨",
-      "name_en": "",
+      "name_en": "Liquid ammonia",
       "category": "非蛋白氮",
       "scope_text": "反刍动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1202,7 +1779,7 @@
     },
     {
       "name_cn": "磷酸二氢铵",
-      "name_en": "",
+      "name_en": "Mono ammonium phosphate",
       "category": "非蛋白氮",
       "scope_text": "反刍动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1256,7 +1833,7 @@
     },
     {
       "name_cn": "乙氧基喹啉",
-      "name_en": "",
+      "name_en": "Ethoxyquin",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1264,22 +1841,24 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "丁基羟基茴香醚（BHA）",
+      "name_cn": "丁基羟基茴香醚(BHA)",
       "name_en": "",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "BHA"
     },
     {
-      "name_cn": "二丁基羟基甲苯（BHT）",
+      "name_cn": "二丁基羟基甲苯(BHT)",
       "name_en": "",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "BHT"
     },
     {
       "name_cn": "没食子酸丙酯",
@@ -1291,17 +1870,18 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "特丁基对苯二酚（TBHQ）",
+      "name_cn": "特丁基对苯二酚(TBHQ)",
       "name_en": "",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "TBHQ"
     },
     {
       "name_cn": "茶多酚",
-      "name_en": "",
+      "name_en": "Tea polyphenols",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1310,7 +1890,7 @@
     },
     {
       "name_cn": "迷迭香提取物",
-      "name_en": "",
+      "name_en": "L-Ascorbic acid 6 -palmitate",
       "category": "非蛋白氮",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1354,17 +1934,18 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "植酸（肌醇六磷酸）",
+      "name_cn": "植酸(肌醇六磷酸)",
       "name_en": "",
       "category": "非蛋白氮",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "肌醇六磷酸"
     },
     {
       "name_cn": "L-抗坏血酸钠",
-      "name_en": "",
+      "name_en": "Sodium L-α-ascorbate",
       "category": "非蛋白氮",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1427,7 +2008,7 @@
     },
     {
       "name_cn": "丙酸",
-      "name_en": "",
+      "name_en": "Calcium propionate",
       "category": "防腐剂、防霉剂和调味剂",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1445,7 +2026,7 @@
     },
     {
       "name_cn": "丙酸钠",
-      "name_en": "",
+      "name_en": "Calcium propionate",
       "category": "防腐剂、防霉剂和调味剂",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1454,7 +2035,7 @@
     },
     {
       "name_cn": "丙酸钙",
-      "name_en": "",
+      "name_en": "Calcium propionate",
       "category": "防腐剂、防霉剂和调味剂",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1616,7 +2197,7 @@
     },
     {
       "name_cn": "氯化铵",
-      "name_en": "",
+      "name_en": "Ammonium chloride",
       "category": "防腐剂、防霉剂和调味剂",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s01",
@@ -1724,15 +2305,6 @@
     },
     {
       "name_cn": "乳酸钠",
-      "name_en": "",
-      "category": "防腐剂、防霉剂和调味剂",
-      "scope_text": "犬⁽²⁾、猫⁽²⁾",
-      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
-      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
-    },
-    {
-      "name_cn": "乳酸钙",
       "name_en": "",
       "category": "防腐剂、防霉剂和调味剂",
       "scope_text": "犬⁽²⁾、猫⁽²⁾",
@@ -1867,26 +2439,28 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "4-二酮（斑蝥黄）",
+      "name_cn": "4-二酮(斑蝥黄)",
       "name_en": "",
       "category": "着色剂",
       "scope_text": "家禽",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "斑蝥黄"
     },
     {
-      "name_cn": "天然叶黄素（源自万寿菊）",
+      "name_cn": "天然叶黄素(源自万寿菊)",
       "name_en": "",
       "category": "着色剂",
       "scope_text": "家禽、水产养殖动物、犬⁽²⁾、猫⁽²⁾",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "源自万寿菊"
     },
     {
       "name_cn": "红法夫酵母",
-      "name_en": "",
+      "name_en": "Xanthophylls (dendro-rhous (Anamor-ph Phaffia rhodo-zyma)",
       "category": "着色剂",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1895,7 +2469,7 @@
     },
     {
       "name_cn": "虾青素",
-      "name_en": "",
+      "name_en": "Astaxanthin",
       "category": "着色剂",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1913,7 +2487,7 @@
     },
     {
       "name_cn": "日落黄",
-      "name_en": "",
+      "name_en": "Sunset yellow",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1922,7 +2496,7 @@
     },
     {
       "name_cn": "诱惑红",
-      "name_en": "",
+      "name_en": "Allura red",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1931,7 +2505,7 @@
     },
     {
       "name_cn": "胭脂红",
-      "name_en": "",
+      "name_en": "Ponceau 4 R",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1940,7 +2514,7 @@
     },
     {
       "name_cn": "靛蓝",
-      "name_en": "",
+      "name_en": "Indigotine",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1949,7 +2523,7 @@
     },
     {
       "name_cn": "二氧化钛",
-      "name_en": "",
+      "name_en": "Titanium dioxide",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -1957,17 +2531,18 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "焦糖色（亚硫酸铵法、普通法⁽⁾、氨法⁽⁾）",
-      "name_en": "",
+      "name_cn": "焦糖色(亚硫酸铵法、普通法⁽⁾、氨法⁽⁾)",
+      "name_en": "CaramelcolourclassIV(ammoniasulphiteprocess)",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "亚硫酸铵法、普通法⁽⁾、氨法⁽⁾"
     },
     {
       "name_cn": "赤藓红",
-      "name_en": "",
+      "name_en": "Erythrosine",
       "category": "着色剂",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -2020,13 +2595,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "叶绿素铜钠（钾）盐",
+      "name_cn": "叶绿素铜钠(钾)盐",
       "name_en": "",
       "category": "着色剂",
       "scope_text": "犬⁽²⁾、猫⁽²⁾",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "钾"
     },
     {
       "name_cn": "栀子蓝",
@@ -2084,7 +2660,7 @@
     },
     {
       "name_cn": "苋菜红",
-      "name_en": "",
+      "name_en": "Tartrazine",
       "category": "着色剂",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -2093,7 +2669,7 @@
     },
     {
       "name_cn": "亮蓝",
-      "name_en": "",
+      "name_en": "Brilliantblue",
       "category": "着色剂",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -2102,7 +2678,7 @@
     },
     {
       "name_cn": "糖精",
-      "name_en": "",
+      "name_en": "Saccharin",
       "category": "调味和诱食物质⁽⁴⁾",
       "scope_text": "猪",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -2111,7 +2687,7 @@
     },
     {
       "name_cn": "糖精钙",
-      "name_en": "",
+      "name_en": "Calciumsaccharin",
       "category": "调味和诱食物质⁽⁴⁾",
       "scope_text": "猪",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
@@ -2182,9 +2758,9 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "食品用香料⁽⁾",
+      "name_cn": "香味物质",
       "name_en": "",
-      "category": "香味物质",
+      "category": "调味和诱食物质⁽⁴⁾",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s02",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
@@ -2407,13 +2983,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "二氧化硅（沉淀并经干燥的硅酸）",
-      "name_en": "",
+      "name_cn": "二氧化硅(沉淀并经干燥的硅酸)",
+      "name_en": "Silicon dioxide(Silicic acid, precipitated and dried)",
       "category": "",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "沉淀并经干燥的硅酸"
     },
     {
       "name_cn": "丙三醇",
@@ -2444,7 +3021,7 @@
     },
     {
       "name_cn": "决明胶",
-      "name_en": "",
+      "name_en": "Cassia gum",
       "category": "",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
@@ -2453,7 +3030,7 @@
     },
     {
       "name_cn": "刺槐豆胶",
-      "name_en": "",
+      "name_en": "Carob bean gum",
       "category": "",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
@@ -2462,7 +3039,7 @@
     },
     {
       "name_cn": "果胶",
-      "name_en": "",
+      "name_en": "Pectin",
       "category": "",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
@@ -2471,7 +3048,7 @@
     },
     {
       "name_cn": "微晶纤维素",
-      "name_en": "",
+      "name_en": "Microcrystalline cellulose",
       "category": "",
       "scope_text": "宠物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
@@ -2497,13 +3074,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "不溶性聚乙烯聚吡咯烷酮（PVPP）",
+      "name_cn": "不溶性聚乙烯聚吡咯烷酮(PVPP)",
       "name_en": "",
       "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
       "scope_text": "犬⁴、猫⁴",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "PVPP"
     },
     {
       "name_cn": "羧甲基淀粉钠",
@@ -2633,7 +3211,7 @@
     },
     {
       "name_cn": "辛烯基琥珀酸淀粉钠",
-      "name_en": "",
+      "name_en": "Starch sodium octenylsuccinate",
       "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
       "scope_text": "养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
@@ -2677,28 +3255,172 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "虹鳟鱼",
+      "name_cn": "低聚木糖(木寡糖)",
       "name_en": "",
-      "category": "壳寡糖（寡聚β-（1-4）-2-氨基-2-脱氧-D-葡萄糖）（n=2～10）",
-      "scope_text": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "鸡、猪、水产养殖动物、犬⁴、猫⁴",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "木寡糖"
+    },
+    {
+      "name_cn": "低聚壳聚糖",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "猪、鸡和水产养殖动物、犬⁴、猫⁴",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
       "review_status": "pending"
     },
     {
-      "name_cn": "虾",
+      "name_cn": "半乳甘露寡糖",
       "name_en": "",
-      "category": "杜仲叶提取物（有效成分为绿原酸、杜仲多糖、杜仲黄酮）",
-      "scope_text": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "猪、肉鸡、兔和水产养殖动物",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
       "review_status": "pending"
+    },
+    {
+      "name_cn": "果寡糖",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "甘露寡糖",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "低聚半乳糖",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "壳寡糖(寡聚β-(1-4)-2-氨基-2-脱氧-D-葡萄糖)(n=2～10)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "猪、鸡、肉鸭、虹鳟鱼、犬⁴、猫⁴",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "寡聚β-(1-4"
+    },
+    {
+      "name_cn": "β-1",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "水产养殖动物、犬⁴、猫⁴",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "3-D-葡聚糖(源自酿酒酵母)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "水产养殖动物、犬⁴、猫⁴",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "源自酿酒酵母"
+    },
+    {
+      "name_cn": "N.O-羧甲基壳聚糖",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "猪、鸡",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "天然类固醇萨洒皂角苷(源自丝兰)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "源自丝兰"
+    },
+    {
+      "name_cn": "天然三萜烯皂角苷(源自可来雅皂角树)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "源自可来雅皂角树"
+    },
+    {
+      "name_cn": "二十二碳六烯酸(DHA)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "养殖动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "DHA"
+    },
+    {
+      "name_cn": "糖萜素(源自山茶籽饼)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "猪和家禽",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "源自山茶籽饼"
+    },
+    {
+      "name_cn": "乙酰氧肟酸",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "反刍动物",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending"
+    },
+    {
+      "name_cn": "苜蓿提取物(有效成分为苜蓿多糖、苜蓿黄酮、苜蓿皂甙)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "仔猪、生长育肥猪、肉鸡、犬⁴、猫⁴",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "有效成分为苜蓿多糖、苜蓿黄酮、苜蓿皂甙"
+    },
+    {
+      "name_cn": "杜仲叶提取物(有效成分为绿原酸、杜仲多糖、杜仲黄酮)",
+      "name_en": "",
+      "category": "抗氧化剂、抗结剂、稳定剂和乳化剂",
+      "scope_text": "",
+      "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
+      "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+      "review_status": "pending",
+      "substance_alias": "有效成分为绿原酸、杜仲多糖、杜仲黄酮"
     },
     {
       "name_cn": "共轭亚油酸",
       "name_en": "",
       "category": "",
-      "scope_text": "仔猪、蛋鸡、犬&lt;sup&gt;1&lt;/sup&gt;、猫&lt;sup&gt;1&lt;/sup&gt;",
+      "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
       "review_status": "pending"
@@ -2713,31 +3435,33 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "7-二羟基异黄酮（大豆黄酮）",
+      "name_cn": "7-二羟基异黄酮(大豆黄酮)",
       "name_en": "",
       "category": "",
       "scope_text": "猪、产蛋禽",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "大豆黄酮"
     },
     {
       "name_cn": "地顶孢霉培养物",
       "name_en": "",
       "category": "",
-      "scope_text": "猪、鸡、泌乳奶牛&lt;sup&gt;1&lt;/sup&gt;",
+      "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
       "review_status": "pending"
     },
     {
-      "name_cn": "紫苏籽提取物（有效成分为α-亚油酸、亚麻酸、黄酮）",
+      "name_cn": "紫苏籽提取物(有效成分为α-亚油酸、亚麻酸、黄酮)",
       "name_en": "",
       "category": "其他",
       "scope_text": "猪、肉鸡和鱼、犬&lt;sup&gt;1&lt;/sup&gt;、猫&lt;sup&gt;1&lt;/sup&gt;",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "有效成分为α-亚油酸、亚麻酸、黄酮"
     },
     {
       "name_cn": "硫酸软骨素",
@@ -2749,13 +3473,14 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "植物甾醇（源于大豆油/菜籽油，有效成分为β-谷甾醇、菜油甾醇、豆甾醇）",
+      "name_cn": "植物甾醇(源于大豆油/菜籽油，有效成分为β-谷甾醇、菜油甾醇、豆甾醇)",
       "name_en": "",
       "category": "其他",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "源于大豆油/菜籽油，有效成分为β-谷甾醇、菜油甾醇、豆甾醇"
     },
     {
       "name_cn": "透明质酸",
@@ -2785,40 +3510,44 @@
       "review_status": "pending"
     },
     {
-      "name_cn": "酪蛋白磷酸肽（CPP）",
+      "name_cn": "酪蛋白磷酸肽(CPP)",
       "name_en": "",
       "category": "其他",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "CPP"
     },
     {
-      "name_cn": "酪蛋白钙肽（CCP）",
+      "name_cn": "酪蛋白钙肽(CCP)",
       "name_en": "",
       "category": "其他",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "CCP"
     },
     {
-      "name_cn": "二十碳五烯酸（EPA）",
+      "name_cn": "二十碳五烯酸(EPA)",
       "name_en": "",
       "category": "其他",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "EPA"
     },
     {
-      "name_cn": "二甲基砜（MSM）",
+      "name_cn": "二甲基砜(MSM)",
       "name_en": "",
       "category": "其他",
       "scope_text": "",
       "source_article_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录__a002_s03",
       "source_doc_id": "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
-      "review_status": "pending"
+      "review_status": "pending",
+      "substance_alias": "MSM"
     },
     {
       "name_cn": "硫酸软骨素钠",

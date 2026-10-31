@@ -41,9 +41,36 @@ export function extractBracketAlias(name: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/**
+ * 名字归一 —— 只做**安全的形态归一**, 不做语义推理。
+ *
+ * ⚠️ 为什么需要: 语料里同一物质有多种写法:
+ *   目录      「L-抗坏血酸（维生素C）」(全角括号)
+ *   规则库    「L-抗坏血酸(维生素C)」(半角括号)
+ *   目录      「L-抗坏血酸*」        (脚注星号)
+ *   英文名    「Menadione … bisulfite (MPB)」(带缩写)
+ *   OCR       「Nicotinicacid」      (词间空格被吃掉)
+ *
+ * 归一只做: 全角→半角括号、去首尾空格、去脚注上标与尾随星号。
+ * **不改大小写、不删词、不做相似度** —— 那些是「猜」, 在合规判定里危险。
+ */
+export function normalizeName(s: string): string {
+  return (s || "")
+    .replace(/（/g, "(")
+    .replace(/）/g, ")")
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺]+/g, "")
+    .replace(/\s*\*+\s*$/g, "")
+    .trim();
+}
+
 /** 大小写不敏感的比较。 */
 function eqIgnoreCase(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/** 归一后 + 大小写不敏感的比较。 */
+function eqNormalized(a: string, b: string): boolean {
+  return eqIgnoreCase(normalizeName(a), normalizeName(b));
 }
 
 /**
@@ -58,28 +85,28 @@ export function matchSubstance(
   input: string,
   catalog: SubstanceCatalogEntry[]
 ): SubstanceMatch | null {
-  const q = (input || "").trim();
+  const q = normalizeName(input || "");
   if (!q) return null;
 
-  // ── 1. 精确匹配 ──
+  // ── 1. 精确匹配(归一后) ──
   for (const e of catalog) {
-    if (e.nameCn === q) return { entry: e, method: "exact" };
+    if (normalizeName(e.nameCn) === q) return { entry: e, method: "exact" };
   }
 
   // ── 2. 括号别名 ──
   for (const e of catalog) {
     const alias = extractBracketAlias(e.nameCn);
-    if (alias && (alias === q || eqIgnoreCase(alias, q))) {
+    if (alias && eqNormalized(alias, q)) {
       return { entry: e, method: "alias" };
     }
   }
 
   // ── 3. 别名表(英文名/化学名) ──
   for (const e of catalog) {
-    if (e.nameEn && eqIgnoreCase(e.nameEn, q)) {
+    if (e.nameEn && eqNormalized(e.nameEn, q)) {
       return { entry: e, method: "alias" };
     }
-    if (e.substanceAlias && eqIgnoreCase(e.substanceAlias, q)) {
+    if (e.substanceAlias && eqNormalized(e.substanceAlias, q)) {
       return { entry: e, method: "alias" };
     }
   }

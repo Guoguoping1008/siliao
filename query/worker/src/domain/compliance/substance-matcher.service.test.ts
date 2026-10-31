@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import {
   matchSubstance,
   extractBracketAlias,
+  normalizeName,
 } from "./substance-matcher.service";
 import type { SubstanceCatalogEntry } from "./substance-catalog.vo";
 
@@ -115,5 +116,61 @@ describe("matchSubstance", () => {
 
   it("空目录 → null", () => {
     expect(matchSubstance("维生素C", [])).toBeNull();
+  });
+});
+
+describe("normalizeName —— 形态归一(不做语义推理)", () => {
+  it("全角括号 → 半角", () => {
+    expect(normalizeName("L-抗坏血酸（维生素C）")).toBe("L-抗坏血酸(维生素C)");
+  });
+
+  it("去尾随脚注星号", () => {
+    expect(normalizeName("L-抗坏血酸*")).toBe("L-抗坏血酸");
+  });
+
+  it("去脚注上标", () => {
+    expect(normalizeName("犬⁴")).toBe("犬");
+  });
+
+  it("去首尾空格", () => {
+    expect(normalizeName("  烟酰胺  ")).toBe("烟酰胺");
+  });
+
+  it("⚠️ 不改大小写", () => {
+    expect(normalizeName("Niacinamide")).toBe("Niacinamide");
+  });
+
+  it("⚠️ 不删词 —— 只做形态归一", () => {
+    expect(normalizeName("L-抗坏血酸钙")).not.toBe("L-抗坏血酸");
+  });
+});
+
+describe("matchSubstance —— 全角/半角括号跨表匹配", () => {
+  it("半角输入匹配全角目录条目", () => {
+    const cat = [entry({ substanceId: "s9", nameCn: "L-抗坏血酸（维生素C）" })];
+    const m = matchSubstance("L-抗坏血酸(维生素C)", cat);
+    expect(m?.entry.substanceId).toBe("s9");
+    expect(m?.method).toBe("exact");
+  });
+
+  it("全角输入匹配半角目录条目", () => {
+    const cat = [entry({ substanceId: "s9", nameCn: "L-抗坏血酸(维生素C)" })];
+    const m = matchSubstance("L-抗坏血酸（维生素C）", cat);
+    expect(m?.entry.substanceId).toBe("s9");
+  });
+
+  it("尾随脚注星号不影响匹配", () => {
+    const cat = [entry({ substanceId: "s9", nameCn: "L-抗坏血酸" })];
+    expect(matchSubstance("L-抗坏血酸*", cat)?.entry.substanceId).toBe("s9");
+  });
+
+  it("⚠️ 归一不放松语义 —— 抗坏血酸钙 仍不会被维生素C 抢走", () => {
+    const cat = [
+      entry({ substanceId: "s1", nameCn: "L-抗坏血酸(维生素C)" }),
+      entry({ substanceId: "s2", nameCn: "L-抗坏血酸钙" }),
+    ];
+    const m = matchSubstance("维生素C", cat);
+    expect(m?.entry.substanceId).toBe("s1");
+    expect(m?.entry.nameCn).not.toContain("钙");
   });
 });
