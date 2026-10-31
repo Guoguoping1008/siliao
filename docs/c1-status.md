@@ -20,6 +20,8 @@
 | **物质名双语对照** | ✅ **98 对中英对照, 5 条 OCR 拉丁名已转中文** |
 | **真实数据集成测试** | ✅ **20 个用例跑真实抽取产物**(CI 常驻门禁) |
 | **人工校核清单** | ⏳ **已生成**(37 条, 8 条自动标记待重点看) |
+| **C1.5 多轮会话** | ✅ **代码已部署生产**, ⏳ 表未建(同一个 D1 blocker) |
+| **引用准确率 eval** | ✅ **实测 100%**(15 问题/39 引用), CI 门禁已生效 |
 | 灌库进 D1 | ⏳ **被 token 权限挡住 —— 需你新建一个带 D1 Edit 的 token** |
 | 规则审核(reviewed) | ⏳ 待人工逐条校核 |
 
@@ -225,6 +227,36 @@ D1 REST API 失败, 回退到 wrangler d1 execute
 > 刷新失败（`invalid_grant`，Cloudflare 会轮换 refresh_token）。
 > 所以本地也走不通，只能靠 CI + 一个有 D1 权限的永久 token。
 
+### 4.5 同一个 blocker 还卡着 C1.5 多轮会话
+
+C1.5 的代码已部署生产（前端 `/conversation` 已上线，HTTP 200），
+但 `qa_sessions` / `qa_messages` 两张表还没建：
+
+```
+POST /api/qa/conversation → D1_ERROR: no such table: qa_sessions: SQLITE_ERROR
+```
+
+**这是预期状态** —— 表结构在 `query/worker/migrate_c15.sql`，
+需要 D1 写权限才能建。
+
+> ⚠️ **`migrate_c15.sql` 必须单独跑**，不能重跑 `schema.sql` ——
+>    生产库有 3145 条条文，wrangler 4.127+ 对「schema 变了」的库报
+>    `D1_RESET_DO`，**会清空远端表**。
+>    同样不能重跑 `migrate_c1.sql`（同一理由）。
+
+### 4.6 拿到 token 后的完整执行序列
+
+```bash
+# ① 建 C1.5 的会话表
+npx wrangler d1 execute siliao-db --remote --file ./migrate_c15.sql
+
+# ② 建 C1 的合规表 + 灌数据(走 CI 的 seed-compliance workflow)
+#    workflow 已含「抽取 → 双语补全 → 建表 → 灌库」全流程
+gh workflow run seed-compliance.yml
+```
+
+我改 workflow 用新 secret 名 `CLOUDFLARE_D1_TOKEN` 后触发即可。
+
 ---
 
 ## 五、灌库之后的流程
@@ -277,6 +309,8 @@ CSV 每行一条规则，带 `decision`（ok/fix/reject）与 `fixed_*` 修正�
 | `cb80733` | fix(c1): 物质目录抽取修列错位 —— 74 → 314 条真实物质 |
 | `c7799f0` | feat(c1): 双语名对照补全 + 人工校核清单生成 |
 | `83932af` | fix(c1): 目录名与规则名写法不一致 → 规则永远匹配不上（真 bug） |
+| `3d0aef3` | feat(eval): 引用准确率 eval —— 一期验收标准变成可度量门禁 |
+| `0f3ffbb` | feat(c1.5): 多轮会话追问 —— 指代消解 + 会话存储 + 前端页 |
 
 ---
 
@@ -292,4 +326,7 @@ CSV 每行一条规则，带 `decision`（ok/fix/reject）与 `fixed_*` 修正�
 | `build/export/make_review_checklist.py` | 人工校核清单生成 |
 | `build/export/seed_compliance.py` | 灌库脚本 |
 | `query/worker/src/domain/compliance/compliance-real-data.test.ts` | 真实数据集成测试（20 用例） |
+| `evals/eval_citation_accuracy.py` | 引用准确率 eval（CI 门禁） |
+| `query/worker/src/domain/inquiry/conversation-context.vo.ts` | 多轮会话 · 指代消解（纯函数） |
+| `query/worker/migrate_c15.sql` | 多轮会话 D1 schema |
 | `.github/workflows/seed-compliance.yml` | 灌库 CI |
