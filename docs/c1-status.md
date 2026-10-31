@@ -1,9 +1,9 @@
 # C1 · 用量合规速查 —— 交付状态
 
-- **日期**: 2026-10-28
+- **日期**: 2026-10-31
 - **对应**: `docs/functional-design.md` §4.10 C1 阶段 / ADR-004 M2
 - **基线**: `v1.0.0-production` (b4645d7)
-- **状态**: **代码完成, 生产待灌库(被 token 权限挡住)**
+- **状态**: **代码完成 + 数据就绪(待人工校核), 生产待灌库(被 token 权限挡住)**
 
 ---
 
@@ -12,11 +12,14 @@
 | 项 | 状态 |
 |---|---|
 | 限量规则抽取器 | ✅ **37 条 / 11 种物质**, 溯源 100% |
-| 物质目录抽取 | ✅ **74 条** |
+| 物质目录抽取 | ✅ **387 条**(原 74 条 —— 修列错位后) |
 | ② 合规规则领域层 | ✅ 聚合根 + 判定器 + 三级命名匹配 |
 | D1 schema (3 张表) | ✅ `migrate_c1.sql` |
 | `POST /api/compliance/usage` | ✅ 已部署生产 |
 | 前端 `/compliance` 页 | ✅ 已部署生产 |
+| **物质名双语对照** | ✅ **98 对中英对照, 5 条 OCR 拉丁名已转中文** |
+| **真实数据集成测试** | ✅ **20 个用例跑真实抽取产物**(CI 常驻门禁) |
+| **人工校核清单** | ⏳ **已生成**(37 条, 8 条自动标记待重点看) |
 | 灌库进 D1 | ⏳ **被 token 权限挡住 —— 需你新建一个带 D1 Edit 的 token** |
 | 规则审核(reviewed) | ⏳ 待人工逐条校核 |
 
@@ -103,13 +106,55 @@ POST /api/compliance/usage
 
 ---
 
+## 二之二 · 2026-10-31 数据质量修复（P0 期间发现）
+
+原文档说「代码完成」，但**校核对象本身是坏的** —— 灌进去也没法用。
+P0 期间实测出 5 个数据问题，全部已修：
+
+| # | 问题 | 症状 | 根因 | 修法 |
+|---|---|---|---|---|
+| 1 | **目录列错位** | 74 条候选里 name_cn 装的是「适用范围」（「畜禽」「猪、家禽」） | 《品种目录》一文档三类表混排（3列/2列/6列），早期用一套固定下标套全部 | 按**语义**定位列，不按下标；表型分型；合并单元格向下填充 |
+| 2 | **审定表混入** | 新产品审定条目被当成「目录内物质」 | 6 列审定表也含「通用名称」 | 有「申请单位/批准文号/批准时间」→ 整表排除 |
+| 3 | **OCR 拉丁名** | 5 条规则的物质名是 `Niacinamide` 等英文 | 安全规范表格「通用名\|英文名」两列被 OCR 挤成一格 | `enrich_bilingual_names.py` 从双语对照表还原成中文通用名 |
+| 4 | **表头不可信** | 同一文档 p001_s02 中文在前、p001_s03 英文在前 | OCR 把表头写错 | 按**内容**判定（纯拉丁=英文名、含中文=中文名），不按列下标 |
+| 5 | **中文写法不一致** | 目录「亚硫酸甲萘醌」vs 规则「亚硫酸氢钠甲萘醌」 | 两份文档独立成文 | 以**英文名**为唯一键对齐（`alignSubstanceName`） |
+
+### 第 5 项是会打到生产的真 bug
+
+`ruleMatches` 是精确比较 `r.substance === usage.substance`。
+use case 喂进去的是**目录名**，规则库存的是**安全规范名** → 精确比较永远不成立
+→ **明明库里有规则却判 `not_covered`**。
+
+单元测试覆盖不到：fixture 全是「理想形态」，两种写法从没同时出现过。
+→ 新增 `compliance-real-data.test.ts`（20 用例，跑**真实抽取产物** + **真实生产链路**）。
+
+### 数据现状
+
+| 项 | 修复前 | 修复后 |
+|---|---|---|
+| 物质目录 | 74 条（大部分是适用范围） | **387 条**（74 条有 name_en，72 条有括号别名） |
+| 规则物质可关联目录 | 4 种匹配不上 | **11 种全部命中**（36 直接 + 1 经英文名） |
+| 中英对照 | 无 | 98 对 |
+
+### 人工校核清单
+
+`build/export/make_review_checklist.py` 生成（CSV 供填写 + MD 供查阅）：
+每条规则带**原文摘录** + **溯源 id** + **自动风险标记**（10 条规则，每条对应一个实测见过的问题）。
+
+当前 37 条里 **8 条被自动标记**，全是「上下限相等」需人工确认：
+维生素D2（猪/牛/马/鱼类 5000~5000 等）、L-肉碱（雏鸡 150~150）、
+L-肉碱酒石酸盐（犬 660、猫 880）、二甲基嘧啶醇亚硫酸氢钠甲萘醌（猪 10~10）。
+
+---
+
 ## 三、验证结果
 
 | 项 | 结果 |
 |---|---|
-| worker 单测 | **153/153**（新增 44 个：判定 30 + 匹配 14） |
+| worker 单测 | **183/183**（153 + 10 归一化 + **20 真实数据集成**） |
 | worker typecheck | 干净 |
 | 架构测试 | 13 个，**已实测能捕获新上下文的违规**（往 domain/compliance 塞 fetch → 立即变红） |
+| 真实数据集成 | **20/20** —— 跑真实抽取产物 + 生产链路 |
 | web 单测 | 34/34 不变 |
 | web e2e | **17/17**（新增 6 个合规速查用例） |
 | 检索 eval | recall@10 **76.0%** / MRR 0.544 —— 与基线**完全一致** |
@@ -117,6 +162,16 @@ POST /api/compliance/usage
 
 **e2e 的核心断言**：未覆盖时**绝不**显示成「合规」
 （用 `exact: true` 避免匹配到页面标题「用量合规速查」里的「合规」）。
+
+**真实数据集成的核心断言**：
+- 维生素C + 猪 + 200mg/kg → `compliant` + 依据条款原文
+- 维生素C + 猪 + 500mg/kg → `exceeded` + 建议上限 300
+- 维生素C + 猪 + 100mg/kg → `exceeded`（低于下限也是超限）
+- `Niacinamide` → 命中 `烟酰胺` → `compliant`
+- 目录名≠规则名 → 靠英文名对齐 → `compliant`
+- mg/kg vs IU/kg → `not_covered`（单位不可比**不猜**）
+- 「抗坏血酸钙」**不会**被「维生素C」抢走
+- `review_status='pending'` 的规则**不参与判定**
 
 ---
 
@@ -187,8 +242,21 @@ D1 REST API 失败, 回退到 wrangler d1 execute
 （虽然当前版本用单位白名单和组合检测挡住了，但**下一个新法规的表格格式
 可能又是另一种写法**）。`review_status` 闸门就是为此存在的。
 
-校核清单（37 条）：
-- 物质名是否准确（尤其是英文名那几条：`Menadionedimethylpyrimid`、`Nicotinicacid` 看起来是 OCR 掉了空格）
+### 校核工具已就绪
+
+```bash
+python build/export/make_review_checklist.py
+# → build/export/review_checklist.csv   (人工填 decision 列)
+# → build/export/review_checklist.md    (查阅用)
+```
+
+CSV 每行一条规则，带 `decision`（ok/fix/reject）与 `fixed_*` 修正列。
+**建议从 8 条自动标记的先看**（上下限相等，需确认是区间还是单点）。
+
+校核要点：
+- 物质名是否准确 —— ⚠️ 那几条英文名**已由 `enrich_bilingual_names.py` 转成中文**
+  （`Niacinamide`→`烟酰胺`、`Nicotinicacid`→`烟酸`），
+  校核时确认**中文名**与原文一致即可
 - 动物种类是否正确
 - 上下限是否完整（`5000~5000` 那种单值是否真的该是区间）
 - 单位是否正确
@@ -206,6 +274,9 @@ D1 REST API 失败, 回退到 wrangler d1 execute
 | `f8e03b4` | ci: seed-compliance 加 push 触发器 |
 | `0ade729` | fix(ci): 去掉 paths 过滤器 + push 支持 mark-reviewed |
 | `134d306` | feat(c1): 权限探测 + 双路径回退 + 失败诊断 |
+| `cb80733` | fix(c1): 物质目录抽取修列错位 —— 74 → 314 条真实物质 |
+| `c7799f0` | feat(c1): 双语名对照补全 + 人工校核清单生成 |
+| `83932af` | fix(c1): 目录名与规则名写法不一致 → 规则永远匹配不上（真 bug） |
 
 ---
 
@@ -216,6 +287,9 @@ D1 REST API 失败, 回退到 wrangler d1 execute
 | `docs/functional-design.md` | 功能设计（C1 的验收标准来源） |
 | `docs/adr/0004-ddd-bounded-contexts.md` | DDD 限界上下文（M2 = C1） |
 | `query/worker/migrate_c1.sql` | D1 schema（3 张表） |
-| `build/export/extract_compliance_rules.py` | 抽取器 |
+| `build/export/extract_compliance_rules.py` | 抽取器（规则 + 目录） |
+| `build/export/enrich_bilingual_names.py` | 双语名对照补全（OCR 拉丁名 → 中文通用名） |
+| `build/export/make_review_checklist.py` | 人工校核清单生成 |
 | `build/export/seed_compliance.py` | 灌库脚本 |
+| `query/worker/src/domain/compliance/compliance-real-data.test.ts` | 真实数据集成测试（20 用例） |
 | `.github/workflows/seed-compliance.yml` | 灌库 CI |
