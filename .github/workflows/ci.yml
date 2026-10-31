@@ -132,7 +132,7 @@ jobs:
 
   # ===== Worker 单元测试 =====
   worker-test:
-    name: Worker · vitest (领域层 + 架构规则)
+    name: Worker · vitest (领域层 + 架构规则 + 真实数据集成)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -144,7 +144,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: query/worker/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - run: npm ci
+      # ⚠️ 真实数据集成测试需要**抽取产物** ——
+      #    compliance-real-data.test.ts 跑的是真实 articles.json 抽出的
+      #    规则与目录, 验证「明明库里有规则却判 not_covered」这类问题
+      #    不会在灌库后才暴露。产物不存在时该测试自动跳过, 不阻塞 CI。
+      - name: 生成 C1 抽取产物(真实数据集成测试的输入)
+        run: |
+          cd ../..
+          python build/export/ingest_minimax.py
+          python build/export/extract_compliance_rules.py
+          python build/export/enrich_bilingual_names.py
+          cd query/worker
       # ⚠️ 这套测试包含**架构规则测试** —— ADR-004 的 R1-R5 依赖方向。
       #    领域层一旦 import infrastructure / interfaces / application, 这里直接红。
       - run: npm test
