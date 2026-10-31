@@ -165,7 +165,7 @@ jobs:
 
   # ===== Python eval =====
   eval:
-    name: Eval · retrieval + faithfulness
+    name: Eval · retrieval + faithfulness + 引用准确率
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -191,6 +191,15 @@ jobs:
           if val < 70.0:
               sys.exit(f"recall@10 {val}% < 70% 基线, 检索退化")
           EOF
+      - name: 引用准确率门禁
+        # ⚠️ 方案文档第八章的一期验收标准「抽样问答引用准确率 ≥ 95%」
+        #    —— ADR-005 指出这个指标**之前测不了**。本脚本补上这个口径。
+        #
+        #    CI 走**离线复算**: 用随仓库提交的基线缓存重算指标,
+        #    **不调生产 API、不烧 LLM token**。
+        #    要重新采集基线(改了 prompt / 换了模型后):
+        #      python evals/eval_citation_accuracy.py --live --update-baseline
+        run: python evals/eval_citation_accuracy.py
       - name: 上传 eval 报告
         if: always()
         uses: actions/upload-artifact@v4
@@ -199,4 +208,6 @@ jobs:
           path: |
             evals/minimax_retrieval_report.md
             evals/minimax_retrieval_report.jsonl
+            evals/citation_accuracy_report.md
+            evals/citation_accuracy_report.jsonl
           retention-days: 30
