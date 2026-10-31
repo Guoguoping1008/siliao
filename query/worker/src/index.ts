@@ -110,6 +110,56 @@ export default {
         }
         return json(await app.inquiry.ask(rawQ), env);
       }
+      if (path === "/api/qa/conversation" && req.method === "POST") {
+        // ── C1.5 多轮会话 ──
+        // ⚠️ 与 /api/qa 分开而不是加参数 —— 单轮接口的语义是
+        //    「无状态的一次问答」, 多轮带会话状态, 混在一起会让
+        //    调用方搞不清什么时候有上下文。
+        const body = await req.json<{
+          sessionId?: string;
+          session_id?: string;
+          q?: string;
+          question?: string;
+          ask?: string;
+        }>();
+        const sessionId = (body.sessionId ?? body.session_id ?? "").toString().trim();
+        const rawQ = (body.q ?? body.question ?? body.ask ?? "").toString().trim();
+        if (!sessionId) {
+          return json(
+            {
+              error: "missing_session_id",
+              message:
+                "缺少会话 id。POST body 请用 {\"sessionId\": \"...\", \"q\": \"你的问题\"}",
+            },
+            env,
+            400
+          );
+        }
+        if (!rawQ) {
+          return json(
+            {
+              error: "missing_query",
+              message:
+                "缺少查询字段。POST body 请用 {\"sessionId\": \"...\", \"q\": \"你的问题\"}",
+            },
+            env,
+            400
+          );
+        }
+        return json(await app.conversation.ask({ sessionId, question: rawQ }), env);
+      }
+      if (path === "/api/qa/conversation" && req.method === "DELETE") {
+        const sessionId = url.searchParams.get("sessionId") ?? "";
+        if (!sessionId) {
+          return json(
+            { error: "missing_session_id", message: "缺少 sessionId 查询参数" },
+            env,
+            400
+          );
+        }
+        await app.conversation.clear(sessionId);
+        return json({ ok: true, sessionId }, env);
+      }
       if (path === "/api/compliance/usage" && req.method === "POST") {
         const body = await req.json<{
           substance?: string;

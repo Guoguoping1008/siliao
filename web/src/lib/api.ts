@@ -145,6 +145,20 @@ export interface QAAnswerFull {
   elapsed_ms: number
 }
 
+// ---------- C1.5 · 多轮会话 ----------
+
+/** 多轮问答响应。 */
+export interface ConversationAnswer {
+  sessionId: string
+  question: string
+  /** 实际用于检索的 query —— 可能含上下文补全(指代消解)。 */
+  resolvedQuery: string
+  answer: string
+  citations: CitationItem[]
+  retrieval: SearchHit[]
+  elapsed_ms: number
+}
+
 // ---------- ② 合规规则(C1) ----------
 
 /** 合规判定状态。 */
@@ -379,6 +393,58 @@ export const api = {
       return mockStreamFallback(question, handlers)
     }
     return consumeQAStream(question, handlers)
+  },
+
+  // ── C1.5 · 多轮会话 ──
+  //
+  // ⚠️ 与 qaStream 分开: 多轮是**非流式**的 ——
+  //    多轮场景下 prompt 里带了历史, 流式增量输出与「完整历史」不好配合,
+  //    且用户追问通常很短, 等完整答案的体验损失可接受。
+  async conversation(
+    sessionId: string,
+    question: string
+  ): Promise<ConversationAnswer> {
+    if (USE_MOCK) {
+      const { mockApi } = await import("./mockData")
+      const hits = await mockApi.search(question)
+      const answer = hits.length
+        ? `根据检索结果,${hits[0]!.chapter_title} ${hits[0]!.article_number} 规定如下 [1]。`
+        : "未找到相关规定。"
+      return {
+        sessionId,
+        question,
+        resolvedQuery: question,
+        answer,
+        citations: hits.slice(0, 1).map((h, i) => ({
+          ref: i + 1,
+          article_id: h.article_id,
+          chapter_id: h.chapter_id,
+          doc_id: h.doc_id,
+          chapter_number: h.chapter_number,
+          chapter_title: h.chapter_title,
+          article_number: h.article_number,
+          title: h.title,
+          excerpt: h.excerpt,
+          valid: true,
+        })),
+        retrieval: hits,
+        elapsed_ms: 0,
+      }
+    }
+    const r = await fetchJson<ConversationAnswer>("/api/qa/conversation", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, q: question }),
+    } as any)
+    return r
+  },
+
+  /** 清空会话。 */
+  async clearConversation(sessionId: string): Promise<void> {
+    if (USE_MOCK) return
+    await fetchJson<{ ok: boolean }>(
+      `/api/qa/conversation?sessionId=${encodeURIComponent(sessionId)}`,
+      { method: "DELETE" } as any
+    )
   },
 }
 

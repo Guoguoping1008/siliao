@@ -22,6 +22,14 @@ import {
 } from "../infrastructure/persistence/retrieval/hybrid-retriever.adapter";
 import { InquiryService } from "../application/inquiry/inquiry.service";
 import {
+  ConversationService,
+  type ConversationStore,
+} from "../application/inquiry/conversation.service";
+import {
+  D1ConversationRepository,
+  type ConversationRepository,
+} from "../infrastructure/persistence/d1/conversation.repository.impl";
+import {
   ComplianceCheckService,
   type ComplianceRuleSource,
 } from "../application/compliance/compliance-check.usecase";
@@ -60,6 +68,7 @@ export interface AppDependencies {
   graph: GraphRepository;
   retriever: HybridRetriever;
   inquiry: InquiryService;
+  conversation: ConversationService;
   compliance: ComplianceRepository;
   complianceCheck: ComplianceCheckService;
 }
@@ -76,6 +85,28 @@ export function createApp(env: Env): AppDependencies {
   const graph = new D1GraphRepository(db);
   const retriever = new HybridRetriever(db, { BGE_SERVER_URL: env.BGE_SERVER_URL });
   const inquiry = new InquiryService(retriever, {
+    LLM_API_BASE: env.LLM_API_BASE,
+    LLM_MODEL: env.LLM_MODEL,
+    LLM_API_KEY: env.LLM_API_KEY,
+    DEEPSEEK_API_BASE: env.DEEPSEEK_API_BASE,
+    DEEPSEEK_MODEL: env.DEEPSEEK_MODEL,
+    DEEPSEEK_API_KEY: env.DEEPSEEK_API_KEY,
+  });
+
+  // ── ③ 问答 · 多轮会话 ──
+  const conversations = new D1ConversationRepository(db);
+  const conversationStore: ConversationStore = {
+    async load(sessionId) {
+      return conversations.load(sessionId);
+    },
+    async appendTurn(sessionId, turn) {
+      return conversations.appendTurn(sessionId, turn);
+    },
+    async clear(sessionId) {
+      return conversations.clear(sessionId);
+    },
+  };
+  const conversation = new ConversationService(conversationStore, retriever, {
     LLM_API_BASE: env.LLM_API_BASE,
     LLM_MODEL: env.LLM_MODEL,
     LLM_API_KEY: env.LLM_API_KEY,
@@ -109,5 +140,13 @@ export function createApp(env: Env): AppDependencies {
     },
   });
 
-  return { regulations, graph, retriever, inquiry, compliance, complianceCheck };
+  return {
+    regulations,
+    graph,
+    retriever,
+    inquiry,
+    conversation,
+    compliance,
+    complianceCheck,
+  };
 }
