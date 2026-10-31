@@ -138,3 +138,7 @@ web/_*.cjs
 # (给 `wrangler d1 execute --file` 回退路径用; 每次灌库重新生成)
 build/export/compliance_rules.sql
 build/export/substance_catalog.sql
+
+# 人工校核清单的 CSV —— **是人工填写的工作表**, 不进版本库
+# (md 版留作参照, csv 每次重新生成 + 人工填写)
+build/export/review_checklist.csv
