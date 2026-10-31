@@ -112,6 +112,41 @@ SUBSTANCE_COL_KEYS = ["通用名称", "产品名称", "物质名称", "名称"]
 
 EMPTY_CELLS = {"—", "-", "", "　", "/", "无", "N/A"}
 
+# ── 目录表「类别」列里的分类名 ──
+# ⚠️ 这些是**分类**(维生素/矿物元素/酶制剂…)，不是物质名。
+#    混进 substance_catalog 会让「某物质是否在目录内」的判定失真。
+#    实测来源: 《饲料添加剂品种目录》各表的「类别」列。
+CATEGORY_NAMES = {
+    "维生素及类维生素",
+    "矿物元素及其络（螯）合物",
+    "矿物元素及其络(螯)合物",
+    "酶制剂",
+    "微生物",
+    "防腐剂、防霉剂和调味剂",
+    "饲料添加剂",
+    "载体",
+    "抗氧化剂",
+    "着色剂",
+    "香味剂",
+    "甜味剂",
+    "增味剂",
+    "乳化剂",
+    "稳定剂",
+    "凝固剂",
+    "抗结块剂",
+    "制粒剂",
+    "粘结剂",
+    "水分控制剂",
+    "品质改良剂",
+    "饲料级氨基酸",
+    "氨基酸、氨基酸盐及其类似物",
+    "其他",
+    "养殖动物",
+    "适用范围",
+    "通用名称",
+    "类别",
+}
+
 
 # ─────────────────────────────────────────────────────────────
 # 工具
@@ -364,10 +399,127 @@ def extract_limit_rules(articles):
     return rules, stats
 
 
+def _split_enumerated_names(text: str):
+    """拆「多物质挤在一格」的枚举。
+
+    实测: 目录首行把一整类氨基酸塞进一格 ——
+      「L-赖氨酸、液体L-赖氨酸（...）、L-赖氨酸盐酸盐、...、牛磺酸」
+    这格是**一串独立物质名**, 不是单个物质。
+    目录的语义是「这些物质都允许用于养殖动物」, 所以要拆成多条。
+
+    ⚠️ 但不能无脑按「、」拆 —— 物质名本身可能含顿号之外的括号说明,
+       如「吡啶甲酸铬」没问题, 但「DL-蛋氨酸」这种没问题,
+       真正要小心的是括号内含顿号的, 如「（含维生素B1、维生素B2）」。
+       括号内的顿号不拆 —— 用括号深度跟踪。
+    """
+    out = []
+    depth = 0
+    buf = []
+    for ch in text:
+        if ch in "（(":
+            depth += 1
+        elif ch in "）)":
+            depth = max(0, depth - 1)
+        if ch in "、,，" and depth == 0:
+            seg = "".join(buf).strip()
+            if seg:
+                out.append(seg)
+            buf = []
+        else:
+            buf.append(ch)
+    seg = "".join(buf).strip()
+    if seg:
+        out.append(seg)
+    return out
+
+
+def _is_scope_cell(text: str) -> bool:
+    """这个单元格看起来像「适用范围」而不是物质名。
+
+    适用范围的值全是**动物/对象**的集合:
+      养殖动物 / 畜禽 / 猪、家禽 / 反刍动物、猫、狗 / 断奶仔猪、肉仔鸡
+      青贮玉米、玉米、豆粕…(原料) / 犬⁴、猫⁴
+    而物质名是具体化学名: 丙酸锌 / 核黄素 / 磷酸三钠
+    """
+    s = normalize_cell(text)
+    if not s:
+        return False
+    # 出现脚注上标的动物标记 (犬⁴) 也是适用范围
+    if re.search(r"[犬猫鸡鸭猪牛羊马鱼]\s*[⁴¹²³]", s):
+        return True
+    # 以顿号/逗号分隔的动物清单 —— 每一段都要是已知动物词
+    parts = [p for p in re.split(r"[、,，/]", s) if p.strip()]
+    if len(parts) >= 1 and all(_is_animal_token(p) for p in parts):
+        return True
+    return False
+
+
+# 适用范围里会出现的动物/对象词(用于判定"这是适用范围不是物质名")
+_SCOPE_TOKENS = {
+    "养殖动物", "畜禽", "反刍动物", "宠物", "犬", "猫", "狗", "猪", "鸡", "鸭", "鹅",
+    "牛", "羊", "马", "驴", "兔", "鱼", "水产养殖动物", "家禽", "仔猪", "乳猪",
+    "断奶仔猪", "肉仔鸡", "蛋鸡", "育肥猪", "生长育肥猪", "肉鸡", "肉牛",
+    "泌乳奶牛", "成年奶牛", "奶牛", "产蛋禽", "青贮饲料", "青贮玉米",
+    "猪、犬、猫", "犬、猫", "猪、家禽", "猪、牛和家禽", "反刍动物、猫、狗",
+    "畜禽、鱼和虾", "猪、鸡", "猪、犬、猫", "猪、鸡、牛和水产养殖动物",
+}
+
+
+def _is_animal_token(text: str) -> bool:
+    """一个片段是否像动物/适用范围用词(而不是物质名)。"""
+    s = normalize_cell(text)
+    if not s:
+        return True
+    if s in _SCOPE_TOKENS:
+        return True
+    # 纯原料名(玉米/豆粕/麦麸…)也是适用范围
+    if s in {"玉米", "豆粕", "小麦", "大麦", "燕麦", "高粱", "米糠", "麸皮",
+             "玉米蛋白粉", "棉粕", "菜籽粕", "花生粕", "玉米胚芽粕", "米",
+             "小麦副产品", "亚麻粕", "棕榈油", "豆油", "玉米油", "乳糖", "葡萄糖",
+             "淀粉", "植物和动物蛋白", "油脂或脂肪", "植物籽实及其加工副产品",
+             "含有植酸的植物籽实及其加工副产品", "动物或植物源性油脂或脂肪"}:
+        return True
+    # 含动物名的复合词, 如「生长育肥猪、家禽、犬、猫」
+    for tok in ("猪", "鸡", "牛", "羊", "马", "犬", "猫", "鸭", "鹅", "兔",
+                "畜禽", "家禽", "养殖动物", "反刍动物"):
+        if tok in s:
+            return True
+    return False
+
+
+def _strip_footnote_marks(text: str) -> str:
+    """去掉脚注上标与星号: 「L-抗坏血酸*」→「L-抗坏血酸」。
+
+    ⚠️ 目录里脚注用 * 和 ⁴¹²³ 两种标记, 规则库里的物质名没有。
+       名字带不带脚注不影响「是否在目录内」, 但**影响字符串精确匹配**。
+    """
+    s = normalize_cell(text)
+    s = re.sub(r"[⁰¹²³⁴⁵⁶⁷⁸⁹⁺]+", "", s)
+    s = re.sub(r"\s*\*+\s*$", "", s)
+    return s.strip()
+
+
 def extract_catalog(articles):
     """抽取《饲料添加剂品种目录》→ 物质目录候选。
 
-    表头: 类别 | 通用名称 | 适用范围
+    ⚠️ **这份文档里有三类完全不同的表**, 早期版本用一套列规则套全部,
+       结果 74 条候选里绝大多数 name_cn 装的是「适用范围」
+       (如「畜禽」「猪、家禽」)—— 目录查询会直接失效。
+
+    实测表型:
+      A) 类别 | 通用名称 | 适用范围              → 3 列标准目录
+      B) 类别 | 通用名称 / 适用范围            → 2 列, 表头合并, 首行是枚举
+      C) 序号 | 产品名称 | 英文名称 | 申请单位 | 适用范围 | 批准时间
+         → 6 列, 是**新产品审定表**, 不是目录条目
+
+    C 型必须排除 —— 一个审定通过的新产品 ≠ 「在品种目录内」,
+    混进去会污染「某物质是否在目录内」的判定。
+
+    ⚠️ **OCR 会吃掉空的合并单元格**:
+       目录的「类别」列是**前导合并单元格**语义(每类第一行才有值,
+       其余行该列为空), OCR 把空单元格直接丢了 →
+       3 列表的行只剩 2 个值(物质名 + 适用范围)。
+       实测 51 行如此。所以**不能按固定下标取列**, 必须按语义判定。
     """
     catalog = []
     stats = Counter()
@@ -384,41 +536,113 @@ def extract_catalog(articles):
         for first, rows in parse_tables(text):
             if not rows:
                 continue
-            hdr_text = " ".join(first)
-            if "通用名称" not in hdr_text:
-                continue  # 不是目录表(可能是「新饲料证号」等表)
+            hdr = [normalize_cell(h) for h in first]
+            hdr_text = " ".join(hdr)
 
-            name_col = find_col(first, ["通用名称"])
-            scope_col = find_col(first, ["适用范围"])
-            cat_col = find_col(first, ["类别"])
-            if cat_col < 0:
-                cat_col = 0
-            if name_col < 0:
+            # ── 表型 C: 新产品审定表 —— 排除 ──
+            if ("申请单位" in hdr_text or "批准文号" in hdr_text
+                    or "批准时间" in hdr_text or "新饲料证号" in hdr_text
+                    or "新产品编号" in hdr_text):
+                stats["skipped_new_product_table"] += 1
+                continue
+            if "通用名称" not in hdr_text:
                 continue
 
+            has_scope_col = "适用范围" in hdr_text
+            cur_category = ""   # 合并单元格向下填充
+
             for row in rows:
-                if len(row) <= name_col:
+                cells = [normalize_cell(c) for c in row]
+                cells = [c for c in cells if c not in EMPTY_CELLS or c == ""]
+                # 去掉全空行
+                if not any(cells):
                     continue
-                name = clean_substance(row[name_col])
-                if not name or name in EMPTY_CELLS or name == "通用名称":
+                # 表头行跳过
+                if "通用名称" in " ".join(cells) and "适用范围" in " ".join(cells):
                     continue
-                if name in seen:
-                    continue
-                seen.add(name)
 
-                category = normalize_cell(row[cat_col]) if cat_col < len(row) else ""
-                scope = normalize_cell(row[scope_col]) if 0 <= scope_col < len(row) else ""
+                # ── 定位「物质名」与「适用范围」两个语义位 ──
+                name = ""
+                scope = ""
+                rest = list(cells)
 
-                catalog.append({
-                    "name_cn": name,
-                    "name_en": "",
-                    "category": category,
-                    "scope_text": scope,
-                    "source_article_id": a.get("article_id", ""),
-                    "source_doc_id": doc_id,
-                    "review_status": "pending",
-                })
-                stats["catalog"] += 1
+                # 情形 1: 3 列表且分类名在本行(该类第一行)
+                #   [类别, 物质名, 适用范围]
+                # 情形 2: 3 列表但 OCR 丢了空类别列 → [物质名, 适用范围]
+                # 情形 3: 2 列表 → [物质名, 适用范围]
+                # 情形 4: 首行是超长枚举 → [枚举, 适用范围]
+                # 情形 5: 只有 1 个值(OCR 丢了空的适用范围列) → [物质名]
+
+                if len(rest) == 1:
+                    name = rest[0]
+                elif len(rest) == 2:
+                    a0, a1 = rest
+                    if _is_scope_cell(a1):
+                        name, scope = a0, a1
+                    elif _is_scope_cell(a0):
+                        # [适用范围, 物质名] —— 顺序反了
+                        scope, name = a0, a1
+                    else:
+                        name, scope = a0, ""
+                        stats["ambiguous_2col"] += 1
+                else:
+                    # 3+ 列: 第一格若是分类名则它属于 category
+                    #   判据: 分类名不是物质(在 CATEGORY_NAMES 里)
+                    #   或它看起来像分类(不含动物词且短)
+                    if rest[0] in CATEGORY_NAMES:
+                        cur_category = rest[0]
+                        rest = rest[1:]
+                    elif has_scope_col and len(rest) >= 3:
+                        # 首格可能是分类名但不在白名单 —— 靠「后面还有 scope 列」
+                        # 无法区分, 保守: 认为是分类名(目录表第0列几乎总是分类)
+                        cur_category = rest[0]
+                        rest = rest[1:]
+                    if rest:
+                        name = rest[0]
+                    if len(rest) >= 2 and _is_scope_cell(rest[1]):
+                        scope = rest[1]
+                    elif len(rest) >= 2 and has_scope_col:
+                        scope = rest[1]
+
+                if not name:
+                    continue
+                name = _strip_footnote_marks(name)
+                if not name or name in EMPTY_CELLS or name in CATEGORY_NAMES:
+                    continue
+                # 整格就是适用范围 —— 说明 OCR 把两列并成一格了
+                if _is_scope_cell(name):
+                    stats["scope_as_name_skipped"] += 1
+                    continue
+
+                # ── 一格多物质 → 拆成多条 ──
+                # ⚠️ 适用范围列本身也是顿号分隔的(「犬⁴、猫⁴」),
+                #    所以**必须先确认 name 位不是范围**, 再拆。
+                names = _split_enumerated_names(name)
+                if len(names) > 1:
+                    stats["enumerated_split"] += len(names)
+                for one in names:
+                    one = _strip_footnote_marks(one)
+                    if not one or one in EMPTY_CELLS or one in CATEGORY_NAMES:
+                        continue
+                    # 拆出来的片段若又像范围词 —— 说明整格其实是范围,
+                    # 已被上面的 _is_scope_cell 拦掉; 到这里说明是
+                    # 「猪、鸡」这种被误当作物质名的, 跳过。
+                    if _is_scope_cell(one):
+                        stats["scope_fragment_skipped"] += 1
+                        continue
+                    if one in seen:
+                        continue
+                    seen.add(one)
+                    catalog.append({
+                        "name_cn": one,
+                        "name_en": "",
+                        "category": cur_category,
+                        "scope_text": scope,
+                        "source_article_id": a.get("article_id", ""),
+                        "source_doc_id": doc_id,
+                        "review_status": "pending",
+                    })
+                    stats["catalog"] += 1
 
     return catalog, stats
 
