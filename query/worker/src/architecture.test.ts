@@ -78,6 +78,24 @@ function codeOf(file: string): string {
     .replace(/\/\/.*$/gm, "");         // 行尾注释
 }
 
+/**
+ * 判断一个文件里有没有**真正的 HTTP 调用**。
+ *
+ * ⚠️ 不能用裸 `fetch(` 判定 —— `async fetch(req: Request, env: Env)` 是
+ *    **Workers 要求的入口签名**, 不是 HTTP 调用。
+ *    真正的 HTTP 调用形态:
+ *      · `await fetch(...)`      —— 带 await
+ *      · `fetch("http://...")`   —— 首参是字符串/模板串
+ *      · `return fetch(...)`     —— 返回值位置
+ *
+ * @returns 命中的位置; 没命中返回 null
+ */
+function findHttpCalls(code: string): RegExpMatchArray | null {
+  return code.match(
+    /(?:^|[^\w.])(?:await\s+|return\s+)?fetch\s*\(\s*(?:[`"']|\/)/gm
+  );
+}
+
 /** 判断目标文件是否位于 src 下的某个目录。 */
 function isUnder(file: string, dirName: string): boolean {
   const rel = relative(SRC, file);
@@ -92,7 +110,7 @@ describe("架构规则 R3/R5 · 领域层纯净性", () => {
   it("领域层不出现 fetch()", () => {
     const offenders: string[] = [];
     for (const f of domainFiles) {
-      if (/\bfetch\s*\(/.test(codeOf(f))) {
+      if (findHttpCalls(codeOf(f))) {
         offenders.push(relative(SRC, f));
       }
     }
@@ -172,7 +190,7 @@ describe("架构规则 R2 · 应用层依赖方向", () => {
   it("应用层不出现 fetch()(外部调用走 ACL)", () => {
     const offenders: string[] = [];
     for (const f of appFiles) {
-      if (/\bfetch\s*\(/.test(codeOf(f))) {
+      if (findHttpCalls(codeOf(f))) {
         offenders.push(relative(SRC, f));
       }
     }
@@ -216,8 +234,76 @@ describe("架构规则 · 分层存在性", () => {
     expect(statSync(join(SRC, "interfaces", "composition-root.ts")).isFile()).toBe(true);
   });
 
-  it("index.ts 只做路由 —— 行数控制在 400 以内", () => {
+  it("interfaces/http 下有 router(路由层已抽离)", () => {
+    expect(statSync(join(SRC, "interfaces", "http", "router.ts")).isFile()).toBe(true);
+  });
+
+  it("⚠️ M3 · index.ts 只做入口 —— 行数控制在 150 以内", () => {
     const lines = readFileSync(join(SRC, "index.ts"), "utf-8").split("\n").length;
-    expect(lines).toBeLessThan(400);
+    expect(lines).toBeLessThan(150);
+  });
+
+  it("⚠️ M3 · index.ts 不含路由逻辑(只挂载 router)", () => {
+    const code = codeOf(join(SRC, "index.ts"));
+    // 路由匹配、SQL、业务判断都不该出现在入口
+    expect(code).not.toMatch(/\.match\(\s*\/\^/);
+    expect(code).not.toMatch(/\bSELECT\b/i);
+    // ⚠️ `async fetch(req: Request, env: Env)` 是 **Workers 要求的入口签名**,
+    //    不是 HTTP 调用 —— 用 findHttpCalls 判定(见该函数注释)。
+    expect(findHttpCalls(code)).toBeNull();
+  });
+
+  it("⚠️ M3 · 全部 SQL 在 infrastructure(其他层不出现 SQL 语句)", () => {
+    const offenders: string[] = [];
+    for (const f of [...domainFiles, ...appFiles, ...listTs(join(SRC, "interfaces"))]) {
+      const c = codeOf(f);
+      if (/\b(SELECT|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM)\b/i.test(c)) {
+        offenders.push(relative(SRC, f));
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("⚠️ 接口层不 import domain 的实现细节 —— 只经应用层/仓储端口", () => {
+    // interfaces/http 可以 import domain 的**纯函数**(如入参校验),
+    // 但不得 import infrastructure(那是 composition-root 的活)
+    const offenders: string[] = [];
+    for (const f of listTs(join(SRC, "interfaces", "http"))) {
+      for (const spec of importsOf(f)) {
+        const t = resolveTarget(f, spec);
+        if (t && isUnder(t, "infrastructure")) {
+          offenders.push(`${relative(SRC, f)} → ${spec}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("⚠️ 路由层不出现 fetch()(外部调用走 ACL)", () => {
+    const offenders: string[] = [];
+    for (const f of listTs(join(SRC, "interfaces", "http"))) {
+      if (findHttpCalls(codeOf(f))) {
+        offenders.push(relative(SRC, f));
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("架构规则 · ACL 边界", () => {
+  it("⚠️ 流式 LLM 调用只在 llm-stream.acl.ts(不在 application/routes)", () => {
+    // SSE 帧解析是**外部协议细节** —— 放 application 会让应用层知道
+    // 上游的 SSE 格式, 换供应商就得改业务层。
+    const aclDir = join(SRC, "interfaces", "acl");
+    const offenders: string[] = [];
+    for (const f of [...appFiles, ...listTs(join(SRC, "interfaces", "http"))]) {
+      const c = codeOf(f);
+      // 直接解析上游 SSE 帧 = 泄漏了传输协议
+      if (/data:\s*\$\{|startsWith\(\s*["']data:|parseSSEDelta/.test(c)) {
+        offenders.push(relative(SRC, f));
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(statSync(join(aclDir, "llm-stream.acl.ts")).isFile()).toBe(true);
   });
 });
