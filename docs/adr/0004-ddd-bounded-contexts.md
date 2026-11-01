@@ -312,7 +312,7 @@ query/worker/src/
 
 | 项 | 计划 | 实际 |
 |---|---|---|
-| `index.ts` 行数 | < 150 | **265**(M3 再压) |
+| `index.ts` 行数 | < 150 | **265**(M1 后) → **40**(M3 后) |
 | 领域层单测 | ≥ 20 | **109**(含 13 个架构测试) |
 | Worker 测试基础设施 | 需要 | **从零建立**(此前 Worker 完全没有测试) |
 | 架构规则守护 | 需要 | **13 个架构测试,已实测能捕获违规** |
@@ -351,12 +351,83 @@ query/worker/src/
 
 **验收**:50 条真实限量规则入库 → 输入「维生素C + 猪 + 200mg/kg」返回「合规 + 依据条款原文」;输入超限量返回「超限 + 超出量 + 依据条款」;输入未覆盖物质返回「**规则未覆盖，需人工确认**」(**不允许返回合规**)
 
-### 阶段 M3 · 领域层与基础设施层彻底分离 —— 3-4 天
+### 阶段 M3 · 领域层与基础设施层彻底分离 —— 3-4 天 ✅ 已完成(2026-10-31)
 
 **交付**:
 - `index.ts` 从 1059 行 → < 150 行(仅剩 composition root + 路由挂载)
 - 全部 D1 SQL 移入 `infrastructure/persistence/`
 - 领域层引入 `domain/` 后单测覆盖率门禁
+
+#### M3 交付结果(2026-10-31)
+
+| 项 | 计划 | 实际 |
+|---|---|---|
+| `index.ts` 行数 | < 150 | **40** |
+| D1 SQL 位置 | 全在 infrastructure | ✅ **M1 就已完成**(M3 只需搬路由层) |
+| 架构规则测试 | 守护 M3 验收标准 | **13 → 19**(+6 条 M3 规则) |
+| worker 单测 | — | **220**(214 + 6 架构规则) |
+| typecheck | 干净 | ✅ |
+| 响应契约 | 不变 | ✅ **生产逐字段比对通过** |
+
+#### 拆分去向
+
+```
+index.ts (40 行)                    —— 只做「把 Request 交给路由层」
+  interfaces/http/
+    router.ts                       —— 路由分发(按上下文分组, 静态路径在前)
+    http-utils.ts                   —— json / errorJson / CORS / decodeParam
+    routes/regulation.routes.ts     —— ① 法规库
+    routes/inquiry.routes.ts        —— ③ 问答(含 SSE 响应组装)
+    routes/compliance.routes.ts     —— ② 合规规则
+    routes/retrieval.routes.ts      —— 检索 + ④ 图谱
+  interfaces/acl/
+    llm-stream.acl.ts               —— 流式 LLM 调用 + SSE 帧解析
+  application/inquiry/
+    qa-stream.service.ts            —— 流式问答的业务编排(产出事件序列)
+```
+
+#### 两个关键判断
+
+**① SSE 的位置:业务编排在 application,传输组装在 interfaces**
+
+之前 `ragQAStream` 整个塞在 `index.ts` —— 那是**位置错误**:
+它包含「检索 → 拼 prompt → 调 LLM → 校验引用」这套**业务编排**, 只是碰巧输出 SSE 格式。
+
+ADR-004 的分层按**职责**分, 不按输出格式分:
+
+| 关注点 | 归属 |
+|---|---|
+| 检索什么 / 怎么拼 prompt / 怎么校验引用 | `application/` → 产出**事件序列** |
+| 怎么把事件序列变成 HTTP 响应 | `interfaces/http/` → SSE 响应 |
+| 上游 SSE 帧格式 | `interfaces/acl/` → `parseSSEDelta` / `consumeSSE` |
+
+**② SSE 帧解析必须在 ACL,不能在 application**
+
+上游 SSE 帧格式是**外部协议细节**。放 application 会让业务层知道供应商的协议 ——
+换供应商(MiniMax → DeepSeek)就得改业务层。架构测试守护这条:
+`application/` 与 `interfaces/http/` 出现 `parseSSEDelta` / `startsWith("data:")` 立即红。
+
+#### ⚠️ 修了一个**误判规则**
+
+原架构测试用裸 `fetch(` 判定 HTTP 调用, 但 `async fetch(req: Request, env: Env)` 是
+**Workers 要求的入口签名** —— 那个文件永远违规。新增 `findHttpCalls()` 只认真正的
+HTTP 调用形态(`await fetch(...)` / `fetch("http://...")` / `return fetch(...)`)。
+
+#### 行为不变的证明方式 —— 用生产基线
+
+新增 `evals/capture_api_baseline.py`:
+- 抓 **8 个端点的真实生产响应**(含 4xx 错误形状 + SSE 事件序列)
+- 比对**结构**不比数据(检索结果每次都不同, 比内容会一直假失败)
+- 易变字段单列:`answer` / `elapsed_ms` / `citations` 数量 / `retrieval` 数量
+- SSE 比**事件形状**(`meta → chunk* → done`), 不比 chunk 个数
+
+部署后实测:**结构完全一致, 退出码 0**。
+
+门禁有效性已验证 —— 注入 6 处回归(字段多出/消失/标量值变/状态码变/SSE 顺序变/
+嵌套字段多出)→ **全部被抓到, 退出码 1**。
+
+做成 `api-contract.yml` **手动触发** workflow —— 因为它打生产,
+不能像离线门禁那样每次 push 都跑。
 
 ### 阶段 M4 · 拆上下文(对档)—— 按需
 
@@ -396,8 +467,8 @@ query/worker/src/
 1. **5 个限界上下文**,每个有明确的通用语言、聚合根、不变量与依赖规则
 2. **领域层纯 TS 零依赖**,100% 可单测,不碰网络不碰数据库
 3. **规则引擎有了确定的归属**(② 合规规则),快档方案可直接开工
-4. **`index.ts` 从 1059 行瘦身到 <150 行**,新人可读
-5. **架构测试自动守护依赖方向**,DDD 不靠人的自觉维持
+4. **`index.ts` 从 1059 行瘦身到 <150 行**,新人可读 —— ✅ **实际 40 行**
+5. **架构测试自动守护依赖方向**,DDD 不靠人的自觉维持 —— ✅ **19 条规则**
 
 ---
 
@@ -405,6 +476,12 @@ query/worker/src/
 
 - `docs/architecture-analysis.html` —— 方案 vs 已实现对照(本文档的前置分析)
 - `docs/adr/0003-minimax-corpus-rebuild-and-bigram-retrieval.md` —— 检索路径决策(→ `hybrid-retriever.adapter.ts`)
-- `query/worker/src/index.ts` —— 当前单体实现(待拆分)
+- `query/worker/src/index.ts` —— **入口(40 行)**,只把 Request 交给路由层
+- `query/worker/src/interfaces/http/router.ts` —— 路由分发
+- `query/worker/src/interfaces/acl/llm-stream.acl.ts` —— 流式 LLM + SSE 帧解析
+- `query/worker/src/application/inquiry/qa-stream.service.ts` —— 流式问答业务编排
+- `query/worker/src/architecture.test.ts` —— 19 条架构规则
+- `evals/capture_api_baseline.py` —— 生产响应契约比对(重构前后证明行为未变)
+- `.github/workflows/api-contract.yml` —— 契约门禁(手动触发)
 - `web/src/lib/api.ts` —— 前端 API 客户端(→ 按上下文拆 `api/` 模块)
 - `饲料法规智能体架构方案.docx` —— 四子智能体与四期路径,本文档是它的实现侧映射

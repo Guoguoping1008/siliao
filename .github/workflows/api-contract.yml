@@ -1,0 +1,56 @@
+name: API 契约门禁
+
+# 响应契约回归 —— 比对**真实生产响应**与仓库里的基线
+#
+# ⚠️ 为什么单独一个 workflow(不并进 ci.yml)
+#
+#   这个门禁**打生产 API** —— 与 ci.yml 的离线门禁性质不同:
+#     · ci.yml 的门禁    —— 离线复算, 不碰生产, 每次 push 都跑
+#     · 本 workflow      —— 打生产, 消耗 LLM token, 且**生产未部署时会假失败**
+#
+#   所以做成 **workflow_dispatch 手动触发** —— 在**部署之后**跑,
+#   验证「这次重构没有改变任何响应契约」。
+#
+#   ADR-004 M1 的教训: 重构抓到两个回归, 但**所有本地测试都漏掉了**
+#   (类型系统不报错、单测不失败、eval 门禁照样绿)。
+#   **只有拿生产响应的实际 JSON 做前后比对才抓到。**
+#
+# 用法:
+#   gh workflow run api-contract.yml
+#   # 或在 GitHub Actions 页面点「Run workflow」
+
+on:
+  workflow_dispatch:
+    inputs:
+      update-baseline:
+        description: "更新基线(仅在确认当前响应就是新契约时用)"
+        type: boolean
+        default: false
+
+jobs:
+  contract:
+    name: 响应契约 · 生产比对
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 更新基线
+        if: ${{ inputs.update-baseline }}
+        run: python evals/capture_api_baseline.py --out evals/api_baseline.json
+
+      - name: 比对生产响应
+        # ⚠️ 比对的是**结构**, 不是数据 ——
+        #    检索结果每次都不同, 比内容会一直假失败。
+        #    比的是: 字段集合 / 标量值 / 状态码 / SSE 事件形状。
+        run: python evals/capture_api_baseline.py --compare
+
+      - name: 上传当前响应
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-contract-current
+          path: evals/api_baseline.json
+          retention-days: 14

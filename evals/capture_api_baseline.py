@@ -197,8 +197,43 @@ def shape(value: Any, depth: int = 0) -> Any:
     return value
 
 
+# ─────────────────────────────────────────────────────────────
+# 易变字段 —— 不算回归
+# ─────────────────────────────────────────────────────────────
+
+# ⚠️ 这些字段**每次调用都会变**, 但它们不是「契约」——
+#    变它们不代表响应结构变了。分开算, 否则门禁会一直假失败。
+#
+#  · answer          —— LLM 生成的文本, 长度与内容都随检索结果浮动
+#  · elapsed_ms      —— 耗时
+#  · citations 数量  —— LLM 引用几条取决于它读了哪几条证据
+#  · retrieval 数量  —— 检索命中数随查询微浮
+VOLATILE_FIELDS = {"answer", "elapsed_ms"}
+VOLATILE_LISTS = {"citations", "retrieval"}
+
+
+def _is_volatile(path: str) -> bool:
+    """这个路径上的值是否易变。
+
+    ⚠️ 路径形如 `.citations.__list__` —— 叶子是 `__list__`,
+       它的**父级**才是列表名。所以要取倒数第二段。
+    """
+    parts = [p for p in path.split(".") if p]
+    leaf = parts[-1] if parts else ""
+    if leaf in VOLATILE_FIELDS:
+        return True
+    # citations / retrieval 的**长度**易变(字段集合不变)
+    if leaf == "__list__":
+        parent = parts[-2] if len(parts) >= 2 else ""
+        return parent in VOLATILE_LISTS
+    return False
+
+
 def diff_shapes(a: Any, b: Any, path: str = "") -> list[str]:
-    """比对两个形状, 返回差异描述列表。"""
+    """比对两个形状, 返回差异描述列表。
+
+    ⚠️ **只比结构, 不比易变的数据** —— 见 VOLATILE_FIELDS 的说明。
+    """
     diffs: list[str] = []
     if type(a) is not type(b) and not (
         isinstance(a, (int, float)) and isinstance(b, (int, float))
@@ -214,13 +249,32 @@ def diff_shapes(a: Any, b: Any, path: str = "") -> list[str]:
             diffs.extend(diff_shapes(a[k], b[k], f"{path}.{k}"))
         return diffs
     if isinstance(a, dict) and "__list__" in a:
-        if a["__list__"] != b["__list__"]:
-            # 长度可以差(检索结果浮动), 只提示
-            diffs.append(f"{path}: 列表长度 {a['__list__']} → {b['__list__']}(允许浮动)")
+        if a["__list__"] != b["__list__"] and not _is_volatile(path):
+            diffs.append(f"{path}: 列表长度 {a['__list__']} → {b['__list__']}")
         return diffs
-    if a != b:
+    if a != b and not _is_volatile(path):
         diffs.append(f"{path}: 值 {a!r} → {b!r}")
     return diffs
+
+
+def sse_shape(events: list[str]) -> str:
+    """SSE 事件序列的**形状** —— 折叠连续的同名事件。
+
+    ⚠️ `chunk` 有几个取决于 LLM 吐了多少 token —— 每次都不同。
+       契约是**事件顺序与种类**: `meta → chunk* → done`。
+       把连续的 chunk 折叠成一个 `chunk*` 再比。
+    """
+    if not events:
+        return "(空)"
+    out: list[str] = []
+    for name in events:
+        if out and out[-1].endswith("*") and name == "chunk":
+            continue
+        if name == "chunk":
+            out.append("chunk*")
+        else:
+            out.append(name)
+    return " → ".join(out)
 
 
 def main() -> int:
@@ -264,10 +318,10 @@ def main() -> int:
                 f"{endpoint}: 状态码 {want['status']} → {got.get('status')}"
             )
         if "events" in want:
-            if want["events"] != got.get("events"):
-                all_diffs.append(
-                    f"{endpoint}: SSE 事件序列 {want['events']} → {got.get('events')}"
-                )
+            a = sse_shape(want["events"])
+            b = sse_shape(got.get("events") or [])
+            if a != b:
+                all_diffs.append(f"{endpoint}: SSE 事件形状 {a} → {b}")
             continue
         d = diff_shapes(shape(want.get("body")), shape(got.get("body")))
         all_diffs.extend(f"{endpoint}{x}" for x in d)
