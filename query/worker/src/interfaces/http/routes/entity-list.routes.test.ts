@@ -121,4 +121,29 @@ describe("GET /api/entities", () => {
     expect(body.entities[0].description).toBe("");
     expect(body.entities[0].description).not.toBeUndefined();
   });
+
+  it("⚠️ 中文搜索必须用 instr(),不能用 LIKE", async () => {
+    // SQLite 的 `LIKE` **只对 ASCII 有效** —— 测中文永远返回 false。
+    // 2026-11-03 实测生产:`?q=维生素` → 0 条,`?q=L-赖氨酸` → 1 条
+    // (能中是因为前半段 "L-" 是 ASCII)。
+    //
+    // 这条测试锁住「用 instr()」这个选择 —— 换回 LIKE 会静默失效,
+    // 而且**不会报错**,只是永远搜不到东西。
+    const seen: string[] = [];
+    const db = {
+      prepare(sql: string) {
+        seen.push(sql);
+        const stmt = {
+          bind() { return stmt; },
+          async all() { return { results: [] }; },
+          async first() { return null; },
+        };
+        return stmt;
+      },
+      async batch() { return []; },
+    };
+    await call("/api/entities?q=维生素", envWith(db));
+    expect(seen.join("\n")).toContain("instr(");
+    expect(seen.join("\n")).not.toContain("LIKE");
+  });
 });

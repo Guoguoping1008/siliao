@@ -157,7 +157,12 @@ export class D1GraphRepository implements GraphRepository {
     }
     if (opts.q) {
       binds.push(opts.q);
-      where.push(`name LIKE ?${binds.length} ESCAPE '\\'`);
+      // ⚠️ **不能用 LIKE 搜中文** —— SQLite 的 `LIKE` 只对 ASCII 有效,
+      //    测中文永远返回 false。实测生产 `?q=维生素` → 0 条,
+      //    而 `?q=L-赖氨酸` 能中 —— 因为前半段有 ASCII 字符。
+      //
+      //    `instr()` 是**二进制**子串查找,不受字符集影响 —— 中文能用。
+      where.push(`instr(name, ?${binds.length}) > 0`);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
