@@ -57,35 +57,45 @@ export async function route(req: Request, env: Env): Promise<Response> {
 
   const app = createApp(env);
 
+  // ⚠️ **每个 handler 调用都必须 `await`** ——
+  //    `return promise` 时 try 块已经正常返回, 下面的 catch **捕获不到** handler
+  //    内部抛出的错误。错误会变成 unhandled rejection → Workers 报 **1101**
+  //    (Worker threw exception), 而不是我们自己的 500 JSON。
+  //
+  //    重构前(index.ts 单文件)是 `return json(await app.xxx(...))` —— await 在
+  //    try 块内, 所以能捕获。M3 抽路由层时 await 留在了 handler 内部,
+  //    try/catch 就失去了作用。**这是 2026-11-02 生产 1101 的根因。**
+  //
+  //    回归测试: `src/interfaces/http/router.error-handling.test.ts`
   try {
     // ── ① 法规知识库 ──
     if (path === "/api/documents") {
-      return handleDocuments(app);
+      return await handleDocuments(app);
     }
     if (path === "/api/catalog") {
-      return handleCatalog(app);
+      return await handleCatalog(app);
     }
 
     const mDocChs = path.match(/^\/api\/documents\/([^/]+)\/chapters$/);
     if (mDocChs) {
-      return handleChapters(app, mDocChs[1]);
+      return await handleChapters(app, mDocChs[1]);
     }
     const mChap = path.match(/^\/api\/chapter\/([^/]+)\/([^/]+)$/);
     if (mChap) {
-      return handleChapter(app, mChap[1], mChap[2]);
+      return await handleChapter(app, mChap[1], mChap[2]);
     }
     const mArt = path.match(/^\/api\/article\/([^/]+)$/);
     if (mArt) {
-      return handleArticle(app, mArt[1]);
+      return await handleArticle(app, mArt[1]);
     }
 
     // ── 检索 + ④ 图谱 ──
     if (path === "/api/search" || path === "/api/search/") {
-      return handleSearch(app, url.searchParams);
+      return await handleSearch(app, url.searchParams);
     }
     const mEnt = path.match(/^\/api\/entity\/(.+)$/);
     if (mEnt) {
-      return handleEntity(app, mEnt[1]);
+      return await handleEntity(app, mEnt[1]);
     }
 
     // ── ③ 问答 ──
@@ -102,18 +112,18 @@ export async function route(req: Request, env: Env): Promise<Response> {
       }>();
       const wantStream =
         body.stream === true || url.searchParams.get("stream") === "true";
-      return handleQa(app, env, body, wantStream);
+      return await handleQa(app, env, body, wantStream);
     }
     if (path === "/api/qa/conversation" && method === "POST") {
-      return handleConversation(app, req);
+      return await handleConversation(app, req);
     }
     if (path === "/api/qa/conversation" && method === "DELETE") {
-      return handleClearConversation(app, url.searchParams.get("sessionId") ?? "");
+      return await handleClearConversation(app, url.searchParams.get("sessionId") ?? "");
     }
 
     // ── ② 合规规则 ──
     if (path === "/api/compliance/usage" && method === "POST") {
-      return handleComplianceUsage(app, req);
+      return await handleComplianceUsage(app, req);
     }
 
     return json({ error: "not_found", path }, 404);
