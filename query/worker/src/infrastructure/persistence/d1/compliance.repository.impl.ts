@@ -36,11 +36,21 @@ export class D1ComplianceRepository implements ComplianceRepository {
   constructor(private readonly db: D1Like) {}
 
   async listRules(ruleSetVersion?: string): Promise<ComplianceRule[]> {
-    const sql = ruleSetVersion
-      ? `SELECT * FROM compliance_rules WHERE rule_set_version = ?1`
-      : `SELECT * FROM compliance_rules`;
-    const rows = await this.db.prepare(sql)
-      .bind(ruleSetVersion ?? "")
+    // ⚠️ **有版本才 bind** —— 无版本时 SQL 里没有 `?1` 占位符,
+    //    但如果照样 `.bind("")`,D1 会报
+    //    「Wrong number of parameter bindings for SQL query」。
+    //
+    //    这个 bug 一直存在,只是**建表之前**先撞上「no such table」,
+    //    所以从没被触发过 —— 错误被更早的一层挡住了。
+    if (ruleSetVersion) {
+      const rows = await this.db
+        .prepare(`SELECT * FROM compliance_rules WHERE rule_set_version = ?1`)
+        .bind(ruleSetVersion)
+        .all();
+      return mapRows(rows.results as DbRow[], toRule);
+    }
+    const rows = await this.db
+      .prepare(`SELECT * FROM compliance_rules`)
       .all();
     return mapRows(rows.results as DbRow[], toRule);
   }
