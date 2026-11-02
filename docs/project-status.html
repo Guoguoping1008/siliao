@@ -200,7 +200,7 @@
       <tr><td>知识问答(③)</td><td><span class="b b-ok">生产可用</span></td><td><code>POST /api/qa</code> 实测 200,引用 5 条,耗时 11.1s</td></tr>
       <tr><td>多轮会话(③)</td><td><span class="b b-err">不可用</span></td><td>D1 表未建 + 路由层 1101 回归(本次已修)</td></tr>
       <tr><td>用量合规速查(②)</td><td><span class="b b-err">不可用</span></td><td>同上 —— 代码与数据就绪,卡在 D1 灌库</td></tr>
-      <tr><td>知识图谱(④)</td><td><span class="b b-ok">实体+关联可用</span></td><td>94 实体 / <b>1533 条</b>实体↔条文关联,<code>/entity/:name</code> 完整渲染</td></tr>
+      <tr><td>知识图谱(④)</td><td><span class="b b-ok">实体已补齐</span></td><td><b>481 实体</b>(387 物质 + 94 概念)· <b>1951 条</b>实体↔条文关联 · <b>117 条</b>别名;<code>/entities</code> 列表页 + <code>/entity/:name</code> 完整渲染</td></tr>
       <tr><td>法规监测(⑤)</td><td><span class="b b-mute">未开工</span></td><td>M4,4-6 周</td></tr>
     </tbody>
   </table>
@@ -356,9 +356,10 @@ gh workflow run seed-compliance.yml</code></pre>
       <div class="mn2">引用标注 / 幻觉标红 / SSE 流式 / 拒答机制 · 多轮会话代码完成但表未建</div>
     </div>
     <div class="mod">
-      <div class="mh"><span class="mn">④ 知识图谱</span><span class="b b-mute">空壳</span><span class="mt">0%</span></div>
-      <div class="bar"><i class="f10"></i></div>
-      <div class="mn2">entities 表空,前端组件就位等数据 —— 设计上保持空壳直到有真实用例</div>
+      <div class="mh"><span class="mn">④ 知识图谱</span><span class="b b-ok">实体已补齐</span><span class="mt">75%</span></div>
+      <div class="bar"><i class="f75"></i></div>
+      <div class="mn2"><b>481 实体</b>(387 物质 + 94 概念)· <b>1951</b> 条实体↔条文关联 · <b>117</b> 条别名 ·
+        <code>/entities</code> 列表页 + <code>/entity/:name</code> 完整渲染。实体↔实体关系仍刻意留空</div>
     </div>
     <div class="mod">
       <div class="mh"><span class="mn">⑤ 法规监测</span><span class="b b-mute">未开工</span><span class="mt">0%</span></div>

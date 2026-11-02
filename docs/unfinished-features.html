@@ -169,7 +169,7 @@
     <div class="stat"><div class="k">未完成</div><div class="v warn">11</div><div class="n">项</div></div>
     <div class="stat"><div class="k">等凭据</div><div class="v err">3</div><div class="n">2 小时可解</div></div>
     <div class="stat"><div class="k">可排期</div><div class="v info">7</div><div class="n">C2/C3 各 5-8 天</div></div>
-    <div class="stat"><div class="k">刻意留空</div><div class="v" style="color:var(--purple)">1</div><div class="n">④ 知识图谱</div></div>
+    <div class="stat"><div class="k">刻意留空</div><div class="v" style="color:var(--purple)">1</div><div class="n">④ 实体↔实体关系</div></div>
     <div class="stat"><div class="k">明确不做</div><div class="v mute">3</div><div class="n">数据源不存在</div></div>
   </div>
 
@@ -187,7 +187,7 @@
       <tr><td>8</td><td><b>⑤ 法规监测 + 变更预警</b></td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>4-6 周</td></tr>
       <tr><td>9</td><td>合规日历(标准生效日)</td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
       <tr><td>10</td><td>版本追溯 + 领域标记</td><td>①</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
-      <tr><td>11</td><td>④ 知识图谱</td><td>④</td><td><span class="b b-ok">已补关联 11-02</span></td><td>—</td><td>实体↔条文 1533 条已入库</td></tr>
+      <tr><td>11</td><td>④ 知识图谱</td><td>④</td><td><span class="b b-ok">实体已补齐 11-03</span></td><td>—</td><td>481 实体 · 1951 条文关联 · 117 别名</td></tr>
     </tbody>
   </table>
   </div>
@@ -388,17 +388,89 @@ GET  /api/documents/:id/status    → 404   (版本追溯未实现)</code></pre>
   <code>pet_food</code> / <code>general</code>)后,支持「只查兽药法规」「排除通用法规」——
   语料里 32 份相关法律法规文件含兽药法规,现在没法过滤。<b>工作量</b>:2-3 天(两者一起做,都要改 schema)</p>
 
-  <h3>✅ #11 ④ 知识图谱 —— 关联已补(2026-11-02)</h3>
-  <p>现状(实测):<code>GET /api/entity/农业农村部</code> → <b>200 <code>{"error":"entity_not_found"}</code></b>。
-  <code>entities</code> / <code>entity_articles</code> 表<b>已建但为空</b>。
-  前端 <code>EntityPage.tsx</code> / <code>EntityGraph.tsx</code> 已就位。</p>
+  <h3>✅ #11 ④ 知识图谱 —— 实体已补齐(2026-11-03)</h3>
+
+  <p><b>第一轮(2026-11-02)</b>:补 1533 条实体↔条文关联 / 覆盖 61 个实体,孤儿 0、悬空 0。
+  生产 <code>/entity/责令停止生产</code> 实测:8 个相关条文 · 3 部法规 · 关系图谱 23 节点 ·
+  72 个可点链接 <b>0 个 undefined</b>。</p>
+
+  <p><b>第二轮(2026-11-03)—— 实体本身补齐</b>:实测发现 94 个实体<b>全是 GraphRAG 抽的通用
+  法律概念</b>(ACTION / PARTY / DOCUMENT / PENALTY …),<b>一条物质都没有</b>。而
+  <code>substance_catalog</code> 的 387 条物质与 <code>entities</code> 重名 <b>0 条</b> ——
+  《饲料添加剂品种目录》这份权威清单在图谱里<b>完全缺席</b>。
+  后果:合规速查(C1)知道「维生素C 猪 150~300mg/kg」,图谱却查不到「维生素C」这个实体 ——
+  <b>图谱与业务主语脱节</b>。</p>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:34%">表</th><th>补之前</th><th>补之后</th></tr></thead>
+    <tbody>
+      <tr><td><code>entities</code></td><td>94</td><td><b>481</b>(387 物质 + 94 概念)</td></tr>
+      <tr><td><code>entity_articles</code></td><td>1533</td><td><b>1951</b></td></tr>
+      <tr><td><code>entity_aliases</code></td><td>—(表都没有)</td><td><b>117</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>孤儿 / 悬空 / 孤儿别名 <b>全 0</b>;原始 <code>articles</code> <b>3145 条未动</b>。</p>
+
+  <p><b>关联策略</b>(确定性,不重跑 GraphRAG):<b>权威出处 + 三路变体</b>。
+  ① <code>source_article_id</code> —— 每条物质在《品种目录》的出处条文(<b>零猜测</b>,
+  不变量 2 的溯源字段)② 括号别名 <code>核黄素(维生素B2)</code> → <code>维生素B2</code>
+  ③ <code>name_en</code> ④ <code>substance_alias</code>。
+  实测 387 条<b>全部</b>有 <code>source_article_id</code>,且都指向《品种目录》的 4 个条文 ——
+  <b>零猜测</b>。</p>
+
+  <p><b>为什么不用 GraphRAG 重跑</b>:<code>build/graphrag/output/*/artifacts/*.parquet</code>
+  已清理;run.sh 要 LLM key 逐章节跑,那次只跑了 <b>16 个 chunk</b>,而语料早扩到 3145 条文,
+  产物与现状严重脱节。</p>
+
+  <div class="box orange">
+    <span class="t">关键决策 —— 别名一对多 → 一律不收录</span>
+    <code>维生素B1</code> → 盐酸硫胺/硝酸硫胺;<code>螯合物</code> → 9 个络合物。
+    查到了也只能随便挑一个,那是在猜。这与 ② 合规规则的 <code>alignSubstanceName</code>
+    是同一条纪律:<b>候选不唯一就不采用</b>。宁可「查不到」,也不给错答案。<br>
+    结果:124 个候选别名 → 收录 <b>117</b> 条,剔掉 <b>7</b> 条一对多的。
+  </div>
+
+  <p><b>顺带修掉的 3 个真 bug</b>:</p>
+  <ul>
+    <li><b>顶栏「实体」跳 <code>/entity/农业农村部</code></b> —— 该实体生产实测命中 <b>0 条</b>,
+        点进去直接 404。481 个实体只能手动拼 URL 到达。改跳新增的实体列表页。</li>
+    <li><b>实体列表中文搜索用 <code>LIKE</code> 无效</b> —— SQLite 的 <code>LIKE</code>
+        <b>只对 ASCII 有效</b>,测中文永远 false。实测生产 <code>?q=维生素</code> → 0 条,而
+        <code>?q=L-赖氨酸</code> → 1 条(能中是因为前半段 "L-" 是 ASCII)。改用
+        <code>instr()</code>(二进制子串查找),实测 <code>维生素</code> 0 → <b>15</b> 条。
+        <b>换回 LIKE 不会报错,只是永远搜不到东西。</b></li>
+    <li><b><code>description</code> 为 null 时返回 undefined</b> —— 与 <code>number</code>
+        同源的契约缺口,前端拿到 undefined 会显示 "undefined"。归一化成空串。</li>
+  </ul>
+
+  <p><b>新增入口</b>:<code>GET /api/entities</code>(分页 + 类型过滤 + 名称搜索,limit 封顶 200)
+  + 前端 <code>/entities</code> 实体列表页。</p>
+
+  <p><b>生产实测(2026-11-03)</b>:</p>
+  <div class="box green">
+    <span class="t">浏览器 + API 实测</span>
+    <code>/api/entity/维生素C</code> → 200 → <b>L-抗坏血酸(维生素C)</b> · 2 个相关条文<br>
+    <code>/api/entity/Niacinamide</code> → 200 → <b>烟酰胺</b> · 2 个相关条文<br>
+    <code>/api/entity/维生素B1</code> → 200 <code>entity_not_found</code> ← <b>刻意</b>(一对多别名)<br>
+    <code>/api/entities?q=维生素</code> → 200 count=<b>15</b><br>
+    <code>/entities</code> 渲染 <b>50</b> 张真实实体卡 · 中文搜索 15 条 ·
+    点进实体详情 2 条关联条文 + 关系图谱 · <b>0 崩溃</b>
+  </div>
+
+  <h3>⏸ 实体↔实体关系 —— 仍未做(刻意空壳)</h3>
   <div class="box purple">
     <span class="t">ADR-004 的明确决策</span>
     「此上下文<b>保持空壳直到有真实用例</b>。方案文档的图谱能力(关系推理)对当前「找条款」
     场景收益不明,而运维成本(GraphRAG 索引重建 + 增量维护)不低。<b>先留接口,不投实现</b>。」<br><br>
     <b>保留它的价值</b>在于:跨法规的<b>交叉引用关系</b>(如「本条依据《条例》第X条」),
     那是<b>审核预审</b>场景的需求,不是用量判定。<br>
-    <b>不排期</b> —— 等有真实用例再说。
+    <b>不排期</b> —— 等有真实用例再说。<br><br>
+    <b>2026-11-03 补充判断</b>:现在实体层已经<b>有真实数据</b>了(481 个实体、1951 条条文关联),
+    所以「重新推导实体↔实体关系」的<b>数据基础比之前好了</b>。但<b>场景收益依然不明</b> ——
+    当前所有已上线功能(检索/问答/合规速查/实体浏览)都不消费实体间关系。所以仍然<b>不排期</b>。
   </div>
 </section>
 
