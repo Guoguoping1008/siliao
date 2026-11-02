@@ -187,7 +187,7 @@
       <tr><td>8</td><td><b>⑤ 法规监测 + 变更预警</b></td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>4-6 周</td></tr>
       <tr><td>9</td><td>合规日历(标准生效日)</td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
       <tr><td>10</td><td>版本追溯 + 领域标记</td><td>①</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
-      <tr><td>11</td><td>④ 知识图谱</td><td>④</td><td><span class="b b-purple">刻意空壳</span></td><td>需先有数据源</td><td>不排期</td></tr>
+      <tr><td>11</td><td>④ 知识图谱</td><td>④</td><td><span class="b b-ok">已补关联 11-02</span></td><td>—</td><td>实体↔条文 1533 条已入库</td></tr>
     </tbody>
   </table>
   </div>
@@ -388,7 +388,7 @@ GET  /api/documents/:id/status    → 404   (版本追溯未实现)</code></pre>
   <code>pet_food</code> / <code>general</code>)后,支持「只查兽药法规」「排除通用法规」——
   语料里 32 份相关法律法规文件含兽药法规,现在没法过滤。<b>工作量</b>:2-3 天(两者一起做,都要改 schema)</p>
 
-  <h3>⏧ #11 ④ 知识图谱 —— 刻意保持空壳,不是「忘了做」</h3>
+  <h3>✅ #11 ④ 知识图谱 —— 关联已补(2026-11-02)</h3>
   <p>现状(实测):<code>GET /api/entity/农业农村部</code> → <b>200 <code>{"error":"entity_not_found"}</code></b>。
   <code>entities</code> / <code>entity_articles</code> 表<b>已建但为空</b>。
   前端 <code>EntityPage.tsx</code> / <code>EntityGraph.tsx</code> 已就位。</p>
