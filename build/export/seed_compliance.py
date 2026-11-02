@@ -166,35 +166,63 @@ def main():
     def exec_bound(sql, params):
         api_request(path, token, "POST", {"sql": sql, "params": params})
 
+    def exec_bound_batch(table, cols, rows, batch_size=None):
+        """批量 INSERT —— 逐条写会超时(387 条 = 387 次往返)。
+
+        ⚠️ **D1 REST 的 params 上限是 100 个变量**(不是 SQLite 默认的 999)。
+            `batch_size` 由这个上限算出: 100 // len(cols)。
+
+        ⚠️ **占位符必须跨行连续编号** —— 每行都从 ?1 重新开始的话,
+            SQL 里只出现 ?1..?N 而实际传了更多参数,D1 会报
+            「Wrong number of parameter bindings for SQL query」。
+        """
+        if not rows:
+            return 0
+        size = batch_size or max(1, 100 // len(cols))
+        total = 0
+        for start in range(0, len(rows), size):
+            batch = rows[start:start + size]
+            groups = []
+            n = 0
+            for _ in batch:
+                n += len(cols)
+                groups.append(
+                    "(" + ", ".join(f"?{i}" for i in range(n - len(cols) + 1, n + 1)) + ")"
+                )
+            sql = (
+                f"INSERT OR REPLACE INTO {table} ({','.join(cols)}) "
+                f"VALUES {', '.join(groups)}"
+            )
+            flat = [v for row in batch for v in row]
+            exec_bound(sql, flat)
+            total += len(batch)
+        return total
+
     exec_bound(
         "INSERT OR REPLACE INTO rule_sets (version, note, rules_count) VALUES (?1, ?2, ?3)",
         [version, f"C1 自动抽取导入 ({len(rules)} 条规则)", len(rules)],
     )
     print(f"       rule_sets: 1 条 (版本 {version})")
 
-    # compliance_rules —— 逐条写, 因为每行列数不同
+    # compliance_rules
     rule_cols = [
         "rule_id", "rule_type", "substance", "substance_alias",
         "species", "stage", "min_value", "max_value", "unit",
         "condition_text", "source_article_id", "source_doc_id", "source_excerpt",
         "rule_set_version", "extraction_method", "review_status",
     ]
-    n = 0
+    rule_rows = []
     for r in rules:
         rid = r.get("rule_id") or make_rule_id(r)
-        exec_bound(
-            f"INSERT OR REPLACE INTO compliance_rules ({','.join(rule_cols)}) "
-            f"VALUES ({','.join('?' + str(i + 1) for i in range(len(rule_cols)))})",
-            [
-                rid, r.get("rule_type", "limit"), r.get("substance"),
-                r.get("substance_alias"), r.get("species"), r.get("stage"),
-                r.get("min_value"), r.get("max_value"), r.get("unit"),
-                r.get("condition_text"), r.get("source_article_id", ""),
-                r.get("source_doc_id", ""), r.get("source_excerpt"),
-                version, r.get("extraction_method", "auto"), status,
-            ],
-        )
-        n += 1
+        rule_rows.append([
+            rid, r.get("rule_type", "limit"), r.get("substance"),
+            r.get("substance_alias"), r.get("species"), r.get("stage"),
+            r.get("min_value"), r.get("max_value"), r.get("unit"),
+            r.get("condition_text"), r.get("source_article_id", ""),
+            r.get("source_doc_id", ""), r.get("source_excerpt"),
+            version, r.get("extraction_method", "auto"), status,
+        ])
+    n = exec_bound_batch("compliance_rules", rule_cols, rule_rows)
     print(f"       compliance_rules: {n} 条")
 
     # substance_catalog
@@ -203,21 +231,17 @@ def main():
         "formula", "source", "spec", "category", "scope_text",
         "source_article_id", "source_doc_id", "rule_set_version", "review_status",
     ]
-    m = 0
+    cat_rows = []
     for c in catalog:
-        exec_bound(
-            f"INSERT OR REPLACE INTO substance_catalog ({','.join(cat_cols)}) "
-            f"VALUES ({','.join('?' + str(i + 1) for i in range(len(cat_cols)))})",
-            [
-                c.get("substance_id") or make_substance_id(c), c.get("name_cn", ""),
-                c.get("name_en") or None, c.get("substance_alias") or None,
-                c.get("formula") or None, c.get("source") or None,
-                c.get("spec") or None, c.get("category") or None,
-                c.get("scope_text") or None, c.get("source_article_id", ""),
-                c.get("source_doc_id", ""), version, status,
-            ],
-        )
-        m += 1
+        cat_rows.append([
+            c.get("substance_id") or make_substance_id(c), c.get("name_cn", ""),
+            c.get("name_en") or None, c.get("substance_alias") or None,
+            c.get("formula") or None, c.get("source") or None,
+            c.get("spec") or None, c.get("category") or None,
+            c.get("scope_text") or None, c.get("source_article_id", ""),
+            c.get("source_doc_id", ""), version, status,
+        ])
+    m = exec_bound_batch("substance_catalog", cat_cols, cat_rows)
     print(f"       substance_catalog: {m} 条")
 
     # ── 导出 SQL 文件(供 wrangler d1 execute 回退路径) ──
@@ -225,27 +249,45 @@ def main():
     write_sql_files(version, rules, catalog, status)
 
     # ── 校验 ──
+    # ⚠️ **D1 REST 的响应是嵌套的** ——
+    #    `result[0]` 里是 `{results: [...], success, meta}`,计数在
+    #    `result[0]["results"][0]["c"]`,**不在** `result[0]["c"]`。
+    #    写错层级会读到 None → 报 0,而库里其实有数据(实测踩过)。
+    def count_of(res: dict) -> int:
+        result = res.get("result") or []
+        if not result:
+            return 0
+        rows = result[0].get("results") or []
+        if not rows:
+            return 0
+        return int(rows[0].get("c", 0) or 0)
+
     print("\n=== 校验 ===")
     res = api_request(path, token, "POST", {
         "sql": "SELECT COUNT(*) as c FROM compliance_rules WHERE review_status = ?1",
         "params": [status],
     })
-    cnt = res.get("result", [{}])[0].get("c", 0)
+    cnt = count_of(res)
     print(f"  compliance_rules (review_status={status}): {cnt}")
 
     res = api_request(path, token, "POST", {
         "sql": "SELECT COUNT(*) as c FROM substance_catalog",
     })
-    print(f"  substance_catalog: {res.get('result', [{}])[0].get('c', 0)}")
+    print(f"  substance_catalog: {count_of(res)}")
 
     # 溯源完整性
     res = api_request(path, token, "POST", {
         "sql": "SELECT COUNT(*) as c FROM compliance_rules WHERE source_article_id IS NULL OR source_article_id = ''",
     })
-    bad = res.get("result", [{}])[0].get("c", 0)
+    bad = count_of(res)
     print(f"  无溯源的规则: {bad} {'✅' if bad == 0 else '❌'}")
 
-    print("\n[OK] 灌库完成")
+    # ⚠️ **必须断言** —— 校验段只打印的话,读错层级也不会被发现。
+    if cnt != len(rules):
+        raise SystemExit(f"[FAIL] 规则数不符: 库里 {cnt}, 产物 {len(rules)} —— 响应解析或写入有问题")
+    if bad != 0:
+        raise SystemExit(f"[FAIL] 有 {bad} 条规则没有溯源 —— 违反不变量 2")
+    print(f"\n[OK] 灌库完成 —— {cnt} 条规则已写入并校验通过")
 
 
 def write_sql_files(version, rules, catalog, status):

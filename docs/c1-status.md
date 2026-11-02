@@ -20,9 +20,9 @@
 | **物质名双语对照** | ✅ **98 对中英对照, 5 条 OCR 拉丁名已转中文** |
 | **真实数据集成测试** | ✅ **20 个用例跑真实抽取产物**(CI 常驻门禁) |
 | **人工校核清单** | ⏳ **已生成**(37 条, 8 条自动标记待重点看) |
-| **C1.5 多轮会话** | ✅ **代码已部署生产**, ⏳ 表未建(同一个 D1 blocker) |
+| **C1.5 多轮会话** | ✅ **完全可用**(2026-11-02)—— 表已建,生产实测 200 |
 | **引用准确率 eval** | ✅ **实测 100%**(15 问题/39 引用), CI 门禁已生效 |
-| 灌库进 D1 | ⏳ **被 token 权限挡住 —— 需你新建一个带 D1 Edit 的 token** |
+| 灌库进 D1 | ✅ **已完成**(2026-11-02)—— 37 规则 + 387 目录 + 1 版本,见 §4.8 |
 | 规则审核(reviewed) | ⏳ 待人工逐条校核 |
 | **路由层错误处理** | ✅ **P0 回归已修**(`e73a4c4`)—— 生产曾报 1101,见 §4.7 |
 
@@ -311,6 +311,101 @@ M3 把 `await` 留在了 handler 内部,外层 try/catch 就失去了作用。
 > **教训**:M1 记的那条「只有拿生产响应的实际 JSON 做前后比对才抓到」在这里再次生效 ——
 > 本地 220 个测试全绿、eval 门禁全绿、CI 全绿,**生产照样报 1101**。
 > 区别在于:这次不是靠比对抓到,而是靠**主动打生产接口**发现契约已经变了。
+
+### 4.8 ✅ 灌库完成(2026-11-02)
+
+**凭据**:本地 `npx wrangler login` 重新授权 —— OAuth token 带 `d1:write` 权限,
+**不需要新建 API Token**。之前本地 token 过期(refresh 报 `invalid_grant`,
+Cloudflare 每次刷新都轮换 refresh_token,旧的立刻失效),重新走一次 OAuth 流程即可。
+
+**执行序列**(全部用 D1 REST `/query` 端点,不用 `wrangler d1 execute --file`):
+
+```bash
+# ① 建 C1.5 会话表(3 条语句)
+python build/export/apply_migration.py query/worker/migrate_c15.sql
+# ② 建 C1 合规表(10 条语句)
+python build/export/apply_migration.py query/worker/migrate_c1.sql
+# ③ 灌数据(37 规则 + 387 目录 + 1 版本)
+python build/export/seed_compliance.py --remote
+```
+
+**最终生产库状态**(实测):
+
+| 表 | 行数 |
+|---|---|
+| `rule_sets` | 1(v2026.10) |
+| `compliance_rules` | 37 |
+| `substance_catalog` | 387 |
+| `qa_sessions` | 1 |
+| `qa_messages` | 2 |
+
+**原有数据未受影响**:`documents` 196 / `chapters` 529 / `articles` **3145** /
+`articles_fts` 2959 —— 与灌库前逐项一致。
+
+**不变量 2 校验**:规则与目录的「无溯源」计数均为 **0**。
+
+**审核闸门仍关闭**:37 条规则 + 387 条目录全部 `pending` —— **不参与判定**,
+所以现在生产上合规速查返回 `not_covered`(**这是正确行为**,不是故障)。
+人工校核完成后才提升为 `reviewed`。
+
+**判定链路已实测可用**:临时把 1 条维生素C 规则 + 2 条目录条目标为 `reviewed` 后,
+生产实测 7 个用例全部正确:
+
+| 用例 | 结果 |
+|---|---|
+| 维生素C + 猪 + 200mg/kg | `compliant` + 依据条款原文(《饲料添加剂安全使用规范》) |
+| 维生素C + 猪 + 500mg/kg | `exceeded` + 建议上限 300mg/kg |
+| 维生素C + 猪 + 100mg/kg | `exceeded`(低于下限也算超限) |
+| L-抗坏血酸(维生素C) + 猪 + 200 | `compliant`(目录名精确匹配) |
+| **L-抗坏血酸钙 + 猪 + 200** | **`not_covered`** —— **没被维生素C 抢走** ✅ |
+| 未收录物质 | `not_covered` |
+| 维生素D3 + 猪 + 1000 IU/kg | `not_covered`(单位不可比,不猜) |
+
+**测完已回退**(全部改回 `pending`)—— 校核是人的决定,不能替用户标记。
+
+### 4.9 ⚠️ 灌库时又挖出两个真 bug
+
+**bug 1 · `listRules()` 无版本时多 bind 一个参数(生产 500)**
+
+建表灌库后 `POST /api/compliance/usage` 报:
+
+```
+D1_ERROR: Wrong number of parameter bindings for SQL query.
+```
+
+根因:`listRules(ruleSetVersion?)` 无版本时 SQL 是 `SELECT * FROM compliance_rules`
+(**没有 `?1` 占位符**),但代码照样 `.bind(ruleSetVersion ?? "")` → 绑了 1 个参数,
+SQL 里 0 个占位符,D1 拒绝执行。
+
+⚠️ **这个 bug 一直存在,只是从没被触发过** —— 建表之前先撞上「no such table」,
+错误被**更早的一层**挡住了。
+
+> **教训**:**「更早的失败」会掩盖「后面的失败」**。上游依赖缺失时,
+> 下游的代码路径等于**从未被执行过** —— 补上依赖后必须重测。
+> 这跟 M1 记的「三层护栏全绿 ≠ 行为没变」是同一个道理。
+
+修法 + 新增 `compliance.repository.test.ts`(mock D1 **按真实行为校验绑定数**)。
+
+**bug 2 · 灌库脚本的校验段读错了响应层级**
+
+D1 REST 的响应是**嵌套**的:计数在 `result[0]["results"][0]["c"]`,
+**不在** `result[0]["c"]`。脚本写错了层级 → 库里明明有 37 条,却打印「0」。
+
+⚠️ **更糟的是 CI 的 `assert rules > 0` 会因此误报「抽取没产出」** —— 
+即使灌库成功,回读校验也会失败。已一并修掉。
+
+### 4.10 ⚠️ 灌库脚本原本逐条写,会超时
+
+逐条 HTTP = 387 次往返 → 本地跑 **>400 秒超时**(灌到 306 条就断了)。
+
+改成批量 INSERT 后 **85 秒**完成。三个要点:
+
+1. **D1 REST 的 params 上限是 100 个变量**(不是 SQLite 默认的 999)
+   → 13 列的表每批最多 7 行(7 × 13 = 91 ≤ 100)
+2. **占位符必须跨行连续编号** —— 每行都从 `?1` 重新开始的话,
+   SQL 里只出现 `?1..?13` 而实际传了 91 个参数 →
+   「Wrong number of parameter bindings」(与 bug 1 同一个报错,但原因不同)
+3. **多语句 + params 不支持** → 必须单语句多行 INSERT
 
 ---
 

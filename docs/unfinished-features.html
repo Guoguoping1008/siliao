@@ -177,8 +177,8 @@
   <table>
     <thead><tr><th style="width:4%">#</th><th style="width:28%">功能</th><th style="width:8%">所属</th><th style="width:14%">状态</th><th style="width:16%">阻塞类型</th><th style="width:20%">工作量</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><b>D1 灌库</b>(C1 合规规则入库)</td><td>②</td><td><span class="b b-err">卡死</span></td><td><b>等凭据</b></td><td>3 分钟(你)+ 我执行</td></tr>
-      <tr><td>2</td><td><b>C1.5 会话表建表</b></td><td>③</td><td><span class="b b-err">卡死</span></td><td><b>等凭据</b></td><td>同上</td></tr>
+      <tr><td>1</td><td><s><b>D1 灌库</b>(C1 合规规则入库)</s></td><td>②</td><td><span class="b b-ok">已完成 11-02</span></td><td>—</td><td>37 规则 + 387 目录已入库</td></tr>
+      <tr><td>2</td><td><s><b>C1.5 会话表建表</b></s></td><td>③</td><td><span class="b b-ok">已完成 11-02</span></td><td>—</td><td>生产实测 200</td></tr>
       <tr><td>3</td><td><b>37 条规则人工校核</b></td><td>②</td><td><span class="b b-warn">等人</span></td><td><b>等人</b></td><td>1-2 小时</td></tr>
       <tr><td>4</td><td>禁用规则抽取(<code>prohibition</code>)</td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
       <tr><td>5</td><td>组合/条件规则抽取</td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>1-2 天</td></tr>
@@ -202,8 +202,15 @@ GET  /api/documents/:id/status    → 404   (版本追溯未实现)</code></pre>
 </section>
 
 <section id="s2">
-  <h2><span class="num err">2</span>A 类 · 代码就绪,等一个凭据(3 分钟)</h2>
-  <p><b>#1 D1 灌库(C1 合规规则入库)</b> · <b>#2 C1.5 会话表建表</b></p>
+  <h2><span class="num ok">2</span>A 类 · 代码就绪,等一个凭据 —— ✅ 已解除</h2>
+  <p><b>#1 D1 灌库(C1 合规规则入库)</b> ✅ <b>2026-11-02 完成</b> ·
+  <b>#2 C1.5 会话表建表</b> ✅ <b>2026-11-02 完成</b></p>
+  <div class="box ok">
+    <span class="t">凭据怎么解决的</span>
+    本地 <code>npx wrangler login</code> 重新授权 —— OAuth token <b>自带 <code>d1:write</code> 权限</b>,
+    <b>不需要新建 API Token</b>。之前本地 token 过期(refresh 报 <code>invalid_grant</code>,
+    Cloudflare 每次刷新都轮换 refresh_token,旧的立刻失效),重走一次 OAuth 流程即可。
+  </div>
 
   <div class="tblwrap">
   <table>
@@ -214,17 +221,17 @@ GET  /api/documents/:id/status    → 404   (版本追溯未实现)</code></pre>
       <tr><td>领域层 + 判定器</td><td><span class="b b-ok">完成</span> 单测覆盖</td></tr>
       <tr><td>D1 schema</td><td><span class="b b-ok">已写好</span> migrate_c1.sql(3 表)/ migrate_c15.sql(2 表)</td></tr>
       <tr><td>API + 前端页</td><td><span class="b b-ok">已部署</span> /api/compliance/usage + /compliance 页</td></tr>
-      <tr><td><b>D1 表</b></td><td><span class="b b-err">没建</span></td></tr>
-      <tr><td><b>数据</b></td><td><span class="b b-err">没灌</span></td></tr>
+      <tr><td><b>D1 表</b></td><td><span class="b b-ok">已建</span> rule_sets / compliance_rules / substance_catalog</td></tr>
+      <tr><td><b>数据</b></td><td><span class="b b-ok">已灌</span> 37 规则 / 387 目录 / 1 版本</td></tr>
     </tbody>
   </table>
   </div>
 
-  <p>生产实测报错(修复 1101 后露出的真话):</p>
-<pre><code>POST /api/compliance/usage → 500 {"error":"internal",
-    "message":"D1_ERROR: no such table: substance_catalog: SQLITE_ERROR"}
-POST /api/qa/conversation  → 500 no such table: qa_sessions
-DELETE /api/qa/conversation → 500 no such table: qa_messages</code></pre>
+  <p><b>生产实测(灌库后)</b>:合规速查返回 <code>not_covered</code> —— <b>这是正确行为</b>,
+  不是故障:37 条规则全部 <code>pending</code>,审核闸门未开,不参与判定。</p>
+  <p><b>判定链路已实测可用</b>(临时提升 1 条规则后验证,测完已回退):
+  <code>compliant</code> / <code>exceeded</code>(超上限)/ <code>exceeded</code>(低于下限)/ 目录名精确匹配 /
+  <b>「抗坏血酸钙」不被「维生素C」抢走</b> / 单位不可比不猜 —— 7 个用例全对。</p>
 
   <div class="box danger">
     <span class="t">唯一原因</span>
@@ -233,21 +240,20 @@ DELETE /api/qa/conversation → 500 no such table: qa_messages</code></pre>
     灌库要另一个带 <code>Account → D1 → Edit</code>、TTL 留空的 token。
   </div>
 
-  <h3>解锁动作(你,约 3 分钟)</h3>
-<pre><code># Cloudflare Dashboard → 账户 → API Tokens → Create Token
-# 权限: Account → D1 → Edit;  TTL: 留空
-gh secret set CLOUDFLARE_D1_TOKEN</code></pre>
+  <h3>实际执行序列(已跑完)</h3>
+<pre><code>① python build/export/apply_migration.py query/worker/migrate_c15.sql   # 3 条语句
+② python build/export/apply_migration.py query/worker/migrate_c1.sql    # 10 条语句
+③ python build/export/seed_compliance.py --remote                       # 85 秒</code></pre>
 
-  <h3>解锁后我做(约 10 分钟)</h3>
-<pre><code>① 改 seed-compliance.yml(现 3 处 CLOUDFLARE_API_TOKEN / 0 处 D1_TOKEN)
-② npx wrangler d1 execute siliao-db --remote --file ./query/worker/migrate_c15.sql
-③ gh workflow run seed-compliance.yml
-④ 回读校验 + 生产三态实测(compliant / exceeded / not_covered)</code></pre>
+  <div class="box danger">
+    <span class="t">全程用 D1 REST /query 端点,不用 wrangler d1 execute --file</span>
+    后者对「schema 变了」的库报 <code>D1_RESET_DO</code>,<b>会清空远端表</b>(3145 条条文)。
+  </div>
 
   <div class="box warn">
-    <span class="t">不能重跑 schema.sql</span>
-    <code>migrate_c1.sql</code> / <code>migrate_c15.sql</code> 必须单独跑 ——
-    生产库 3145 条条文,wrangler 4.127+ 对「schema 变了」的库报 <code>D1_RESET_DO</code>,<b>会清空远端表</b>。
+    <span class="t">灌库时挖出两个真 bug(已修)</span>
+    ① <code>listRules()</code> 无版本时多 bind 一个参数 → 生产 500(被「no such table」掩盖,从未触发)<br>
+    ② 灌库脚本校验段读错响应层级 → 报 0,且会让 CI 的 <code>assert rules &gt; 0</code> 误报失败
   </div>
 </section>
 

@@ -205,16 +205,25 @@ jobs:
               if params: body["params"] = params
               return api_request(path, token, "POST", body)
 
-          r = q("SELECT COUNT(*) c FROM compliance_rules")
-          rules = r.get("result", [{}])[0].get("c", 0)
-          r = q("SELECT COUNT(*) c FROM substance_catalog")
-          cat = r.get("result", [{}])[0].get("c", 0)
-          r = q("SELECT COUNT(*) c FROM compliance_rules WHERE source_article_id IS NULL OR source_article_id=''")
-          bad = r.get("result", [{}])[0].get("c", 0)
+          # ⚠️ **D1 REST 的响应是嵌套的** ——
+          #    计数在 result[0]["results"][0]["c"],**不在** result[0]["c"]。
+          #    写错层级会读到 0,下面的 assert 会误报「抽取没产出」。
+          def count_of(res):
+              result = res.get("result") or []
+              if not result: return 0
+              rows = result[0].get("results") or []
+              if not rows: return 0
+              return int(rows[0].get("c", 0) or 0)
+
+          rules = count_of(q("SELECT COUNT(*) c FROM compliance_rules"))
+          cat = count_of(q("SELECT COUNT(*) c FROM substance_catalog"))
+          bad = count_of(q("SELECT COUNT(*) c FROM compliance_rules WHERE source_article_id IS NULL OR source_article_id=''"))
+          reviewed = count_of(q("SELECT COUNT(*) c FROM compliance_rules WHERE review_status='reviewed'"))
 
           print(f"compliance_rules   : {rules}")
           print(f"substance_catalog  : {cat}")
           print(f"无溯源的规则        : {bad}")
+          print(f"已审核的规则        : {reviewed}")
 
           assert rules > 0, "规则数为 0 —— 抽取没产出"
           assert cat > 0, "物质目录为 0"

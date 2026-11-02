@@ -11,8 +11,8 @@
 
 | # | 功能 | 所属 | 状态 | 阻塞类型 | 工作量 |
 |---|---|---|---|---|---|
-| 1 | **D1 灌库**(C1 合规规则入库) | ② | ⛔ 卡死 | **等凭据** | 3 分钟(你)+ 我执行 |
-| 2 | **C1.5 会话表建表** | ③ | ⛔ 卡死 | **等凭据** | 同上 |
+| 1 | ~~**D1 灌库**(C1 合规规则入库)~~ | ② | ✅ **已完成** 11-02 | — | 37 规则 + 387 目录已入库 |
+| 2 | ~~**C1.5 会话表建表**~~ | ③ | ✅ **已完成** 11-02 | — | 生产实测 200 |
 | 3 | **37 条规则人工校核** | ② | ⏳ 等人 | **等人** | 1-2 小时 |
 | 4 | **禁用规则抽取**(`prohibition`) | ② | 🚧 未开工 | 可做 | 2-3 天 |
 | 5 | **组合/条件规则抽取** | ② | 🚧 未开工 | 可做 | 1-2 天 |
@@ -40,10 +40,15 @@ GET  /api/documents/:id/status → 404   (版本追溯未实现)
 
 这三类的区别很重要 —— **它们不是排期问题,是外部条件问题**。
 
-### A 类 · 代码就绪,等一个凭据(3 分钟)
+### A 类 · 代码就绪,等一个凭据(3 分钟)—— ✅ **已解除**
 
-**#1 D1 灌库(C1 合规规则入库)**
-**#2 C1.5 会话表建表**
+**#1 D1 灌库(C1 合规规则入库)** ✅ **2026-11-02 完成**
+**#2 C1.5 会话表建表** ✅ **2026-11-02 完成**
+
+> **凭据怎么解决的**:本地 `npx wrangler login` 重新授权 ——
+> OAuth token **自带 `d1:write` 权限**,**不需要新建 API Token**。
+> 之前本地 token 过期(refresh 报 `invalid_grant`,Cloudflare 每次刷新都轮换
+> refresh_token,旧的立刻失效),重走一次 OAuth 流程即可。
 
 现状(实测):
 
@@ -54,41 +59,34 @@ GET  /api/documents/:id/status → 404   (版本追溯未实现)
 | 领域层 + 判定器 | ✅ 完成,单测覆盖 |
 | D1 schema | ✅ `migrate_c1.sql`(3 表)/ `migrate_c15.sql`(2 表) |
 | API + 前端页 | ✅ 已部署(`/api/compliance/usage` + `/compliance` 页) |
-| **D1 表** | ❌ **没建** |
-| **数据** | ❌ **没灌** |
+| **D1 表** | ✅ **已建**(rule_sets / compliance_rules / substance_catalog) |
+| **数据** | ✅ **已灌**(37 规则 / 387 目录 / 1 版本) |
 
-生产实测报错(修复 1101 后露出的真话):
+**生产实测(灌库后)**:合规速查返回 `not_covered` —— **这是正确行为**,
+不是故障:37 条规则全部 `pending`,审核闸门未开,不参与判定。
 
-```
-POST /api/compliance/usage → 500 {"error":"internal",
-    "message":"D1_ERROR: no such table: substance_catalog: SQLITE_ERROR"}
-POST /api/qa/conversation  → 500 no such table: qa_sessions
-DELETE /api/qa/conversation → 500 no such table: qa_messages
-```
+**判定链路已实测可用**(临时提升 1 条规则后验证,测完已回退):
+`compliant` / `exceeded`(超上限)/ `exceeded`(低于下限)/ 目录名精确匹配 /
+**「抗坏血酸钙」不被「维生素C」抢走** / 单位不可比不猜 —— 7 个用例全对。
 
 **唯一原因**:`CLOUDFLARE_API_TOKEN` secret 是最小权限(只给 Workers/Pages),
 `/d1/database` 返回 401 —— **这是有意的设计**,见 `docs/deployment-info.md`。
 灌库要另一个带 `Account → D1 → Edit`、TTL 留空的 token。
 
-**解锁动作(你,约 3 分钟)**:
+**实际执行序列**(已跑完):
 
 ```bash
-# Cloudflare Dashboard → 账户 → API Tokens → Create Token
-# 权限: Account → D1 → Edit;  TTL: 留空
-gh secret set CLOUDFLARE_D1_TOKEN
+① python build/export/apply_migration.py query/worker/migrate_c15.sql   # 3 条语句
+② python build/export/apply_migration.py query/worker/migrate_c1.sql    # 10 条语句
+③ python build/export/seed_compliance.py --remote                       # 85 秒
 ```
 
-**解锁后我做**(约 10 分钟):
+⚠️ **全程用 D1 REST `/query` 端点,不用 `wrangler d1 execute --file`** ——
+后者对「schema 变了」的库报 `D1_RESET_DO`,**会清空远端表**(3145 条条文)。
 
-```bash
-① 改 seed-compliance.yml(现 3 处 CLOUDFLARE_API_TOKEN / 0 处 D1_TOKEN)
-② npx wrangler d1 execute siliao-db --remote --file ./query/worker/migrate_c15.sql
-③ gh workflow run seed-compliance.yml
-④ 回读校验 + 生产三态实测(compliant / exceeded / not_covered)
-```
-
-> ⚠️ **`migrate_c1.sql` / `migrate_c15.sql` 必须单独跑,不能重跑 `schema.sql`** ——
-> 生产库 3145 条条文,wrangler 4.127+ 对「schema 变了」的库报 `D1_RESET_DO`,**会清空远端表**。
+**灌库时挖出两个真 bug(已修)**:
+① `listRules()` 无版本时多 bind 一个参数 → 生产 500(被「no such table」掩盖,从未触发)
+② 灌库脚本校验段读错响应层级 → 报 0,且会让 CI 的 `assert rules > 0` 误报失败
 
 ---
 
