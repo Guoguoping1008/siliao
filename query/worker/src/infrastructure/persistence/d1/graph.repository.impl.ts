@@ -53,6 +53,34 @@ export interface EntityArticleRef {
 export interface GraphRepository {
   findEntityByName(name: string): Promise<GraphEntity | null>;
   listEntityArticles(entityId: string): Promise<EntityArticleRef[]>;
+  /** 列出实体(分页 + 按类型过滤) —— 给前端「实体列表页」用。 */
+  listEntities(opts?: ListEntitiesOptions): Promise<GraphEntity[]>;
+}
+
+/** 实体列表查询参数。 */
+export interface ListEntitiesOptions {
+  /** 按类型过滤(如 SUBSTANCE / LAW)。空 = 不过滤。 */
+  type?: string;
+  /** 按名称前缀/包含过滤(大小写不敏感)。空 = 不过滤。 */
+  q?: string;
+  /** 条数上限 —— 默认 50,最大 200。 */
+  limit?: number;
+  /** 偏移量 —— 默认 0。 */
+  offset?: number;
+}
+
+/** D1 行 → 实体。 */
+function toEntity(r: DbRow): GraphEntity {
+  return {
+    entity_id: String(r.entity_id),
+    name: String(r.name),
+    type: String(r.type),
+    // ⚠️ 必须归一化成空串 —— `str(null)` 返回 undefined,
+    //    前端拿到 undefined 会显示 "undefined" 或直接崩。
+    //    与 listEntityArticles 的 number 契约同源。
+    description: str(r.description) ?? "",
+    doc_id: str(r.doc_id),
+  };
 }
 
 /** D1 实现的图谱仓储。 */
@@ -60,18 +88,35 @@ export class D1GraphRepository implements GraphRepository {
   constructor(private readonly db: D1Like) {}
 
   async findEntityByName(name: string): Promise<GraphEntity | null> {
-    const row = await this.db.prepare(
-      `SELECT * FROM entities WHERE name=?1`
-    ).bind(name).first();
-    if (!row) return null;
-    const r = row as DbRow;
-    return {
-      entity_id: String(r.entity_id),
-      name: String(r.name),
-      type: String(r.type),
-      description: str(r.description),
-      doc_id: str(r.doc_id),
-    };
+    const q = (name || "").trim();
+    if (!q) return null;
+
+    // ── 1. 精确匹配 ──
+    const row = await this.db
+      .prepare(`SELECT * FROM entities WHERE name=?1`)
+      .bind(q)
+      .first();
+    if (row) return toEntity(row as DbRow);
+
+    // ── 2. 别名匹配 ──
+    // ⚠️ **别名必须唯一指向一个实体** —— `entity_aliases.alias` 是主键,
+    //    一对多的别名在灌库时就被剔除了(见 migrate_graph.sql 的说明)。
+    //    所以这里查到就是唯一的,不需要「候选唯一才采用」的二次判断。
+    //
+    // ⚠️ **为什么需要别名** —— 实体名取自《品种目录》的通用名称,
+    //    权威但不好念:「L-抗坏血酸(维生素C)」 vs 用户搜的「维生素C」。
+    //    实测生产 `GET /api/entity/维生素C` 返回 entity_not_found。
+    const aliasRow = await this.db
+      .prepare(
+        `SELECT e.* FROM entity_aliases a
+         JOIN entities e ON e.entity_id = a.entity_id
+         WHERE a.alias = ?1`
+      )
+      .bind(q)
+      .first();
+    if (aliasRow) return toEntity(aliasRow as DbRow);
+
+    return null;
   }
 
   async listEntityArticles(entityId: string): Promise<EntityArticleRef[]> {
@@ -97,5 +142,39 @@ export class D1GraphRepository implements GraphRepository {
       chapter_title: str(r.chapter_title),
       doc_id: str(r.doc_id),
     }));
+  }
+
+  async listEntities(opts: ListEntitiesOptions = {}): Promise<GraphEntity[]> {
+    // ⚠️ limit 必须封顶 —— 否则一个不带 limit 的请求就能把 481 行全拉走
+    const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+    const offset = Math.max(opts.offset ?? 0, 0);
+
+    const where: string[] = [];
+    const binds: string[] = [];
+    if (opts.type) {
+      binds.push(opts.type);
+      where.push(`type = ?${binds.length}`);
+    }
+    if (opts.q) {
+      binds.push(opts.q);
+      where.push(`name LIKE ?${binds.length} ESCAPE '\\'`);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    binds.push(String(limit));
+    const limitIdx = binds.length;
+    binds.push(String(offset));
+    const offsetIdx = binds.length;
+
+    const rows = await this.db
+      .prepare(
+        `SELECT * FROM entities ${whereSql}
+         ORDER BY type = 'SUBSTANCE' DESC, name ASC
+         LIMIT ?${limitIdx} OFFSET ?${offsetIdx}`
+      )
+      .bind(...binds)
+      .all();
+
+    return mapRows(rows.results as DbRow[], toEntity);
   }
 }

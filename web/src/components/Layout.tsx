@@ -23,7 +23,10 @@ const NAV_LINKS: NavLink[] = [
   { path: "/qa", label: "AI 问答", icon: "💬" },
   { path: "/conversation", label: "多轮问答", icon: "🗣" },
   { path: "/compliance", label: "合规速查", icon: "⚖️" },
-  { path: "/entity/农业农村部", label: "实体", icon: "🏛" },
+  // ⚠️ 不要硬编码某个实体名 —— 2026-11-03 实测:原来跳 `/entity/农业农村部`,
+  //    而那个实体**根本不存在**(生产 entities 表命中 0 条),点进去直接 404。
+  //    改跳实体列表页,481 个实体都能浏览到。
+  { path: "/entities", label: "实体", icon: "🏛" },
 ]
 
 /**

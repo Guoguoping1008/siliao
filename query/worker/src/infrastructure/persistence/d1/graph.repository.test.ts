@@ -104,3 +104,85 @@ describe("D1GraphRepository · 响应契约", () => {
     await expect(repo.findEntityByName("不存在")).resolves.toBeNull();
   });
 });
+
+/**
+ * 别名查找。
+ *
+ * ## 为什么需要这份测试
+ *
+ * 实体名取自《饲料添加剂品种目录》的**通用名称** —— 权威但不好念:
+ *
+ *     实体名     L-抗坏血酸(维生素C)
+ *     用户搜的   维生素C
+ *
+ * 2026-11-03 实测:灌完 387 条物质实体后,生产 `GET /api/entity/维生素C`
+ * 仍返回 `entity_not_found` —— 别名查不到,图谱等于半残。
+ *
+ * ⚠️ **别名必须唯一指向一个实体** —— 一对多的别名在灌库时就被剔除
+ *    (见 migrate_graph.sql)。所以查到就是唯一的,不需要二次判断。
+ */
+describe("D1GraphRepository · 别名查找", () => {
+  /** 按 SQL 里出现的表名分派结果,好区分「精确查」与「别名查」。 */
+  function aliasDb(opts: { exact?: unknown[]; alias?: unknown[] }) {
+    return {
+      prepare(sql: string) {
+        const stmt = {
+          bind() { return stmt; },
+          async first() {
+            if (sql.includes("entity_aliases")) return opts.alias?.[0] ?? null;
+            return opts.exact?.[0] ?? null;
+          },
+          async all() { return { results: [] }; },
+        };
+        return stmt;
+      },
+      async batch() { return []; },
+    };
+  }
+
+  const entityRow = {
+    entity_id: "sub_abc123",
+    name: "L-抗坏血酸(维生素C)",
+    type: "SUBSTANCE",
+    description: "养殖动物",
+    doc_id: "02制度文件_04_（四）使用管理_45_饲料添加剂品种目录",
+  };
+
+  it("精确名命中 → 直接返回,不走别名查询", async () => {
+    const repo = new D1GraphRepository(aliasDb({ exact: [entityRow] }) as never);
+    const e = await repo.findEntityByName("L-抗坏血酸(维生素C)");
+    expect(e?.name).toBe("L-抗坏血酸(维生素C)");
+    expect(e?.type).toBe("SUBSTANCE");
+  });
+
+  it("别名命中 → 返回**规范名**实体(不是别名本身)", async () => {
+    // 「维生素C」查不到精确名,但能通过 entity_aliases 命中
+    const repo = new D1GraphRepository(aliasDb({ alias: [entityRow] }) as never);
+    const e = await repo.findEntityByName("维生素C");
+    expect(e).not.toBeNull();
+    // ⚠️ 返回的必须是规范名,前端标题要显示「L-抗坏血酸(维生素C)」
+    expect(e?.name).toBe("L-抗坏血酸(维生素C)");
+    expect(e?.entity_id).toBe("sub_abc123");
+  });
+
+  it("别名也查不到 → 返回 null(不是抛异常)", async () => {
+    const repo = new D1GraphRepository(aliasDb({}) as never);
+    await expect(repo.findEntityByName("维生素B1")).resolves.toBeNull();
+  });
+
+  it("空串 / 空白 → 返回 null,不查库", async () => {
+    const repo = new D1GraphRepository(aliasDb({}) as never);
+    await expect(repo.findEntityByName("")).resolves.toBeNull();
+    await expect(repo.findEntityByName("   ")).resolves.toBeNull();
+  });
+
+  it("别名行的 description 为 null → 归一化成空串,不能是 undefined", async () => {
+    // 与 listEntityArticles 的 number 契约同源:前端会直接 .replace()
+    const repo = new D1GraphRepository(
+      aliasDb({ alias: [{ ...entityRow, description: null }] }) as never
+    );
+    const e = await repo.findEntityByName("维生素C");
+    expect(e?.description).toBe("");
+    expect(e?.description).not.toBeUndefined();
+  });
+});

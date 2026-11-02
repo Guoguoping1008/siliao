@@ -314,6 +314,32 @@ export const api = {
     return fetchJson<{ entity: Entity; articles: Article[] }>(`/api/entity/${encodeURIComponent(name)}`)
   },
 
+  /**
+   * 实体列表(分页 + 按类型/名称过滤)。
+   *
+   * ⚠️ 图谱有 481 个实体,没有列表入口就只能手动拼 URL —— 顶栏「实体」
+   *    原本硬编码跳 `/entity/农业农村部`,而那个实体根本不存在。
+   */
+  async listEntities(params: {
+    type?: string
+    q?: string
+    limit?: number
+    offset?: number
+  } = {}): Promise<{ entities: Entity[]; count: number; limit: number; offset: number }> {
+    if (USE_MOCK) {
+      const { mockApi } = await import("./mockData")
+      return mockApi.listEntities(params)
+    }
+    const qs = new URLSearchParams()
+    if (params.type) qs.set("type", params.type)
+    if (params.q) qs.set("q", params.q)
+    qs.set("limit", String(params.limit ?? 50))
+    qs.set("offset", String(params.offset ?? 0))
+    return fetchJson<{ entities: Entity[]; count: number; limit: number; offset: number }>(
+      `/api/entities?${qs.toString()}`
+    )
+  },
+
   // ② 合规规则(C1)
   /**
    * 用量合规速查。

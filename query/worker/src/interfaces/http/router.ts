@@ -25,7 +25,7 @@
  */
 
 import { json, errorJson, CORS } from "./http-utils";
-import { handleSearch, handleEntity } from "./routes/retrieval.routes";
+import { handleSearch, handleEntity, handleEntityList } from "./routes/retrieval.routes";
 import {
   handleDocuments,
   handleCatalog,
@@ -96,6 +96,12 @@ export async function route(req: Request, env: Env): Promise<Response> {
     const mEnt = path.match(/^\/api\/entity\/(.+)$/);
     if (mEnt) {
       return await handleEntity(app, mEnt[1]);
+    }
+    // ── 实体列表 ──
+    // ⚠️ 顺序必须在 `/api/entity/:name` **之后** —— 否则 "entities" 会被
+    //    当成实体名去查。
+    if (path === "/api/entities" || path === "/api/entities/") {
+      return await handleEntityList(app, url.searchParams);
     }
 
     // ── ③ 问答 ──

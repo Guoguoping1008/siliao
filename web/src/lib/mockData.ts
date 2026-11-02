@@ -388,6 +388,24 @@ export const mockApi = {
       .map(({ markdown, ...rest }) => rest)
     return { entity: ent, articles: arts }
   },
+
+  async listEntities(params: {
+    type?: string
+    q?: string
+    limit?: number
+    offset?: number
+  } = {}): Promise<{ entities: Entity[]; count: number; limit: number; offset: number }> {
+    await new Promise(r => setTimeout(r, 50))
+    const limit = Math.min(Math.max(params.limit ?? 50, 1), 200)
+    const offset = Math.max(params.offset ?? 0, 0)
+    const q = (params.q ?? "").trim().toLowerCase()
+    const filtered = ENTITIES.filter(e =>
+      (!params.type || e.type === params.type) &&
+      (!q || e.name.toLowerCase().includes(q))
+    )
+    const entities = filtered.slice(offset, offset + limit)
+    return { entities, count: entities.length, limit, offset }
+  },
 }
 
 function escapeRe(s: string): string {

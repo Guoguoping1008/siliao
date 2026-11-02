@@ -8,6 +8,7 @@ import { DocumentPage } from './pages/DocumentPage'
 import { ChapterPage } from './pages/ChapterPage'
 import { SearchPage } from './pages/SearchPage'
 import { EntityPage } from './pages/EntityPage'
+import { EntityListPage } from './pages/EntityListPage'
 import { QAPage } from './pages/QAPage'
 import { ConversationPage } from './pages/ConversationPage'
 import { CompliancePage } from './pages/CompliancePage'
@@ -24,6 +25,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/doc/:docId/chapter/:chapterId" element={<ChapterPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/entity/:name" element={<EntityPage />} />
+          {/* ⚠️ 顺序:`/entities` 必须在 `/entity/:name` **之前** —— 否则
+              "entities" 会被当成实体名,查不到实体。 */}
+          <Route path="/entities" element={<EntityListPage />} />
           <Route path="/qa" element={<QAPage />} />
           <Route path="/conversation" element={<ConversationPage />} />
           <Route path="/compliance" element={<CompliancePage />} />
