@@ -308,14 +308,35 @@ index.ts (40 行)                    —— 只做「把 Request 交给路由层
 
 ---
 
-## 七、已修但未部署
+## 七、已修 · 已部署 · 已验证
 
 | 提交 | 内容 | 状态 |
 |---|---|---|
-| `e73a4c4` | 路由层 try/catch 失效 → 生产 1101 回归 | ✅ 已提交,**未 push** |
+| `e73a4c4` | 路由层 try/catch 失效 → 生产 1101 回归 | ✅ **已 push + 已部署生产 + 已验证** |
+| `6c2b358` | 项目状态报告 + P0 复盘进 c1-status | ✅ 已 push |
 
-> push 后 CI 会自动跑 eval 门禁 + 部署到生产,修复即生效。
-> 部署后建议用 `api-contract.yml` 手动触发一次,确认生产响应契约未变。
+**部署后生产全端点复测(2026-11-02 09:1x UTC,12 个端点)**:
+
+| 端点 | 结果 |
+|---|---|
+| `GET /api/documents` | ✅ 200 |
+| `GET /api/catalog` | ✅ 200 |
+| `GET /api/search` | ✅ 200 |
+| `GET /api/article/:id`(不存在) | ✅ 200 `article_not_found` |
+| `GET /api/entity/:name` | ✅ 200 `entity_not_found` |
+| `POST /api/qa` | ✅ 200 |
+| `POST /api/qa`(缺 q) | ✅ 400 `missing_query` |
+| `POST /api/compliance/usage`(参数错) | ✅ 400 `invalid_request` |
+| `POST /api/compliance/usage`(正常) | ✅ **500 JSON** `no such table: substance_catalog` |
+| `POST /api/qa/conversation` | ✅ **500 JSON** `no such table: qa_sessions` |
+| `DELETE /api/qa/conversation` | ✅ **500 JSON** `no such table: qa_messages` |
+| `GET /api/nonexistent` | ✅ 404 `not_found` |
+
+**零 1101**。最后三条的 500 是**如实反映 D1 表未建**(§三 的唯一阻塞),
+不再是 Worker 崩溃 —— 现在「缺哪张表」一眼可见,灌库前置检查也不必再靠猜。
+
+> 建议后续用 `api-contract.yml` 手动触发一次,把「错误响应形状」也纳入基线。
+> 当前基线只覆盖 200 与 400,**没有覆盖 500** —— 这正是这个 bug 能长期潜伏的原因之一。
 
 ---
 

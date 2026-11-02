@@ -157,16 +157,18 @@
   <span class="eyebrow">Project Status · 2026-11-02</span>
   <h1>饲料法规 RAG · 项目状态</h1>
   <p class="sub">
-    生产环境实测(2026-11-02 08:56 ~ 09:02 UTC)。检索与问答两条主链路运行良好;
+    生产环境实测(2026-11-02 08:56 ~ 09:20 UTC)。检索与问答两条主链路运行良好;
     <b>合规速查代码与数据均已就绪,唯独卡在「一个带 D1 写权限的 Cloudflare token」</b>。
-    本次实测另挖出一个未被任何文档记录的 <b>P0 回归</b>,已修复并加回归测试。
+    本次实测另挖出一个未被任何文档记录的 <b>P0 回归</b>(路由层 try/catch 失效 → 生产 1101),
+    <b>已修复、已部署、已验证</b>。
   </p>
   <div class="meta">
-    <span class="chip">分支 deploy/c-b-hybrid @ e73a4c4</span>
+    <span class="chip">分支 deploy/c-b-hybrid @ 6c2b358</span>
     <span class="chip">基线 v1.0.0-production</span>
     <span class="chip">worker 单测 227/227</span>
     <span class="chip">recall@10 76.0%</span>
     <span class="chip">引用准确率 100%</span>
+    <span class="chip">生产 0 × 1101</span>
   </div>
 </div>
 </header>
@@ -512,17 +514,47 @@ gh workflow run seed-compliance.yml</code></pre>
 </section>
 
 <section id="s7">
-  <h2><span class="num warn">7</span>已修但未部署</h2>
+  <h2><span class="num warn">7</span>已修 · 已部署 · 已验证</h2>
   <div class="tblwrap">
   <table>
     <thead><tr><th style="width:18%">提交</th><th style="width:52%">内容</th><th>状态</th></tr></thead>
     <tbody>
-      <tr><td><code>e73a4c4</code></td><td>路由层 try/catch 失效 → 生产 1101 回归</td><td><span class="b b-warn">已提交,未 push</span></td></tr>
+      <tr><td><code>e73a4c4</code></td><td>路由层 try/catch 失效 → 生产 1101 回归</td><td><span class="b b-ok">已 push + 已部署生产 + 已验证</span></td></tr>
+      <tr><td><code>6c2b358</code></td><td>项目状态报告 + P0 复盘进 c1-status</td><td><span class="b b-ok">已 push</span></td></tr>
     </tbody>
   </table>
   </div>
-  <p>push 后 CI 会自动跑 eval 门禁 + 部署到生产,修复即生效。
-  部署后建议用 <code>api-contract.yml</code> 手动触发一次,确认生产响应契约未变。</p>
+
+  <h3>部署后生产全端点复测(12 个端点)</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:44%">端点</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /api/documents</code></td><td><span class="b b-ok">200</span></td></tr>
+      <tr><td><code>GET /api/catalog</code></td><td><span class="b b-ok">200</span></td></tr>
+      <tr><td><code>GET /api/search</code></td><td><span class="b b-ok">200</span></td></tr>
+      <tr><td><code>GET /api/article/:id</code>(不存在)</td><td><span class="b b-ok">200</span> article_not_found</td></tr>
+      <tr><td><code>GET /api/entity/:name</code></td><td><span class="b b-ok">200</span> entity_not_found</td></tr>
+      <tr><td><code>POST /api/qa</code></td><td><span class="b b-ok">200</span></td></tr>
+      <tr><td><code>POST /api/qa</code>(缺 q)</td><td><span class="b b-ok">400</span> missing_query</td></tr>
+      <tr><td><code>POST /api/compliance/usage</code>(参数错)</td><td><span class="b b-ok">400</span> invalid_request</td></tr>
+      <tr><td><code>POST /api/compliance/usage</code>(正常)</td><td><span class="b b-warn">500 JSON</span> no such table: substance_catalog</td></tr>
+      <tr><td><code>POST /api/qa/conversation</code></td><td><span class="b b-warn">500 JSON</span> no such table: qa_sessions</td></tr>
+      <tr><td><code>DELETE /api/qa/conversation</code></td><td><span class="b b-warn">500 JSON</span> no such table: qa_messages</td></tr>
+      <tr><td><code>GET /api/nonexistent</code></td><td><span class="b b-ok">404</span> not_found</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <span class="t">零 1101</span>
+    最后三条的 500 是<b>如实反映 D1 表未建</b>(§三 的唯一阻塞),不再是 Worker 崩溃 ——
+    现在「缺哪张表」一眼可见,灌库前置检查也不必再靠猜。
+  </div>
+  <div class="box warn">
+    <span class="t">建议补的门禁缺口</span>
+    用 <code>api-contract.yml</code> 手动触发一次,把「错误响应形状」也纳入基线。
+    当前基线只覆盖 200 与 400,<b>没有覆盖 500</b> —— 这正是这个 bug 能长期潜伏的原因之一。
+  </div>
 </section>
 
 <section id="s8">
