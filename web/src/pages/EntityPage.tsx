@@ -97,14 +97,18 @@ export function EntityPage() {
                     {articles.map(a => (
                       <li key={a.article_id}>
                         <Link
-                          to={`/doc/${a.doc_id}/chapter/${a.chapter_id}#${a.article_id}`}
+                          to={
+                            a.doc_id && a.chapter_id
+                              ? `/doc/${a.doc_id}/chapter/${a.chapter_id}#${a.article_id}`
+                              : `/doc/${a.doc_id ?? ''}`
+                          }
                           className="flex items-baseline gap-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary dark:hover:border-primary-dark hover:shadow-sm transition"
                         >
                           <span className="text-slate-400 dark:text-slate-500 font-mono text-sm w-24 flex-shrink-0">
                             {a.chapter_number} · {a.number}
                           </span>
                           <span className="text-slate-700 dark:text-slate-300 flex-1">
-                            参见 {a.chapter_title} 章 — {a.number}
+                            参见 {a.chapter_title} 章 — {a.number || a.title}
                           </span>
                         </Link>
                       </li>

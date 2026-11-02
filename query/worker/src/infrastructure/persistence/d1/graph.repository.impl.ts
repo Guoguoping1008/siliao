@@ -35,11 +35,18 @@ export interface GraphEntity {
 /** 实体关联的条文(轻量引用)。 */
 export interface EntityArticleRef {
   article_id: string;
-  number?: string;
+  /**
+   * ⚠️ **必填,不能是 undefined** —— 前端 `EntityGraph` 直接 `a.number.replace(...)`,
+   *    undefined 会抛 TypeError 让整个实体页崩掉。
+   *    非「第X条」型条文(如申报指南的「（二）…»)在库里是空串,不是 null。
+   */
+  number: string;
   title?: string;
   chapter_id?: string;
   chapter_number?: string;
   chapter_title?: string;
+  /** ⚠️ 前端 `EntityGraph` 用它拼 `/doc/:docId/chapter/:chapterId` 链接 —— 缺了会跳到 /doc/undefined。 */
+  doc_id?: string;
 }
 
 /** 仓储接口。 */
@@ -69,7 +76,7 @@ export class D1GraphRepository implements GraphRepository {
 
   async listEntityArticles(entityId: string): Promise<EntityArticleRef[]> {
     const rows = await this.db.prepare(
-      `SELECT a.article_id, a.number, a.title, a.chapter_id,
+      `SELECT a.article_id, a.number, a.title, a.chapter_id, a.doc_id,
               c.number as chapter_number, c.title as chapter_title
        FROM entity_articles ea
        JOIN articles a ON a.article_id = ea.article_id
@@ -80,11 +87,15 @@ export class D1GraphRepository implements GraphRepository {
 
     return mapRows(rows.results as DbRow[], (r) => ({
       article_id: String(r.article_id),
-      number: str(r.number),
+      // ⚠️ `number` 可能是空串(非「第X条」型条文,如申报指南的「（二）…」)
+      //    但**不能是 undefined** —— 前端 `EntityGraph` 直接 `a.number.replace(...)`,
+      //    undefined 会抛 TypeError 让整个页面崩掉。
+      number: str(r.number) ?? "",
       title: str(r.title),
       chapter_id: str(r.chapter_id),
       chapter_number: str(r.chapter_number),
       chapter_title: str(r.chapter_title),
+      doc_id: str(r.doc_id),
     }));
   }
 }

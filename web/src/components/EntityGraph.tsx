@@ -21,6 +21,7 @@ export interface GraphArticle {
   doc_id: string
   number: string        // "第一条"
   chapter_title?: string
+  title?: string
 }
 
 interface Props {
@@ -60,10 +61,24 @@ export function EntityGraph({ center, centerType = "ENTITY", articles, width = 6
   const r1 = Math.min(width, height) / 4
   const r2 = r1 * 1.7
 
-  // 文号去重
-  const docIds = Array.from(new Set(articles.map(a => a.doc_id)))
+  // ⚠️ **防御性归一** —— 关联条文的字段可能缺失/为空:
+  //   · `number` 可能是空串(非「第X条」型条文,如申报指南的「（二）…」)
+  //   · `doc_id` 可能缺失(旧 API 不返回它)
+  // 直接 `a.number.replace(...)` 遇 undefined 会抛 TypeError,
+  // 让整个实体页崩成错误边界 —— 实测踩过:灌了关联条文后页面直接白屏。
+  const norm = articles.map((a) => ({
+    ...a,
+    number: a.number ?? "",
+    doc_id: a.doc_id ?? "",
+    chapter_id: a.chapter_id ?? "",
+    article_id: a.article_id ?? "",
+    title: a.title ?? "",
+  }))
 
-  const articlePos = ringLayout(articles.length, r1, cx, cy)
+  // 文号去重
+  const docIds = Array.from(new Set(norm.map(a => a.doc_id).filter(Boolean)))
+
+  const articlePos = ringLayout(norm.length, r1, cx, cy)
   const docPos = ringLayout(docIds.length, r2, cx, cy)
 
   const centerColor = TYPE_COLOR[centerType] || TYPE_COLOR.ENTITY
@@ -87,7 +102,7 @@ export function EntityGraph({ center, centerType = "ENTITY", articles, width = 6
       ))}
 
       {/* 边: articles -> docs */}
-      {articles.map((a, i) => {
+      {norm.map((a, i) => {
         const docIdx = docIds.indexOf(a.doc_id)
         if (docIdx < 0 || !articlePos[i] || !docPos[docIdx]) return null
         return (
@@ -133,15 +148,19 @@ export function EntityGraph({ center, centerType = "ENTITY", articles, width = 6
       })}
 
       {/* 条文(内环,可点击) */}
-      {articles.map((a, i) => {
+      {norm.map((a, i) => {
         const p = articlePos[i]
         if (!p) return null
+        // ⚠️ `doc_id` 缺失时不渲染可点击链接 —— 否则跳到 /doc/undefined/chapter/undefined
+        const href = a.doc_id && a.chapter_id
+          ? `/doc/${a.doc_id}/chapter/${a.chapter_id}#${a.article_id}`
+          : null
         return (
           <Link
             key={`art-${i}`}
-            to={`/doc/${a.doc_id}/chapter/${a.chapter_id}#${a.article_id}`}
+            to={href ?? `/entity/${encodeURIComponent(center)}`}
           >
-            <g style={{ cursor: "pointer" }}>
+            <g style={{ cursor: href ? "pointer" : "default" }}>
               <circle cx={p.x} cy={p.y} r={20} fill="#3b82f6" className="opacity-30 dark:opacity-40" />
               <circle cx={p.x} cy={p.y} r={20} fill="none" stroke="#3b82f6" strokeWidth={1.5} />
               <text
@@ -151,9 +170,9 @@ export function EntityGraph({ center, centerType = "ENTITY", articles, width = 6
                 fontWeight="600"
                 className="fill-slate-900 dark:fill-slate-100 pointer-events-none"
               >
-                {a.number.replace(/第|条/g, "")}
+                {a.number.replace(/第|条/g, "") || "·"}
               </text>
-              <title>{`${a.chapter_title ?? ""} ${a.number}`}</title>
+              <title>{`${a.chapter_title ?? ""} ${a.number || a.title || ""}`}</title>
             </g>
           </Link>
         )
