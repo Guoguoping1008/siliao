@@ -24,6 +24,7 @@
 | **引用准确率 eval** | ✅ **实测 100%**(15 问题/39 引用), CI 门禁已生效 |
 | 灌库进 D1 | ⏳ **被 token 权限挡住 —— 需你新建一个带 D1 Edit 的 token** |
 | 规则审核(reviewed) | ⏳ 待人工逐条校核 |
+| **路由层错误处理** | ✅ **P0 回归已修**(`e73a4c4`)—— 生产曾报 1101,见 §4.7 |
 
 ---
 
@@ -257,6 +258,60 @@ gh workflow run seed-compliance.yml
 
 我改 workflow 用新 secret 名 `CLOUDFLARE_D1_TOKEN` 后触发即可。
 
+### 4.7 ⚠️ P0 回归:路由层错误处理失效(2026-11-02 实测生产发现,已修)
+
+**这个 bug 掩盖了 §4.5 的 blocker —— 表没建时,生产报的不是「表没建」,而是 Cloudflare 1101。**
+
+**现象(生产实测)**
+
+```
+POST   /api/compliance/usage    → 500  Cloudflare 1101 (Worker threw exception)
+POST   /api/qa/conversation     → 500  Cloudflare 1101
+DELETE /api/qa/conversation     → 500  Cloudflare 1101
+```
+
+返回的不是我们的 `{"error","message"}` JSON,而是 Workers 的未捕获异常页。
+
+**根因** —— `query/worker/src/interfaces/http/router.ts` 的 try/catch **捕获不到 async handler 抛出的错误**:
+
+```ts
+try {
+  return handleComplianceUsage(app, req);   // ← 返回 Promise, 没有 await
+} catch (e) {
+  return errorJson("internal", ...);        // ← 永远走不到
+}
+```
+
+`return promise` 时 try 块**已经正常返回**,catch 不会执行;错误变成 **unhandled rejection** → Workers 报 1101。
+
+**这是 ADR-004 M3 抽路由层时引入的**:重构前(`index.ts` 单文件)是
+`return json(await app.complianceCheck.check(...))` —— **await 在 try 块内**,能捕获。
+M3 把 `await` 留在了 handler 内部,外层 try/catch 就失去了作用。
+
+**影响面** —— 凡 handler 内部会抛错的端点全部丢失错误契约:
+`GET /api/documents` · `/api/catalog` · `/api/article/:id` · `/api/entity/:name` ·
+`POST /api/compliance/usage` · `POST /api/qa/conversation` · `DELETE /api/qa/conversation`
+
+**修法与验证**
+
+- 每个 handler 调用加 `await`(`router.ts` 10 处),错误回到 try 块内走统一 500 JSON 契约,
+  并把 D1 的真实错误消息透出来(排查时能直接看到 `no such table: xxx`)
+- 新增 `query/worker/src/interfaces/http/router.error-handling.test.ts`(7 用例):
+  修前 **6/7 失败**(错误逃逸成 unhandled rejection),修后 **7/7 通过**
+- worker 单测 220 → **227 全绿**;typecheck 干净
+- 提交:`e73a4c4 fix(worker): 路由层 try/catch 失效 → 生产 1101 回归`
+
+> ⚠️ `GET /api/search` **故意不**是 500 —— 检索层多路降级
+> (FTS5 → phrase → bigram → bge),每路各自 catch,D1 全挂时返回**空命中**。
+> 这条契约差异已在测试里单独标注。
+
+**为什么 19 条架构测试没抓到** —— 它们守的是**目录与 import 方向**,
+而这个 bug 是**同一层内的控制流问题**。已补测试锁死「路由层必须 await handler」这条契约。
+
+> **教训**:M1 记的那条「只有拿生产响应的实际 JSON 做前后比对才抓到」在这里再次生效 ——
+> 本地 220 个测试全绿、eval 门禁全绿、CI 全绿,**生产照样报 1101**。
+> 区别在于:这次不是靠比对抓到,而是靠**主动打生产接口**发现契约已经变了。
+
 ---
 
 ## 五、灌库之后的流程
@@ -319,6 +374,7 @@ CSV 每行一条规则，带 `decision`（ok/fix/reject）与 `fixed_*` 修正�
 | 文档 | 关系 |
 |---|---|
 | `docs/functional-design.md` | 功能设计（C1 的验收标准来源） |
+| `docs/project-status.md` | **项目状态报告（2026-11-02）** —— 含 P0 回归复盘 |
 | `docs/adr/0004-ddd-bounded-contexts.md` | DDD 限界上下文（M2 = C1） |
 | `query/worker/migrate_c1.sql` | D1 schema（3 张表） |
 | `build/export/extract_compliance_rules.py` | 抽取器（规则 + 目录） |

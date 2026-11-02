@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>项目状态 · 饲料法规 RAG · siliao</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --purple:#a78bfa; --pink:#f472b6;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px 100px}
+
+  header{
+    background:linear-gradient(135deg,#134e4a 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{display:inline-block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:4px 14px;margin-bottom:18px;font-weight:600}
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:80ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#a7f3d0;
+    border-radius:6px;padding:5px 12px;font-size:12.5px;font-family:ui-monospace,monospace}
+  header code{background:rgba(148,163,184,.18);border:1px solid rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  nav.toc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px 26px;margin-bottom:40px;box-shadow:var(--shadow)}
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:30px 32px;margin-bottom:26px;box-shadow:var(--shadow)}
+  h2{font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border)}
+  h2 .num{background:var(--ok);color:#052e16;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none}
+  h2 .num.warn{background:var(--warn);color:#451a03}
+  h2 .num.err{background:var(--err);color:#450a0a}
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  h4{font-size:.95rem;margin:18px 0 8px;color:var(--fg-dim)}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);
+    border:1px solid var(--border);border-radius:4px;padding:1.5px 6px;font-size:.87em;color:#7dd3fc}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:8px;padding:16px 18px;overflow-x:auto;margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6}
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+  .box.purple{background:rgba(167,139,250,.09);border-color:var(--purple)}
+  .box.purple .t{color:var(--purple)}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+  .b-purple{background:rgba(167,139,250,.16);color:var(--purple);border:1px solid rgba(167,139,250,.35)}
+  .b-mute{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}
+  .stat{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:15px 17px}
+  .stat .k{font-size:11.5px;color:var(--fg-faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+  .stat .v{font-size:1.45rem;font-weight:800;color:var(--fg);line-height:1.15;font-family:ui-monospace,monospace}
+  .stat .v.ok{color:var(--ok)} .stat .v.warn{color:var(--warn)} .stat .v.err{color:var(--err)} .stat .v.info{color:var(--accent)}
+  .stat .n{font-size:12.5px;color:var(--fg-dim);margin-top:4px}
+
+  .mods{display:grid;gap:11px;margin:18px 0}
+  .mod{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:14px 18px}
+  .mod .mh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .mod .mn{font-weight:700;font-size:.98rem;color:var(--fg)}
+  .mod .mt{font-size:12px;color:var(--fg-faint);font-family:ui-monospace,monospace}
+  .bar{height:16px;border-radius:4px;background:var(--bg3);overflow:hidden;position:relative;margin:8px 0 6px}
+  .bar i{display:block;height:100%;border-radius:4px}
+  .bar .f90{width:90%;background:linear-gradient(90deg,var(--ok),var(--accent))}
+  .bar .f85{width:85%;background:linear-gradient(90deg,var(--ok),var(--accent))}
+  .bar .f60{width:60%;background:linear-gradient(90deg,var(--warn),var(--accent))}
+  .bar .f30{width:30%;background:linear-gradient(90deg,var(--err),var(--warn))}
+  .bar .f10{width:10%;background:var(--err)}
+  .mod .mn2{font-size:12.8px;color:var(--fg-dim)}
+
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:14px 0;font-size:12.5px}
+  .flow .n{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--fg);font-weight:600}
+  .flow .n.hi{border-color:var(--ok);color:var(--ok)}
+  .flow .n.new{border-color:var(--pink);color:var(--pink)}
+  .flow .a{color:var(--accent);font-weight:800;font-size:15px}
+
+  .rules{display:grid;gap:9px;margin:16px 0}
+  .rule{display:flex;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:13px 16px;align-items:flex-start}
+  .rule .rk{font-family:ui-monospace,monospace;font-weight:800;color:var(--pink);flex:none;font-size:.92rem}
+  .rule .rv{font-size:13.8px;color:var(--fg)}
+  .rule .rv em{color:var(--err);font-style:normal;font-weight:700}
+
+  details{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--bg);overflow:hidden}
+  summary{padding:13px 18px;cursor:pointer;font-weight:600;font-size:14.5px;list-style:none;
+    display:flex;align-items:center;gap:10px;user-select:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.2s;flex:none}
+  details[open] summary::before{transform:rotate(90deg)}
+  summary:hover{background:var(--bg3)}
+  .dbody{padding:0 18px 16px;border-top:1px solid var(--border)}
+  .dbody > *:first-child{margin-top:14px}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+  .kbd{font-family:ui-monospace,monospace;font-size:11.5px;background:var(--bg3);border:1px solid var(--border);
+    border-bottom-width:2px;border-radius:4px;padding:1px 6px}
+</style>
+</head>
+<body>
+
+<header>
+<div class="wrap">
+  <span class="eyebrow">Project Status · 2026-11-02</span>
+  <h1>饲料法规 RAG · 项目状态</h1>
+  <p class="sub">
+    生产环境实测(2026-11-02 08:56 ~ 09:02 UTC)。检索与问答两条主链路运行良好;
+    <b>合规速查代码与数据均已就绪,唯独卡在「一个带 D1 写权限的 Cloudflare token」</b>。
+    本次实测另挖出一个未被任何文档记录的 <b>P0 回归</b>,已修复并加回归测试。
+  </p>
+  <div class="meta">
+    <span class="chip">分支 deploy/c-b-hybrid @ e73a4c4</span>
+    <span class="chip">基线 v1.0.0-production</span>
+    <span class="chip">worker 单测 227/227</span>
+    <span class="chip">recall@10 76.0%</span>
+    <span class="chip">引用准确率 100%</span>
+  </div>
+</div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">结论速览</a></li>
+    <li><a href="#s2">本次新发现:P0 回归 —— 路由层错误处理失效</a></li>
+    <li><a href="#s3">唯一阻塞项:D1 灌库需要写权限</a></li>
+    <li><a href="#s4">各模块完成度</a></li>
+    <li><a href="#s5">架构状态(ADR-004 DDD 重构)</a></li>
+    <li><a href="#s6">质量门禁现状</a></li>
+    <li><a href="#s7">已修但未部署</a></li>
+    <li><a href="#s8">下一步(按优先级)</a></li>
+    <li><a href="#s9">已踩过的坑(别重蹈)</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2><span class="num">1</span>结论速览</h2>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:26%">维度</th><th style="width:22%">状态</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>法规检索(①)</td><td><span class="b b-ok">生产可用</span></td><td>语义+全文双路,实测 <code>GET /api/search</code> 正常返回</td></tr>
+      <tr><td>知识问答(③)</td><td><span class="b b-ok">生产可用</span></td><td><code>POST /api/qa</code> 实测 200,引用 5 条,耗时 11.1s</td></tr>
+      <tr><td>多轮会话(③)</td><td><span class="b b-err">不可用</span></td><td>D1 表未建 + 路由层 1101 回归(本次已修)</td></tr>
+      <tr><td>用量合规速查(②)</td><td><span class="b b-err">不可用</span></td><td>同上 —— 代码与数据就绪,卡在 D1 灌库</td></tr>
+      <tr><td>知识图谱(④)</td><td><span class="b b-mute">空壳</span></td><td><code>entities</code> 表空,<code>/api/entity</code> 恒返回 <code>entity_not_found</code>(设计如此)</td></tr>
+      <tr><td>法规监测(⑤)</td><td><span class="b b-mute">未开工</span></td><td>M4,4-6 周</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box info">
+    <span class="t">一句话</span>
+    检索与问答两条主链路在生产上跑得很好;合规速查这条最有业务价值的链路,
+    <b>代码 100% 完成、数据 100% 就绪,唯独卡在「一个带 D1 写权限的 Cloudflare token」</b>。
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="num err">2</span>本次新发现:P0 回归 —— 路由层错误处理失效</h2>
+
+  <h3>2.1 现象(生产实测)</h3>
+<pre><code>POST   /api/compliance/usage    → 500  Cloudflare 1101 (Worker threw exception)
+POST   /api/qa/conversation     → 500  Cloudflare 1101
+DELETE /api/qa/conversation     → 500  Cloudflare 1101</code></pre>
+  <p>返回的不是我们自己的 <code>{"error","message"}</code> JSON,而是 Cloudflare 的未捕获异常页:</p>
+<pre><code>{"error_code":1101,"error_name":"worker_threw_exception",
+ "detail":"A Worker script ... threw an unhandled exception while processing this request."}</code></pre>
+
+  <h3>2.2 根因</h3>
+  <p><code>query/worker/src/interfaces/http/router.ts</code> 的 try/catch <b>捕获不到 async handler 抛出的错误</b>:</p>
+<pre><code>try {
+  return handleComplianceUsage(app, req);   // ← 返回 Promise,没有 await
+} catch (e) {
+  return errorJson("internal", ...);        // ← 永远走不到
+}</code></pre>
+  <p><code>return promise</code> 时 try 块<b>已经正常返回</b>,catch 不会执行;错误变成 <b>unhandled rejection</b> → Workers 报 1101。</p>
+
+  <div class="box purple">
+    <span class="t">这是 M3 抽路由层时引入的</span>
+    重构前(<code>index.ts</code> 单文件)是 <code>return json(await app.complianceCheck.check(...))</code> ——
+    <b>await 在 try 块内</b>,能捕获。M3 把 <code>await</code> 留在了 handler 内部,外层 try/catch 就失去了作用。
+  </div>
+
+  <h3>2.3 影响面</h3>
+  <p>凡 handler 内部会抛错的端点,全部丢失错误契约:</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:44%">端点</th><th style="width:28%">修复前</th><th>修复后</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /api/documents</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>GET /api/catalog</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>GET /api/article/:id</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>GET /api/entity/:name</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>POST /api/compliance/usage</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>POST /api/qa/conversation</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+      <tr><td><code>DELETE /api/qa/conversation</code></td><td><span class="b b-err">1101</span></td><td>500 JSON</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box danger">
+    <span class="t">这是它没有早点被发现的根本原因</span>
+    当前生产上最常见的触发原因就是 <b>D1 表不存在</b>(C1/C1.5 未灌库)——
+    所以「1101」实际上一直是「表没建」的表现形式,被这个 bug 掩盖成了 Worker 崩溃。
+    <b>表面看是环境问题,实际是代码回归。</b>
+  </div>
+
+  <h3>2.4 修法与验证</h3>
+  <div class="rules">
+    <div class="rule"><span class="rk">修法</span><span class="rv">每个 handler 调用加 <code>await</code>(<code>router.ts</code> 10 处),让错误回到 try 块内走统一 500 JSON 契约</span></div>
+    <div class="rule"><span class="rk">验证</span><span class="rv">新增 <code>router.error-handling.test.ts</code>(7 用例)。修前 <b>6/7 失败</b>(错误逃逸成 unhandled rejection),修后 <b>7/7 通过</b></span></div>
+    <div class="rule"><span class="rk">回归</span><span class="rv">worker 单测 220 → <b>227</b>;typecheck 干净</span></div>
+    <div class="rule"><span class="rk">提交</span><span class="rv"><code>e73a4c4 fix(worker): 路由层 try/catch 失效 → 生产 1101 回归</code></span></div>
+  </div>
+  <div class="box warn">
+    <span class="t">注意</span>
+    <code>GET /api/search</code> <b>故意不</b>是 500:检索层多路降级
+    (FTS5 → phrase → bigram → bge),每路各自 catch,D1 全挂时返回<b>空命中</b>。
+    这条契约差异已在测试里单独标注。
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="num warn">3</span>唯一阻塞项:D1 灌库需要写权限</h2>
+
+  <h3>3.1 现象</h3>
+<pre><code>D1 REST API 失败,回退到 wrangler d1 execute
+建表失败 —— 需要有 D1 编辑权限的 token</code></pre>
+  <p>2026-10-28 的 5 次 workflow 运行<b>全部 failure</b>,最后一次尝试后没有再触发。</p>
+
+  <h3>3.2 已排除的可能</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:26%">可能</th><th>排除依据</th></tr></thead>
+    <tbody>
+      <tr><td>API 路径写错</td><td>本地实测 <code>/d1/database/{id}/query</code> 用无效 token 返回 <b>401 Authentication error</b>(不是 404 / No route)</td></tr>
+      <tr><td>SQL 语法错</td><td>建表拆成 10 条独立 <code>CREATE TABLE IF NOT EXISTS</code>;且探测步骤的<b>读查询成功</b></td></tr>
+      <tr><td>Python 依赖问题</td><td>抽取步骤成功,脚本能跑</td></tr>
+      <tr><td>workflow 没注册</td><td>已修(GitHub 只从默认分支读 workflow);push 触发器已验证生效</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.3 唯一原因</h3>
+  <p><b><code>CLOUDFLARE_API_TOKEN</code> secret 没有 D1 编辑权限。</b></p>
+  <p>这与 <code>docs/deployment-info.md</code> 的记录完全一致:</p>
+  <blockquote style="border-left:3px solid var(--warn);padding-left:14px;color:var(--fg-dim);font-size:13.8px;margin:0 0 14px">
+    <code>/d1/database</code> → ⚠️ 401 —— 部署不需要,D1 数据是一次性灌的<br>
+    <b>没给 D1 权限是有意的</b> —— 最小权限原则
+  </blockquote>
+  <p>那个 token 是<b>故意</b>做成最小权限的(部署只需写 Worker/Pages)。而灌 D1 是另一类操作。</p>
+
+  <h3>3.4 需要你做的(约 3 分钟)</h3>
+  <div class="flow">
+    <span class="n hi">① 建 Token</span><span class="a">→</span>
+    <span class="n">② 权限 Account → D1 → Edit</span><span class="a">→</span>
+    <span class="n new">③ TTL 留空</span><span class="a">→</span>
+    <span class="n hi">④ gh secret set CLOUDFLARE_D1_TOKEN</span><span class="a">→</span>
+    <span class="n">⑤ 我改 workflow 并触发灌库</span>
+  </div>
+  <div class="box warn">
+    <span class="t">TTL 必须留空</span>
+    OAuth token 1 小时就过期、refresh_token 每次刷新都轮换。
+    <b>本地 wrangler token 也已过期</b>(9109 Invalid access token,refresh 报 <code>invalid_grant</code>),
+    所以本地走不通,只能靠 CI + 一个有 D1 权限的永久 token。
+  </div>
+
+  <h3>3.5 拿到 token 后的执行序列</h3>
+<pre><code># ① 建 C1.5 的会话表(必须单独跑)
+npx wrangler d1 execute siliao-db --remote --file ./query/worker/migrate_c15.sql
+
+# ② 建 C1 的合规表 + 灌数据(走 CI 的 seed-compliance workflow)
+gh workflow run seed-compliance.yml</code></pre>
+  <div class="box danger">
+    <span class="t">不能重跑 schema.sql</span>
+    <code>migrate_c15.sql</code> 与 <code>migrate_c1.sql</code> 都必须单独跑 ——
+    生产库有 3145 条条文,wrangler 4.127+ 对「schema 变了」的库报 <code>D1_RESET_DO</code>,<b>会清空远端表</b>。
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="num">4</span>各模块完成度</h2>
+
+  <div class="mods">
+    <div class="mod">
+      <div class="mh"><span class="mn">① 法规知识库</span><span class="b b-ok">生产可用</span><span class="mt">90%</span></div>
+      <div class="bar"><i class="f90"></i></div>
+      <div class="mn2">语料 1021 页 → 196 文档 / 529 章 / 3145 条文 · FTS5 ⊕ bge-m3 双路</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">② 合规规则</span><span class="b b-err">灌库阻塞</span><span class="mt">代码 100% · 数据 100% · 灌库 0%</span></div>
+      <div class="bar"><i class="f60"></i></div>
+      <div class="mn2">37 条限量规则 / 11 种物质 · 387 条物质目录 · 溯源 100%</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">③ 知识问答</span><span class="b b-ok">生产可用</span><span class="mt">85%</span></div>
+      <div class="bar"><i class="f85"></i></div>
+      <div class="mn2">引用标注 / 幻觉标红 / SSE 流式 / 拒答机制 · 多轮会话代码完成但表未建</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">④ 知识图谱</span><span class="b b-mute">空壳</span><span class="mt">0%</span></div>
+      <div class="bar"><i class="f10"></i></div>
+      <div class="mn2">entities 表空,前端组件就位等数据 —— 设计上保持空壳直到有真实用例</div>
+    </div>
+    <div class="mod">
+      <div class="mh"><span class="mn">⑤ 法规监测</span><span class="b b-mute">未开工</span><span class="mt">0%</span></div>
+      <div class="bar"><i class="f10"></i></div>
+      <div class="mn2">M4 · 4-6 周 · 领域事件契约已定义好,只需填实现</div>
+    </div>
+  </div>
+
+  <h3>4.1 ① 法规知识库 —— 生产实测指标</h3>
+  <div class="stats">
+    <div class="stat"><div class="k">Recall@10</div><div class="v ok">76.0%</div><div class="n">50 用例评测集</div></div>
+    <div class="stat"><div class="k">MRR</div><div class="v ok">0.647</div><div class="n">业务 query 0.717</div></div>
+    <div class="stat"><div class="k">Recall@20</div><div class="v ok">68.0%</div><div class="n">—</div></div>
+    <div class="stat"><div class="k">负例精度</div><div class="v ok">100%</div><div class="n">严格口径</div></div>
+    <div class="stat"><div class="k">条文总数</div><div class="v info">3145</div><div class="n">196 文档 / 529 章</div></div>
+  </div>
+  <p><b>生产实测</b>:<code>GET /api/documents</code> / <code>/api/catalog</code> / <code>/api/search</code> / <code>/api/article/:id</code> 全部 200 正常。</p>
+
+  <h3>4.2 ② 合规规则 —— 代码与数据就绪</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:40%">项</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>限量规则抽取器</td><td><span class="b b-ok">37 条 / 11 种物质</span> 溯源 100%</td></tr>
+      <tr><td>物质目录抽取</td><td><span class="b b-ok">387 条</span>(修列错位后,原 74)</td></tr>
+      <tr><td>中英对照</td><td><span class="b b-ok">98 对</span>(5 条 OCR 拉丁名已转中文)</td></tr>
+      <tr><td>领域层</td><td><span class="b b-ok">聚合根 + 判定器 + 三级命名匹配</span></td></tr>
+      <tr><td>D1 schema</td><td><span class="b b-ok">migrate_c1.sql</span>(3 表)</td></tr>
+      <tr><td>API / 前端</td><td><span class="b b-ok">代码完成 + 页面已上线</span>(HTTP 200)</td></tr>
+      <tr><td>真实数据集成测试</td><td><span class="b b-ok">20 用例</span>跑真实抽取产物</td></tr>
+      <tr><td>人工校核清单</td><td><span class="b b-warn">已生成</span> 37 条,<b>8 条自动标记</b>待重点看</td></tr>
+      <tr><td><b>灌库进 D1</b></td><td><span class="b b-err">被 token 权限挡住</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>规则库实测快照(rule_set_version v2026.10)</summary>
+    <div class="dbody">
+<pre><code>规则总数     37      rule_type: limit × 37
+审核状态     pending × 37   ← 未审核规则不参与判定(安全闸门)
+覆盖物种     猪10 牛4 鲤鱼3 羊3 鱼类3 家禽2 + 9 个单一物种
+物质(11)    L-抗坏血酸(维生素C) · 烟酰胺 · 烟酸 · 维生素D2 · 维生素D3
+             天然维生素E · D-生物素 · 肌醇 · L-肉碱 · L-肉碱酒石酸盐
+             二甲基嘧啶醇亚硫酸氢钠甲萘醌</code></pre>
+    </div>
+  </details>
+
+  <div class="box danger">
+    <span class="t">两条不可协商的不变量(已用单测锁死)</span>
+    <b>1.</b> 规则未覆盖必须返回 <code>not_covered</code>,<em>绝不能返回 <code>compliant</code></em> ——
+    测试用<b>故意构造的未覆盖物质</b>锁死这个分支,它极容易在后续重构里被"优化"掉。<br>
+    <b>2.</b> 每条规则必绑 <code>source_article_id</code>,无出处不允许入库 ——
+    这条同时落在 D1 表结构上(<code>source_article_id TEXT NOT NULL</code>),<b>不依赖应用层自觉</b>。
+  </div>
+
+  <div class="box info">
+    <span class="t">命名匹配:三级,不做模糊匹配</span>
+    <code>1 精确 → 2 括号别名(维生素C → L-抗坏血酸(维生素C)) → 3 别名表(英文名)</code><br>
+    向量相似度匹配出的「维生素C ≈ 抗坏血酸钙」在合规判定里是<b>危险</b>的 —— 两者限量完全不同。
+    <b>宁可说「未覆盖,需人工确认」,不可猜。</b>
+  </div>
+
+  <h3>4.3 ③ 知识问答 —— 生产实测</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:42%">能力</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>引用来源自动标注到具体条款</td><td><span class="b b-ok">已实现</span> CitationValidator + 前端引用卡片</td></tr>
+      <tr><td>幻觉引用标红</td><td><span class="b b-ok">已实现</span> <code>valid:false</code> → 前端标红</td></tr>
+      <tr><td>流式输出</td><td><span class="b b-ok">已实现</span> SSE meta/chunk/done/error 四事件</td></tr>
+      <tr><td>拒答机制</td><td><span class="b b-ok">已实现</span> system prompt 强制「证据不足则回复未找到相关规定」</td></tr>
+      <tr><td>多轮追问</td><td><span class="b b-err">表未建</span> 代码完成 + 生产已部署,同一个 D1 blocker</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>生产实测</b>:<code>POST /api/qa</code> 返回 200,答案含 5 条引用、8 条检索证据,耗时 11.1s。
+  引用准确率 eval <b>实测 100%</b>(15 问题 / 39 引用,CI 门禁已生效)。</p>
+</section>
+
+<section id="s5">
+  <h2><span class="num">5</span>架构状态(ADR-004 DDD 重构)</h2>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:14%">阶段</th><th style="width:36%">内容</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td><b>M1</b></td><td>抽离领域层(不改变行为)</td><td><span class="b b-ok">2026-10-28</span> index.ts 1059 → 265 行</td></tr>
+      <tr><td><b>M2</b></td><td>建合规规则上下文</td><td><span class="b b-warn">代码完成</span> 灌库待解</td></tr>
+      <tr><td><b>M3</b></td><td>领域层与基础设施层彻底分离</td><td><span class="b b-ok">2026-10-31</span> index.ts → <b>40 行</b></td></tr>
+      <tr><td><b>M4</b></td><td>⑤ 监测上下文</td><td><span class="b b-mute">未开工</span> 4-6 周</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+<pre><code>index.ts (40 行)                    —— 只做「把 Request 交给路由层」
+  interfaces/http/
+    router.ts                       —— 路由分发(按上下文分组,静态路径在前)
+    http-utils.ts                   —— json / errorJson / CORS / decodeParam
+    routes/regulation.routes.ts     —— ① 法规库
+    routes/inquiry.routes.ts        —— ③ 问答(含 SSE 响应组装)
+    routes/compliance.routes.ts     —— ② 合规规则
+    routes/retrieval.routes.ts      —— 检索 + ④ 图谱
+  interfaces/acl/
+    llm-stream.acl.ts               —— 流式 LLM 调用 + SSE 帧解析
+  application/inquiry/
+    qa-stream.service.ts            —— 流式问答的业务编排</code></pre>
+
+  <h3>5.1 五条强制依赖规则(违反即 code review 打回)</h3>
+  <div class="rules">
+    <div class="rule"><span class="rk">R1</span><span class="rv">上下文间只经 ACL 通信,禁止跨上下文直接 JOIN 对方表</span></div>
+    <div class="rule"><span class="rk">R2</span><span class="rv">依赖方向单一:③ → ①②④;⑤ --事件--> ①</span></div>
+    <div class="rule"><span class="rk">R3</span><span class="rv">外部系统一律 ACL(LLM / bge / 政府网站)</span></div>
+    <div class="rule"><span class="rk">R4</span><span class="rv">只读核心域,写入只经各自仓储</span></div>
+    <div class="rule"><span class="rk">R5</span><span class="rv">领域服务不依赖框架(不 import Workers/D1 类型)</span></div>
+  </div>
+  <p>由 <b>19 条架构测试</b>自动守护(已实测能捕获新上下文的违规)。</p>
+
+  <div class="box warn">
+    <span class="t">架构测试没有覆盖到的一层</span>
+    19 条架构测试守住了<b>目录与 import 方向</b>,但<b>没有一条守住「路由层必须 await handler」</b>。
+    这就是 P0 回归能溜过去的原因 —— 它不是分层问题,是<b>同一层内的控制流问题</b>。
+    已补 <code>router.error-handling.test.ts</code> 锁死这个契约。
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="num">6</span>质量门禁现状</h2>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:36%">门禁</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>worker 单测</td><td><span class="b b-ok">227/227</span>(原 220 + 新增 7 条错误处理回归)</td></tr>
+      <tr><td>worker typecheck</td><td><span class="b b-ok">干净</span></td></tr>
+      <tr><td>架构测试</td><td><span class="b b-ok">19 条</span> 已实测能捕获新上下文的违规</td></tr>
+      <tr><td>响应契约测试</td><td><span class="b b-ok">13 条</span> response-contract.test.ts</td></tr>
+      <tr><td>真实数据集成</td><td><span class="b b-ok">20/20</span> 跑真实抽取产物 + 生产链路</td></tr>
+      <tr><td>web 单测</td><td><span class="b b-ok">34/34</span></td></tr>
+      <tr><td>检索 eval</td><td><span class="b b-ok">recall@10 76.0% / MRR 0.647</span> 与基线一致</td></tr>
+      <tr><td>引用准确率 eval</td><td><span class="b b-ok">实测 100%</span>(阈值 95%)</td></tr>
+      <tr><td>生产响应契约比对</td><td><span class="b b-ok">api-contract.yml</span> 手动触发,8 端点逐字段</td></tr>
+      <tr><td><code>deploy/c-b-hybrid</code> CI</td><td><span class="b b-ok">全绿</span>(2026-11-01)</td></tr>
+      <tr><td><code>main</code> 分支 CI</td><td><span class="b b-err">失败</span> 2026-10-28 起,npm ci + eval 失败</td></tr>
+      <tr><td>Dependabot PR CI</td><td><span class="b b-err">2 个失败</span> npm ci 失败,依赖升级分支</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <span class="t">依赖升级 PR 现在无法自动验证</span>
+    <code>main</code> 分支的 CI 失败与 Dependabot 的 <code>npm ci</code> 失败<b>指向同一现象</b>:runner 上 <code>npm ci</code> 装不上依赖。
+    不影响当前生产分支(走 <code>deploy/c-b-hybrid</code>),但依赖升级 PR 需人工本地跑。
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="num warn">7</span>已修但未部署</h2>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:18%">提交</th><th style="width:52%">内容</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td><code>e73a4c4</code></td><td>路由层 try/catch 失效 → 生产 1101 回归</td><td><span class="b b-warn">已提交,未 push</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>push 后 CI 会自动跑 eval 门禁 + 部署到生产,修复即生效。
+  部署后建议用 <code>api-contract.yml</code> 手动触发一次,确认生产响应契约未变。</p>
+</section>
+
+<section id="s8">
+  <h2><span class="num">8</span>下一步(按优先级)</h2>
+
+  <h3>P0 · 立刻需要你做(约 3 分钟)</h3>
+<pre><code>新建带 Account → D1 → Edit 权限、TTL 留空的 Cloudflare API Token
+→ gh secret set CLOUDFLARE_D1_TOKEN</code></pre>
+  <p><b>解锁</b>:C1 合规规则灌库 + C1.5 会话表建表 → <b>合规速查与多轮会话两个模块同时上线</b>。</p>
+
+  <h3>P1 · 我可以做(拿到 token 后立即执行)</h3>
+<pre><code>① 改 seed-compliance.yml(3 处)用 CLOUDFLARE_D1_TOKEN
+② 跑 migrate_c15.sql 建 qa_sessions / qa_messages
+③ 触发 seed-compliance workflow 灌 C1 数据
+④ 回读校验 + 生产三态实测(compliant / exceeded / not_covered)</code></pre>
+
+  <h3>P2 · 排期项(需你拍板)</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:38%">项</th><th style="width:14%">周期</th><th>决策点</th></tr></thead>
+    <tbody>
+      <tr><td>C2 · 配方批量审查</td><td>5-8 天</td><td>依赖 C1 灌库完成</td></tr>
+      <tr><td>C3 · 标签审查(GB 10648)</td><td>5-8 天</td><td>独立,可与 C2 并行</td></tr>
+      <tr><td>M4 · ⑤ 变更监控 + 预警</td><td>4-6 周</td><td>爬虫脆弱性是主要风险</td></tr>
+      <tr><td>合规日历(标准生效日)</td><td>2-3 天</td><td>只做标准生效日,不含企业证件</td></tr>
+      <tr><td><code>main</code> 分支 CI 修复</td><td>—</td><td>npm ci 失败根因未查</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>明确<b>不做</b>的(数据源不存在)</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:38%">项</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr><td>企业资质审查</td><td>语料里只有许可证<b>条款</b>,没有企业<b>实际证件数据</b></td></tr>
+      <tr><td>抽检结果「同类产品风险提示」</td><td>抽检数据无 API,粒度是产品批次,没有企业配方数据</td></tr>
+      <tr><td>合规日历 · 换证年检提醒</td><td>需企业侧证件到期日</td></tr>
+      <tr><td>真正的历史版本回溯</td><td>农业农村部不提供结构化历史,只能积累上线后的变更</td></tr>
+      <tr><td>跨模块 Planner</td><td>低频场景,v1 不建;真实复杂提问日志出来再决定</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="s9">
+  <h2><span class="num warn">9</span>已踩过的坑(别重蹈)</h2>
+  <div class="rules">
+    <div class="rule"><span class="rk">01</span><span class="rv"><b><code>return promise</code> 不会进 try/catch</b> —— JS 里 <code>return</code> 一个 Promise 时 try 块已正常返回。必须 <code>return await promise</code>。这是本次 P0 的根因</span></div>
+    <div class="rule"><span class="rk">02</span><span class="rv"><b><code>.gitignore</code> 行内注释不生效</b> —— <code>Images/   # 说明</code> 整行都是匹配模式,曾导致提交 510 张扫描图(3.2GB)。注释必须单独占一行</span></div>
+    <div class="rule"><span class="rk">03</span><span class="rv"><b>不能重跑 <code>schema.sql</code></b> —— 生产库 3145 条条文,wrangler 4.127+ 报 <code>D1_RESET_DO</code>,<em>会清空远端表</em></span></div>
+    <div class="rule"><span class="rk">04</span><span class="rv"><b>不要用 wrangler OAuth token 跑 CI</b> —— 1 小时过期,且每次刷新都轮换 refresh_token。正解:Dashboard 建 TTL 留空的 API Token</span></div>
+    <div class="rule"><span class="rk">05</span><span class="rv"><b>依赖升级 PR 的 CI 现在是坏的</b> —— <code>npm ci</code> 失败,升级无法自动验证,需人工本地跑</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>饲料法规 RAG · 项目状态报告 · 2026-11-02 · 数据来自生产环境实测</p>
+  <p style="margin-top:8px">关联文档:<code>docs/functional-design.md</code> · <code>docs/c1-status.md</code> · <code>docs/adr/0004-ddd-bounded-contexts.md</code> · <code>docs/deployment-info.md</code></p>
+</footer>
+
+</div>
+</body>
+</html>
