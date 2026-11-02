@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>未完成功能清单 · 饲料法规 RAG · siliao</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#1e293b; --bg3:#334155;
+    --fg:#e2e8f0; --fg-dim:#94a3b8; --fg-faint:#64748b;
+    --accent:#38bdf8; --accent2:#0ea5e9;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171; --purple:#a78bfa; --pink:#f472b6;
+    --border:#334155; --code-bg:#0b1220;
+    --radius:10px; --shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f8fafc; --bg2:#ffffff; --bg3:#e2e8f0;
+      --fg:#0f172a; --fg-dim:#475569; --fg-faint:#94a3b8;
+      --border:#cbd5e1; --code-bg:#f1f5f9;
+      --shadow:0 2px 12px rgba(15,23,42,.08);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); line-height:1.75;
+    font-size:15px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px 100px}
+
+  header{
+    background:linear-gradient(135deg,#3b1d1d 0%,#1e293b 55%,#0f172a 100%);
+    border-bottom:1px solid var(--border); padding:56px 0 48px; margin-bottom:40px;
+  }
+  header .wrap{padding-bottom:0}
+  .eyebrow{display:inline-block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:4px 14px;margin-bottom:18px;font-weight:600}
+  h1{font-size:2.1rem;line-height:1.25;margin-bottom:12px;font-weight:700;letter-spacing:-.02em;color:#f1f5f9}
+  .sub{color:#cbd5e1;font-size:1.02rem;max-width:80ch}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fde68a;
+    border-radius:6px;padding:5px 12px;font-size:12.5px;font-family:ui-monospace,monospace}
+  header code{background:rgba(148,163,184,.18);border:1px solid rgba(148,163,184,.35);color:#e0f2fe}
+  header .sub b{color:#f1f5f9}
+
+  nav.toc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px 26px;margin-bottom:40px;box-shadow:var(--shadow)}
+  nav.toc h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  nav.toc ol{margin-left:20px;display:grid;gap:7px}
+  nav.toc a{color:var(--accent);text-decoration:none;font-size:14.5px}
+  nav.toc a:hover{text-decoration:underline}
+
+  section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:30px 32px;margin-bottom:26px;box-shadow:var(--shadow)}
+  h2{font-size:1.35rem;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;border-bottom:1px solid var(--border)}
+  h2 .num{background:var(--warn);color:#451a03;width:30px;height:30px;border-radius:8px;
+    display:grid;place-items:center;font-size:.92rem;font-weight:800;flex:none}
+  h2 .num.err{background:var(--err);color:#450a0a}
+  h2 .num.ok{background:var(--ok);color:#052e16}
+  h2 .num.info{background:var(--accent);color:#082f49}
+  h3{font-size:1.02rem;margin:26px 0 10px;color:var(--fg)}
+  h3:first-of-type{margin-top:18px}
+  h4{font-size:.95rem;margin:18px 0 8px;color:var(--fg-dim)}
+  p{margin-bottom:13px}
+  ul,ol{margin:0 0 13px 22px}
+  li{margin-bottom:7px}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);
+    border:1px solid var(--border);border-radius:4px;padding:1.5px 6px;font-size:.87em;color:#7dd3fc}
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:8px;padding:16px 18px;overflow-x:auto;margin:14px 0 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.6}
+  pre code{background:none;border:none;padding:0;color:#cbd5e1;font-size:13px}
+
+  .box{border-radius:8px;padding:14px 18px;margin:16px 0;border-left:4px solid;font-size:14.2px}
+  .box .t{font-weight:700;margin-bottom:5px;display:block}
+  .box.warn{background:rgba(251,191,36,.09);border-color:var(--warn)}
+  .box.warn .t{color:var(--warn)}
+  .box.danger{background:rgba(248,113,113,.09);border-color:var(--err)}
+  .box.danger .t{color:var(--err)}
+  .box.ok{background:rgba(52,211,153,.09);border-color:var(--ok)}
+  .box.ok .t{color:var(--ok)}
+  .box.info{background:rgba(56,189,248,.09);border-color:var(--accent)}
+  .box.info .t{color:var(--accent)}
+  .box.purple{background:rgba(167,139,250,.09);border-color:var(--purple)}
+  .box.purple .t{color:var(--purple)}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.8px}
+  th,td{padding:10px 13px;border:1px solid var(--border);text-align:left;vertical-align:top}
+  th{background:var(--bg3);font-weight:700;font-size:13px}
+  tr:nth-child(even) td{background:rgba(148,163,184,.04)}
+  td code{font-size:12.5px}
+  .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  .b{display:inline-block;border-radius:4px;padding:1px 8px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .b-ok{background:rgba(52,211,153,.16);color:var(--ok);border:1px solid rgba(52,211,153,.35)}
+  .b-warn{background:rgba(251,191,36,.16);color:var(--warn);border:1px solid rgba(251,191,36,.35)}
+  .b-err{background:rgba(248,113,113,.16);color:var(--err);border:1px solid rgba(248,113,113,.35)}
+  .b-info{background:rgba(56,189,248,.16);color:var(--accent);border:1px solid rgba(56,189,248,.35)}
+  .b-purple{background:rgba(167,139,250,.16);color:var(--purple);border:1px solid rgba(167,139,250,.35)}
+  .b-mute{background:rgba(148,163,184,.16);color:var(--fg-dim);border:1px solid rgba(148,163,184,.35)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}
+  .stat{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:15px 17px}
+  .stat .k{font-size:11.5px;color:var(--fg-faint);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+  .stat .v{font-size:1.45rem;font-weight:800;color:var(--fg);line-height:1.15;font-family:ui-monospace,monospace}
+  .stat .v.ok{color:var(--ok)} .stat .v.warn{color:var(--warn)} .stat .v.err{color:var(--err)} .stat .v.info{color:var(--accent)}
+  .stat .n{font-size:12.5px;color:var(--fg-dim);margin-top:4px}
+
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:14px 0;font-size:12.5px}
+  .flow .n{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--fg);font-weight:600}
+  .flow .n.hi{border-color:var(--ok);color:var(--ok)}
+  .flow .n.new{border-color:var(--pink);color:var(--pink)}
+  .flow .n.you{border-color:var(--warn);color:var(--warn)}
+  .flow .a{color:var(--accent);font-weight:800;font-size:15px}
+
+  .rules{display:grid;gap:9px;margin:16px 0}
+  .rule{display:flex;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:13px 16px;align-items:flex-start}
+  .rule .rk{font-family:ui-monospace,monospace;font-weight:800;color:var(--pink);flex:none;font-size:.92rem}
+  .rule .rv{font-size:13.8px;color:var(--fg)}
+  .rule .rv em{color:var(--err);font-style:normal;font-weight:700}
+
+  footer{text-align:center;color:var(--fg-faint);font-size:13px;padding:36px 0 0;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header>
+<div class="wrap">
+  <span class="eyebrow">Backlog · 2026-11-02</span>
+  <h1>未完成功能清单</h1>
+  <p class="sub">
+    生产环境实测 + 代码实测(非文档复述)。共 <b>11 项未完成</b>:
+    其中 <b>3 项只差一个 token 和一个人</b>,合计 2 小时内可让「用量合规速查」正式上线;
+    其余 7 项是可排期的工程量,1 项(图谱)是刻意留空,
+    3 项因<b>数据源不存在</b>明确不做。
+  </p>
+  <div class="meta">
+    <span class="chip">分支 deploy/c-b-hybrid @ 36eceab</span>
+    <span class="chip">11 项未完成</span>
+    <span class="chip">3 项等凭据</span>
+    <span class="chip">4 项 404 实测</span>
+    <span class="chip">3 项数据源不存在</span>
+  </div>
+</div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">总览:11 项未完成</a></li>
+    <li><a href="#s2">A 类 · 代码就绪,等一个凭据</a></li>
+    <li><a href="#s3">B 类 · 等人做判断(规则校核)</a></li>
+    <li><a href="#s4">C 类 · 可以开工,但还没做</a></li>
+    <li><a href="#s5">明确不做(数据源不存在)</a></li>
+    <li><a href="#s6">按优先级排的开工序列</a></li>
+    <li><a href="#s7">门禁缺口</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2><span class="num">1</span>总览:11 项未完成</h2>
+  <div class="stats">
+    <div class="stat"><div class="k">未完成</div><div class="v warn">11</div><div class="n">项</div></div>
+    <div class="stat"><div class="k">等凭据</div><div class="v err">3</div><div class="n">2 小时可解</div></div>
+    <div class="stat"><div class="k">可排期</div><div class="v info">7</div><div class="n">C2/C3 各 5-8 天</div></div>
+    <div class="stat"><div class="k">刻意留空</div><div class="v" style="color:var(--purple)">1</div><div class="n">④ 知识图谱</div></div>
+    <div class="stat"><div class="k">明确不做</div><div class="v mute">3</div><div class="n">数据源不存在</div></div>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:4%">#</th><th style="width:28%">功能</th><th style="width:8%">所属</th><th style="width:14%">状态</th><th style="width:16%">阻塞类型</th><th style="width:20%">工作量</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>D1 灌库</b>(C1 合规规则入库)</td><td>②</td><td><span class="b b-err">卡死</span></td><td><b>等凭据</b></td><td>3 分钟(你)+ 我执行</td></tr>
+      <tr><td>2</td><td><b>C1.5 会话表建表</b></td><td>③</td><td><span class="b b-err">卡死</span></td><td><b>等凭据</b></td><td>同上</td></tr>
+      <tr><td>3</td><td><b>37 条规则人工校核</b></td><td>②</td><td><span class="b b-warn">等人</span></td><td><b>等人</b></td><td>1-2 小时</td></tr>
+      <tr><td>4</td><td>禁用规则抽取(<code>prohibition</code>)</td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
+      <tr><td>5</td><td>组合/条件规则抽取</td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>1-2 天</td></tr>
+      <tr><td>6</td><td><b>C2 · 配方批量审查</b></td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>5-8 天</td></tr>
+      <tr><td>7</td><td><b>C3 · 标签审查</b>(GB 10648)</td><td>②</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>5-8 天</td></tr>
+      <tr><td>8</td><td><b>⑤ 法规监测 + 变更预警</b></td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>4-6 周</td></tr>
+      <tr><td>9</td><td>合规日历(标准生效日)</td><td>⑤</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
+      <tr><td>10</td><td>版本追溯 + 领域标记</td><td>①</td><td><span class="b b-info">未开工</span></td><td>可做</td><td>2-3 天</td></tr>
+      <tr><td>11</td><td>④ 知识图谱</td><td>④</td><td><span class="b b-purple">刻意空壳</span></td><td>需先有数据源</td><td>不排期</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>生产实测验证(打真实接口,不是读文档)</h3>
+<pre><code>POST /api/compliance/recipe       → 404   (C2 配方审查未实现)
+POST /api/compliance/label        → 404   (C3 标签审查未实现)
+GET  /api/monitoring/releases     → 404   (⑤ 监测未实现)
+GET  /api/monitoring/subscriptions → 404
+GET  /api/calendar                → 404   (合规日历未实现)
+GET  /api/documents/:id/status    → 404   (版本追溯未实现)</code></pre>
+</section>
+
+<section id="s2">
+  <h2><span class="num err">2</span>A 类 · 代码就绪,等一个凭据(3 分钟)</h2>
+  <p><b>#1 D1 灌库(C1 合规规则入库)</b> · <b>#2 C1.5 会话表建表</b></p>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:40%">项</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>规则抽取产物</td><td><span class="b b-ok">已就绪</span> compliance_rules.json 37 条 / 11 种物质</td></tr>
+      <tr><td>物质目录产物</td><td><span class="b b-ok">已就绪</span> substance_catalog.json 387 条</td></tr>
+      <tr><td>领域层 + 判定器</td><td><span class="b b-ok">完成</span> 单测覆盖</td></tr>
+      <tr><td>D1 schema</td><td><span class="b b-ok">已写好</span> migrate_c1.sql(3 表)/ migrate_c15.sql(2 表)</td></tr>
+      <tr><td>API + 前端页</td><td><span class="b b-ok">已部署</span> /api/compliance/usage + /compliance 页</td></tr>
+      <tr><td><b>D1 表</b></td><td><span class="b b-err">没建</span></td></tr>
+      <tr><td><b>数据</b></td><td><span class="b b-err">没灌</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>生产实测报错(修复 1101 后露出的真话):</p>
+<pre><code>POST /api/compliance/usage → 500 {"error":"internal",
+    "message":"D1_ERROR: no such table: substance_catalog: SQLITE_ERROR"}
+POST /api/qa/conversation  → 500 no such table: qa_sessions
+DELETE /api/qa/conversation → 500 no such table: qa_messages</code></pre>
+
+  <div class="box danger">
+    <span class="t">唯一原因</span>
+    <code>CLOUDFLARE_API_TOKEN</code> secret 是最小权限(只给 Workers/Pages),
+    <code>/d1/database</code> 返回 401 —— <b>这是有意的设计</b>,见 <code>docs/deployment-info.md</code>。
+    灌库要另一个带 <code>Account → D1 → Edit</code>、TTL 留空的 token。
+  </div>
+
+  <h3>解锁动作(你,约 3 分钟)</h3>
+<pre><code># Cloudflare Dashboard → 账户 → API Tokens → Create Token
+# 权限: Account → D1 → Edit;  TTL: 留空
+gh secret set CLOUDFLARE_D1_TOKEN</code></pre>
+
+  <h3>解锁后我做(约 10 分钟)</h3>
+<pre><code>① 改 seed-compliance.yml(现 3 处 CLOUDFLARE_API_TOKEN / 0 处 D1_TOKEN)
+② npx wrangler d1 execute siliao-db --remote --file ./query/worker/migrate_c15.sql
+③ gh workflow run seed-compliance.yml
+④ 回读校验 + 生产三态实测(compliant / exceeded / not_covered)</code></pre>
+
+  <div class="box warn">
+    <span class="t">不能重跑 schema.sql</span>
+    <code>migrate_c1.sql</code> / <code>migrate_c15.sql</code> 必须单独跑 ——
+    生产库 3145 条条文,wrangler 4.127+ 对「schema 变了」的库报 <code>D1_RESET_DO</code>,<b>会清空远端表</b>。
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="num warn">3</span>B 类 · 等人做判断(规则校核)</h2>
+  <p><b>#3 · 37 条规则人工校核</b></p>
+
+  <p>现状:<b>37 条全部 <code>review_status='pending'</code></b> —— 未审核规则<b>不参与判定</b>(安全闸门)。
+  即使表建了、数据灌了,<b>判定结果仍是 <code>not_covered</code></b>(这正是设计意图)。</p>
+
+<pre><code>python build/export/make_review_checklist.py
+# → build/export/review_checklist.csv  (人工填 decision 列)
+# → build/export/review_checklist.md   (查阅用)</code></pre>
+
+  <h3>建议从这 8 条开始(自动标记「上下限相等」,需确认是单点还是区间)</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:38%">物质</th><th style="width:22%">物种</th><th>值</th></tr></thead>
+    <tbody>
+      <tr><td>维生素D2</td><td>猪 / 牛 / 马 / 鱼类</td><td>5000~5000 / 5000~5000 / 4000~4000 / 3000~3000 IU/kg</td></tr>
+      <tr><td>二甲基嘧啶醇亚硫酸氢钠甲萘醌</td><td>猪</td><td>10~10 mg/kg</td></tr>
+      <tr><td>L-肉碱</td><td>雏鸡</td><td>150~150 mg/kg</td></tr>
+      <tr><td>L-肉碱酒石酸盐</td><td>犬 / 猫</td><td>660~660 / 880~880 mg/kg</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box purple">
+    <span class="t">为什么必须人工</span>
+    自动抽取已证明会把「质量指标」误判成限量
+    (当前靠单位白名单 + 组合句式挡住,但<b>下一个新法规的表格格式可能又是另一种写法</b>)。
+    <code>review_status</code> 闸门就是为此存在的。
+    <br><b>工作量</b>:1-2 小时(37 条,每条核对物质名/物种/上下限/单位)。
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="num info">4</span>C 类 · 可以开工,但还没做</h2>
+
+  <h3>#4 禁用规则抽取(<code>rule_type='prohibition'</code>)</h3>
+  <p>现状(实测):<b>领域模型已支持 4 种 rule_type</b>(<code>limit</code> / <code>prohibition</code> /
+  <code>condition</code> / <code>combination</code>),判定器也已实现「禁用优先 → 无条件拒绝」分支 ——
+  <b>但抽取器只产出 <code>limit</code></b>:</p>
+<pre><code># build/export/extract_compliance_rules.py
+"rule_type": "limit",   # ← 只有这一种</code></pre>
+  <p>生产 <code>status=prohibited</code> 现在<b>永远不可能返回</b>。</p>
+  <p><b>数据可得性已实测</b>:语料里 <b>39 个文件</b>含「禁用」相关条款,包括
+  《食品动物中禁止使用的药品和其他化合物清单》等。</p>
+
+  <div class="box warn">
+    <span class="t">抽取必须剔除假阳性</span>
+    实测样例:「不得在饲料生产过程中进行维修、焊接、气割等作业。」← <b>这条不是禁用物质!</b>
+    这是生产操作禁令。所以 <code>prohibition</code> 也必须走 <code>review_status</code> 闸门。
+    <br><b>工作量</b>:2-3 天
+  </div>
+
+  <h3>#5 组合/条件规则抽取</h3>
+  <p>领域模型支持 <code>combination</code> / <code>condition</code>,<b>但一条都没抽出来</b>。
+  实测语料里有 4 种待覆盖的写法:</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:5%">#</th><th style="width:22%">原文形态</th><th style="width:33%">示例</th><th>难点</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>多动物并列 + 阶段</td><td><code>罗非鱼、鲶鱼—鱼苗300mg/kg—鱼种200mg/kg</code></td><td>一个动物对应<b>两个阶段值</b></td></tr>
+      <tr><td>2</td><td>括号内嵌套</td><td><code>猪30~50mg/kg(乳猪300~500mg/kg)</code></td><td>括号是<b>例外</b>不是主值</td></tr>
+      <tr><td>3</td><td>多物质共用一条</td><td><code>同时使用时,在配合饲料中的总量不得超过150mg/kg</code></td><td>约束对象是<b>组合</b></td></tr>
+      <tr><td>4</td><td>使用条件</td><td>「适用于育肥期」「不得与…同时使用」</td><td>需要抽条件文本</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>当前抽取器用 <code>is_combination()</code> <b>跳过</b>了第 3 种(统计计数 <code>combination_skipped</code>),
+  没有把它建成独立规则类型。<b>工作量</b>:1-2 天</p>
+
+  <h3>#6 C2 · 配方批量审查</h3>
+  <p>构想稿的核心场景:「上传 10 行配方 → 输出逐成分风险报告;禁用成分标红并给出依据条款」。</p>
+  <p>现状:<code>POST /api/compliance/recipe</code> → <b>404</b>。<code>ComplianceEvaluator</code> 已支持单物质判定,
+  但<b>没有批量编排层</b>。</p>
+  <div class="box info">
+    <span class="t">依赖</span>
+    #1(灌库)+ #4(禁用规则)—— 缺了禁用规则,「禁用成分标红」做不出来。
+    <br><b>工作量</b>:5-8 天
+  </div>
+
+  <h3>#7 C3 · 标签审查(GB 10648)</h3>
+  <p>构想稿:「输入标签文案 → 输出缺失项/违规宣称清单,每项带条款出处」。</p>
+  <p>现状:<code>POST /api/compliance/label</code> → <b>404</b>。</p>
+  <p><b>数据已就位</b>:语料里有 <code>04标准及标准目录/01_饲料标签/</code>(实测存在)、
+  <code>02_饲料卫生标准/</code>。关键词「标签」命中 <b>125 个文件</b>。<b>工作量</b>:5-8 天</p>
+
+  <h3>#8 ⑤ 法规监测 + 变更预警</h3>
+  <p>现状:<code>GET /api/monitoring/releases</code> → <b>404</b>。<code>monitoring/</code> 上下文<b>尚未创建</b>。</p>
+  <p><b>但架构已铺好</b>:ADR-004 的领域事件契约已定义
+  (<code>domain/shared/domain-event.ts</code>),流水线不需要重新设计,只需填实现:</p>
+<pre><code>RegulationReleaseDetected → RegulationVersionIngested → RulesRecalculated</code></pre>
+  <div class="box warn">
+    <span class="t">主要风险</span>
+    政府网站结构 → 爬虫<b>脆弱</b>(站点改版即失效)。对策:
+    优先找稳定的 RSS/JSON 接口;变更检测不依赖精确 diff(文档指纹 + 标题匹配即可);
+    <b>爬虫失败必须告警而非静默</b>。
+    <br><b>工作量</b>:4-6 周
+  </div>
+
+  <h3>#9 合规日历(标准生效日)</h3>
+  <p>现状:<code>GET /api/calendar</code> → <b>404</b>。</p>
+  <p><b>能做的部分</b>:标准正文常写「本标准自 XXXX 年 XX 月 XX 日起实施,代替 XXXX 版」——
+  <b>可从语料正则抽取</b>。语料里有 <code>04标准及标准目录/</code> 下的标准文本。</p>
+  <div class="box danger">
+    <span class="t">明确不能做的</span>
+    换证/年检提醒 —— 那是<b>企业侧证件到期日</b>,语料里没有。
+    一期只做「法规/标准生效日期日历」。<b>工作量</b>:2-3 天
+  </div>
+
+  <h3>#10 版本追溯 + 领域标记</h3>
+  <p><b>版本追溯</b>:生产实测 <code>GET /api/documents/:id/status</code> → <b>404</b>。
+  <code>documents</code> 表结构实测<b>没有</b> <code>status</code> / <code>supersedes_doc_id</code> 字段,
+  <code>articles</code> 也没有 <code>version_snapshot</code>。</p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:46%">来源</th><th>可得性</th></tr></thead>
+    <tbody>
+      <tr><td>现行法规的修订说明章节</td><td><span class="b b-warn">语料里可能有</span></td></tr>
+      <tr><td>历史版本 PDF</td><td><span class="b b-err">需采购/爬取</span> 农业农村部不提供结构化历史</td></tr>
+      <tr><td>变更时间线</td><td><span class="b b-err">需 #8 监测上下文</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>结论</b>:第一期只能做到「标注当前版本 + 标注被取代关系」,真正回溯要等 #8 落地后积累。</p>
+  <p><b>领域标记</b>:<code>documents</code> 表<b>无 <code>domain</code> 字段</b>,现在只能靠目录名硬编码。
+  生产实测 <code>GET /api/documents?domain=feed</code> → <b>200 但参数被忽略</b>(返回全部文档,
+  说明路由层根本没读这个 query 参数)。</p>
+  <p>加 <code>domain TEXT DEFAULT 'feed'</code>(<code>feed</code> / <code>veterinary</code> /
+  <code>pet_food</code> / <code>general</code>)后,支持「只查兽药法规」「排除通用法规」——
+  语料里 32 份相关法律法规文件含兽药法规,现在没法过滤。<b>工作量</b>:2-3 天(两者一起做,都要改 schema)</p>
+
+  <h3>⏧ #11 ④ 知识图谱 —— 刻意保持空壳,不是「忘了做」</h3>
+  <p>现状(实测):<code>GET /api/entity/农业农村部</code> → <b>200 <code>{"error":"entity_not_found"}</code></b>。
+  <code>entities</code> / <code>entity_articles</code> 表<b>已建但为空</b>。
+  前端 <code>EntityPage.tsx</code> / <code>EntityGraph.tsx</code> 已就位。</p>
+  <div class="box purple">
+    <span class="t">ADR-004 的明确决策</span>
+    「此上下文<b>保持空壳直到有真实用例</b>。方案文档的图谱能力(关系推理)对当前「找条款」
+    场景收益不明,而运维成本(GraphRAG 索引重建 + 增量维护)不低。<b>先留接口,不投实现</b>。」<br><br>
+    <b>保留它的价值</b>在于:跨法规的<b>交叉引用关系</b>(如「本条依据《条例》第X条」),
+    那是<b>审核预审</b>场景的需求,不是用量判定。<br>
+    <b>不排期</b> —— 等有真实用例再说。
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="num">5</span>明确不做(数据源不存在,不是没排期)</h2>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:32%">项</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr><td><b>企业资质审查</b></td><td>语料里「生产许可证」命中 88 个文件,但那是<b>许可证的条款</b>(规定怎么办理),不是<b>企业的实际证件数据</b>。语料是法规,不是证件库。</td></tr>
+      <tr><td><b>抽检结果「同类产品风险提示」</b></td><td>国家饲料质量抽检结果由农业农村部以公告(PDF)形式发布,<b>无 API</b>;粒度是「产品批次 + 检验结论」,<b>没有企业配方数据</b> —— 无法做「同类产品」关联。可降级为「抽检公告聚合检索」,语义不同,需在产品文档写清。</td></tr>
+      <tr><td><b>合规日历 · 换证/年检提醒</b></td><td>需企业侧证件到期日,语料里没有。</td></tr>
+      <tr><td><b>真正的历史版本回溯</b></td><td>农业农村部不提供结构化历史版本,只能积累上线后的变更。</td></tr>
+      <tr><td><b>跨模块 Planner(复杂问题拆解)</b></td><td>法规问答大多是单跳检索。真正的复杂场景(配方审查)走确定性接口,<b>不该走 LLM Planner</b>。低频高价值,等真实提问日志出来再定。</td></tr>
+      <tr><td><b>「物质 → 可用替代品」映射</b></td><td>这是<b>新产品审定</b>的知识,语料是法规不是审定结论库。v1 只给「允许区间」,替代建议不承诺。</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="num ok">6</span>按优先级排的开工序列</h2>
+
+  <div class="flow">
+    <span class="n you">【你 · 3 分钟】建 D1 Edit token</span><span class="a">→</span>
+    <span class="n hi">【我 · 10 分钟】建表 + 灌库 + 三态实测</span><span class="a">→</span>
+    <span class="n you">【你 · 1-2 小时】37 条规则校核</span><span class="a">→</span>
+    <span class="n new">C1 合规速查正式可用 ✅</span>
+  </div>
+
+  <h3>可并行 · 不依赖上面</h3>
+  <div class="rules">
+    <div class="rule"><span class="rk">#10</span><span class="rv">版本追溯 + 领域标记(2-3 天)—— <b>独立,先做这个能立刻有产出</b></span></div>
+    <div class="rule"><span class="rk">#9</span><span class="rv">合规日历(2-3 天)—— 独立</span></div>
+    <div class="rule"><span class="rk">#5</span><span class="rv">组合/条件规则抽取(1-2 天)—— 依赖 #1 有数据</span></div>
+  </div>
+
+  <h3>依赖链</h3>
+  <div class="rules">
+    <div class="rule"><span class="rk">#4</span><span class="rv">禁用规则(2-3 天) → <b>#6 C2 配方审查(5-8 天)</b></span></div>
+    <div class="rule"><span class="rk">#7</span><span class="rv">C3 标签审查(5-8 天)—— 与 #6 并行</span></div>
+    <div class="rule"><span class="rk">#8</span><span class="rv">⑤ 监测(4-6 周)—— 长周期,建议最早开工</span></div>
+  </div>
+
+  <div class="box warn">
+    <span class="t">如果只挑一件现在开工</span>
+    选 <b>#8 监测</b>。它周期最长(4-6 周,爬虫脆弱性是主风险),
+    且决定「知识时效可审计」这条原则能不能落地 —— 越晚开工,后面 #10 版本追溯能积累的历史越少。
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="num">7</span>门禁缺口(不算功能,但影响未完成功能的质量)</h2>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th style="width:44%">缺口</th><th>影响</th></tr></thead>
+    <tbody>
+      <tr><td><code>api-contract</code> 基线<b>只覆盖 200/400,没有 500</b></td><td>错误响应形状的回归抓不到。已发现并修掉的 1101 就属于这一类</td></tr>
+      <tr><td>架构测试只守 <b>import 方向</b></td><td><b>同层内的控制流问题</b>(如 <code>await</code> 丢失)不被覆盖 —— 已补专项单测</td></tr>
+      <tr><td><code>main</code> 分支 CI + Dependabot PR <b>都卡在 <code>npm ci</code></b></td><td>依赖升级 PR <b>无法自动验证</b>,需人工本地跑。不影响当前生产分支</td></tr>
+      <tr><td>契约门禁<b>手动触发</b></td><td>打生产,不能每次 push 跑 —— 这是有意设计,但意味着<b>上线后要记得手动跑一次</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box ok">
+    <span class="t">一句话总结</span>
+    <b>11 项未完成</b>,其中 3 项(灌库 + 建表 + 人工校核)其实只差一个 token 和一个人,
+    合计 2 小时内可让「用量合规速查」正式上线;
+    其余 7 项是可排期的工程量(C2/C3 各 5-8 天,监测 4-6 周),
+    1 项(图谱)是刻意留空,3 项(企业资质 / 抽检风险 / 替代建议)因<b>数据源不存在</b>明确不做。
+  </div>
+</section>
+
+<footer>
+  <p>饲料法规 RAG · 未完成功能清单 · 2026-11-02 · 数据来自生产环境实测 + 代码实测</p>
+  <p style="margin-top:8px">关联文档:<code>docs/project-status.md</code> · <code>docs/functional-design.md</code> · <code>docs/adr/0004-ddd-bounded-contexts.md</code> · <code>docs/c1-status.md</code></p>
+</footer>
+
+</div>
+</body>
+</html>
