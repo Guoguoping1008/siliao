@@ -287,6 +287,9 @@ def main():
             lines.append(f"### #{row['no']} · {row['species']} · "
                          f"{row['min']}~{row['max']} {row['unit']}")
             lines.append("")
+            # ⚠️ **必须带 rule_id** —— 人工校核完要靠它回写 D1。
+            #    (CSV 里已有;md 版漏了 → 从 md 校核的人回写不了。)
+            lines.append(f"- **rule_id**: `{row['rule_id'] or '(⚠️ 未匹配到生产 D1)'}`")
             lines.append(f"- **溯源**: `{row['source_article_id']}`")
             lines.append(f"- **自动标记**: {mark}")
             if row["flags"]:
