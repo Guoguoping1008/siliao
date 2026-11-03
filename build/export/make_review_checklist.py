@@ -42,6 +42,99 @@ def _strip_abbrev(s: str) -> str:
     """去掉英文名末尾的缩写: 「… bisulfite (MPB)」→「… bisulfite」。"""
     return re.sub(r"\s*\([A-Za-z]{1,6}\)\s*$", "", s or "").strip()
 
+
+# ─────────────────────────────────────────────────────────────
+# 从生产 D1 反查真实 rule_id
+# ─────────────────────────────────────────────────────────────
+#
+# ⚠️ **为什么需要**:生产 `compliance_rules.rule_id` 是内容哈希
+#    (`r_0272c3e2d348`),而 `compliance_rules.json` 里**没有 rule_id 字段**。
+#    CSV 里编的 `r_001` 序号与真实 ID **37/37 全对不上** ——
+#    人工校核完没法直接回写 D1。
+#
+# ⚠️ **查不到就返回空串,绝不编一个假的** —— 假 ID 回写会静默失败。
+
+_D1_RULE_IDS: dict | None = None
+
+
+def _load_d1_rule_ids() -> dict:
+    """一次性拉全量 (substance, species, min, max, unit) → rule_id 映射。"""
+    global _D1_RULE_IDS
+    if _D1_RULE_IDS is not None:
+        return _D1_RULE_IDS
+
+    _D1_RULE_IDS = {}
+    try:
+        import pathlib
+        import urllib.request
+
+        cfg = pathlib.Path(
+            r"C:\Users\Administrator\AppData\Roaming\xdg.config\.wrangler\config\default.toml"
+        )
+        if not cfg.exists():
+            return _D1_RULE_IDS
+        m = re.search(r'oauth_token\s*=\s*"([^"]+)"', cfg.read_text(encoding="utf-8"))
+        if not m:
+            return _D1_RULE_IDS
+        tok = m.group(1)
+
+        sql = (
+            "SELECT rule_id, substance, species, min_value, max_value, unit "
+            "FROM compliance_rules"
+        )
+        req = urllib.request.Request(
+            "https://api.cloudflare.com/client/v4/accounts/"
+            "1b938cc261b000a03554b506985daabb/d1/database/"
+            "e406e21e-e770-4c97-822a-57178c347aa6/query",
+            data=json.dumps({"sql": sql}).encode("utf-8"),
+            method="POST",
+        )
+        req.add_header("Authorization", "Bearer " + tok)
+        req.add_header("Content-Type", "application/json")
+        req.add_header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 Safari/537.36",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        result = data.get("result") or []
+        rows = result[0].get("results", []) if result else []
+        for r in rows:
+            key = (
+                str(r.get("substance") or ""),
+                str(r.get("species") or ""),
+                str(r.get("min_value") or ""),
+                str(r.get("max_value") or ""),
+                str(r.get("unit") or ""),
+            )
+            _D1_RULE_IDS[key] = str(r.get("rule_id") or "")
+    except Exception as e:  # 网络/凭据问题不该让整份清单生成失败
+        print(f"[WARN] 读生产 D1 失败({type(e).__name__}: {e}) —— rule_id 将留空")
+        _D1_RULE_IDS = {}
+    return _D1_RULE_IDS
+
+
+def lookup_rule_id(rule: dict) -> str:
+    """按 (substance, species, min, max, unit) 反查生产 D1 的真实 rule_id。"""
+    idx = _load_d1_rule_ids()
+    if not idx:
+        return ""
+    def norm(v):
+        if v is None:
+            return ""
+        if isinstance(v, float) and v.is_integer():
+            return str(int(v))
+        return str(v)
+    key = (
+        norm(rule.get("substance")),
+        norm(rule.get("species")),
+        norm(rule.get("min_value")),
+        norm(rule.get("max_value")),
+        norm(rule.get("unit")),
+    )
+    return idx.get(key, "")
+
+
 # ─────────────────────────────────────────────────────────────
 # 自动风险规则 —— 每条都对应一个**实测见过的问题**
 # ─────────────────────────────────────────────────────────────
@@ -124,7 +217,16 @@ def main():
         flags = flag_rules(r, catalog_names, catalog_by_en)
         rows.append({
             "no": i,
-            "rule_id": f"r_{i:03d}",
+            # ⚠️ **必须用 DB 里真实的 rule_id**,不能用 `r_{i:03d}` 序号。
+            #
+            # 生产 `compliance_rules.rule_id` 是内容哈希(`r_0272c3e2d348`),
+            # 而 `compliance_rules.json` 里**没有 rule_id 字段**。
+            # 早期版本在 CSV 里编了 `r_001` 这类序号 —— 实测 **37/37 全对不上**,
+            # 人工填完 decision 后没法直接回写 D1。
+            #
+            # 对策:从生产 D1 按 (substance, species, min, max, unit) 反查真实 rule_id。
+            # 查不到就留空并标 `rule_id_missing`,**不能编一个假的**。
+            "rule_id": r.get("rule_id") or lookup_rule_id(r),
             "substance": r.get("substance", ""),
             "species": r.get("species", ""),
             "stage": r.get("stage", ""),
