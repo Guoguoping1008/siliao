@@ -27,7 +27,7 @@ import type { ConversationContext } from "../../domain/inquiry/conversation-cont
 import { buildConversationPrompt } from "./prompt-builder";
 import { validateCitations } from "../../domain/inquiry/citation-validator.service";
 import type { Citation, Evidence } from "../../domain/inquiry/evidence.vo";
-import { chatCompletion, llmConfig, type LlmEnv } from "../../interfaces/acl/llm.acl";
+import { chatCompletion, llmConfig, type LlmEnv, DEFAULT_MAX_TOKENS } from "../../interfaces/acl/llm.acl";
 
 /** 会话仓储端口(由 infrastructure 实现)。 */
 export interface ConversationStore {
@@ -114,7 +114,7 @@ export class ConversationService {
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { temperature: 0.2, max_tokens: 1000, stream: false }
+      { temperature: 0.2, max_tokens: DEFAULT_MAX_TOKENS, stream: false }
     );
 
     if (!resp.ok) {

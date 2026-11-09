@@ -15,6 +15,8 @@ import { chatCompletion } from "../../interfaces/acl/llm.acl";
 vi.mock("../../interfaces/acl/llm.acl", () => ({
   llmConfig: (env: any) => ({ apiBase: env.LLM_API_BASE ?? "", apiKey: env.LLM_API_KEY ?? "", model: env.LLM_MODEL ?? "m" }),
   chatCompletion: vi.fn(),
+  // ⚠️ 必须一起 mock —— 生产代码引用了 DEFAULT_MAX_TOKENS 这个常量
+  DEFAULT_MAX_TOKENS: 16000,
 }));
 
 const mockChat = vi.mocked(chatCompletion);

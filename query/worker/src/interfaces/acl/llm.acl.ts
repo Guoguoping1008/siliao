@@ -95,6 +95,38 @@ export interface ChatCompletionResponse {
 }
 
 /**
+ * 默认 max_tokens —— **必须给 reasoning 模型留够预算,也不能给太多**。
+ *
+ * ⚠️ 2026-11-09 实测教训:换模型后 `max_tokens: 1000` 会让答案**整段变空**。
+ *    MiniMax-M3.1-Flash 是 reasoning 模型,响应分两段:
+ *      - `reasoning_content` —— 思考过程,**与 content 共用 max_tokens 配额**
+ *      - `content`           —— 最终答案
+ *    实测(max_tokens=1000):reasoning 吃了 2855 字符,content 长度 = 0,
+ *    finish_reason = "length" → 用户看到空答案。
+ *
+ * ## 为什么是 16000 —— 实测 22 次调用的结论
+ *
+ *    | max_tokens | 正确 | 空答案 | "未找到" | reasoning 实际长度 |
+ *    |---|---|---|---|---|
+ *    |  1000(旧值) | 0/8 | 4/8 | 3/8 | ~2855 |
+ *    |  4000       | 1/8 | 4/8 | 3/8 | 8000–13700(**被截断**) |
+ *    |  4000 temp=0 | 0/8 | 6/8 | 2/8 | 11500–13785(**被截断**) |
+ *    | **16000**   | **5/6** | 0/6 | 1/6 | 2860–34246 |
+ *    |  24000      | 0/6 | 0/6 | 4/6 | 1384–56575(**过度推理**) |
+ *
+ *    关键不是"越大越好",而是**要跟模型的推理长度匹配**:
+ *    · 预算太小 → reasoning 被截断 → content 空 → 用户看到空答案
+ *    · 预算太大 → 允许模型无休止地自我怀疑 → 反过来答"未找到相关规定"
+ *      (证据明明在 [3] 里)。**合规场景下答"未找到"和答错一样有害。**
+ *
+ *    ⚠️ temperature=0 **更差**(0/8):会让 reasoning 失控变长,不是变得更确定。
+ *
+ * ⚠️ 另外:MiniMax-M2.x 系列会把 `<think>...</think>` **混进 content**,
+ *    会直接显示给用户。本项目因此只用 M3.1-Flash(见 wrangler.toml LLM_MODEL)。
+ */
+export const DEFAULT_MAX_TOKENS = 16000;
+
+/**
  * 调用 LLM 的 chat completions 接口。
  *
  * @param cfg        端点配置
@@ -116,7 +148,7 @@ export async function chatCompletion(
       model: cfg.model,
       messages,
       temperature: options.temperature ?? 0.2,
-      max_tokens: options.max_tokens ?? 1000,
+      max_tokens: options.max_tokens ?? DEFAULT_MAX_TOKENS,
       stream: options.stream ?? false,
     }),
   });

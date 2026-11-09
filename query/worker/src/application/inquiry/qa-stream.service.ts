@@ -27,7 +27,7 @@ import {
   consumeSSE,
   type SseEventName,
 } from "../../interfaces/acl/llm-stream.acl";
-import { llmConfig, type LlmEnv } from "../../interfaces/acl/llm.acl";
+import { llmConfig, type LlmEnv, DEFAULT_MAX_TOKENS } from "../../interfaces/acl/llm.acl";
 
 /** 检索端口(与单轮问答共用)。 */
 export interface EvidenceRetriever {
@@ -91,7 +91,7 @@ export async function streamQa(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { temperature: 0.2, max_tokens: 1000 }
+      { temperature: 0.2, max_tokens: DEFAULT_MAX_TOKENS }
     );
 
     if (!resp.ok || !resp.body) {

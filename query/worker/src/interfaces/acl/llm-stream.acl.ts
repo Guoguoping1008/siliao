@@ -23,6 +23,7 @@
  */
 
 import type { ChatMessage, LlmConfig } from "./llm.acl";
+import { DEFAULT_MAX_TOKENS } from "./llm.acl";
 
 /** SSE 帧类型。 */
 export type SseEventName = "meta" | "chunk" | "done" | "error";
@@ -81,7 +82,7 @@ export function chatCompletionStream(
       model: cfg.model,
       messages,
       temperature: options.temperature ?? 0.2,
-      max_tokens: options.max_tokens ?? 1000,
+      max_tokens: options.max_tokens ?? DEFAULT_MAX_TOKENS,
       stream: true,
     }),
   });
