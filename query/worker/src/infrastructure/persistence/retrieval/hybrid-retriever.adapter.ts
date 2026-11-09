@@ -52,6 +52,17 @@ export interface RetrievalParams {
 export interface RetrievalResult {
   hits: Evidence[];
   query: string;
+  /**
+   * ⚠️ **降级标记** —— 语义层(bge)是否不可用,本次检索退化成纯 FTS5。
+   *
+   * 2026-11-09 实测教训:bge 主机重启后 Docker 没自启,容器没起来,
+   * 生产静默退化成纯 FTS5 **近 20 小时**(2026-11-08 13:17 重启 → 11-09 09:03 才发现),
+   * 期间**没有任何告警**,只有 Worker 日志里一行 `console.warn`。
+   * recall 从 76% 掉到 56%,业务方只会说"感觉最近搜得不准了"。
+   *
+   * 所以降级必须**在响应里看得见**(前端/监控能读到),不能只进日志。
+   */
+  degraded?: boolean;
 }
 
 /** bge 服务地址(可为空 = 不启用语义路)。 */
@@ -65,6 +76,21 @@ export interface EmbeddingEnv {
  * 组合 FTS5(A档 + B档 bigram)与 bge-m3 语义路, RRF 融合。
  */
 export class HybridRetriever {
+  /**
+   * bge 连续失败次数 —— **降级计数器**。
+   *
+   * 2026-11-09 起:bge 不可用时,每次检索都往这里 +1,
+   * 并且**响应里带 degraded: true**。
+   * 连续失败到阈值(3)就打一条 ERROR 级日志 —— 这条日志的目的不是记录,
+   * 是让**外部监控能按 error 级抓取**(Worker 日志的 warn 级没人看)。
+   *
+   * 成功一次就清零 —— 语义层恢复后计数立即归零,不会留下历史包袱。
+   */
+  private bgeFailureCount = 0;
+
+  /** 连续失败多少次打 ERROR 日志(达到即打,不重复刷屏)。 */
+  private static readonly BGE_ALERT_THRESHOLD = 3;
+
   constructor(
     private readonly db: D1Like,
     private readonly embeddingEnv: EmbeddingEnv
@@ -126,34 +152,63 @@ export class HybridRetriever {
       }
     }
 
-    // bge 召回 (失败静默退化为单 FTS5)
-    const bgeRows = await this.bgeSearch(q, params.docId || "");
+    // bge 召回 (失败静默退化为单 FTS5 —— 但**会在响应里标记 degraded**)
+    const bge = await this.bgeSearch(q, params.docId || "");
 
-    if (ftsRows.length === 0 && bgeRows.length === 0) return { hits: [], query: q };
+    if (ftsRows.length === 0 && bge.rows.length === 0) {
+      return { hits: [], query: q, degraded: bge.degraded };
+    }
 
-    const fusedRows = fuseRankedRows(ftsRows, bgeRows, 20);
+    const fusedRows = fuseRankedRows(ftsRows, bge.rows, 20);
 
-    return this.hydrate(fusedRows, params);
+    return { ...(await this.hydrate(fusedRows, params)), degraded: bge.degraded };
   }
 
-  /** bge 语义召回。失败静默降级, 不抛异常。 */
-  private async bgeSearch(q: string, docFilter: string): Promise<RankedRow[]> {
+  /**
+   * bge 语义召回。失败静默降级, 不抛异常。
+   *
+   * ⚠️ 2026-11-09:**降级不再只是日志**。
+   *    · 返回 `degraded: true` → 响应里看得见 → 前端/监控能读到
+   *    · 连续失败计数 → 达阈值打 **ERROR** 级日志 → 外部监控可按 error 抓取
+   *    · 成功一次即清零
+   */
+  private async bgeSearch(
+    q: string,
+    docFilter: string
+  ): Promise<{ rows: RankedRow[]; degraded: boolean }> {
     const bgeUrl = this.embeddingEnv.BGE_SERVER_URL;
-    if (!bgeUrl) return [];
+    if (!bgeUrl) return { rows: [], degraded: false };
 
     try {
       const hits = await fetchWithRetry(
         () => embeddingSearch(bgeUrl, q, 20, docFilter),
         3
       );
-      return hits.map((h, i) => ({
-        article_id: h.article_id,
-        rank: i + 1, // bge top-1 = rank 1
-        score: h.score,
-      }));
+      // 语义层恢复 —— 计数清零
+      this.bgeFailureCount = 0;
+      return {
+        rows: hits.map((h, i) => ({
+          article_id: h.article_id,
+          rank: i + 1, // bge top-1 = rank 1
+          score: h.score,
+        })),
+        degraded: false,
+      };
     } catch (e) {
-      console.warn(`[search] bge_server unreachable:`, (e as Error).message);
-      return [];
+      this.bgeFailureCount += 1;
+      const msg = (e as Error).message;
+      if (this.bgeFailureCount >= HybridRetriever.BGE_ALERT_THRESHOLD) {
+        // ⚠️ 用 console.error 而不是 console.warn ——
+        //    外部监控按 error 级抓取,warn 级没人看。
+        //    这正是 2026-11-08→09 静默降级 20 小时没被发现的原因。
+        console.error(
+          `[search] bge_server DEGRADED x${this.bgeFailureCount} — 检索已退化为纯 FTS5,recall 会下降:`,
+          msg
+        );
+      } else {
+        console.warn(`[search] bge_server unreachable (${this.bgeFailureCount}):`, msg);
+      }
+      return { rows: [], degraded: true };
     }
   }
 
