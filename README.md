@@ -3,6 +3,19 @@
 > 基于《中国农业饲料法规 2026 版》扫描件 OCR 全量重建的 RAG 知识库。
 > 语料: `minimax/` 1021 页 → 196 份法规 / 529 章 / 3145 条文。
 
+> 📌 **项目现状(2026-11-09 生产实测)**
+>
+> | 模块 | 状态 |
+> |---|---|
+> | ① 法规检索 | 🟢 生产可用 · recall@10 76.0% / MRR 0.647 |
+> | ③ 知识问答 | 🟢 生产可用 · **但延迟 37-63s**(reasoning 模型所致) |
+> | ④ 知识图谱 | 🟢 生产可用 · 481 实体 / 1951 关联 / 117 别名 |
+> | ② 用量合规速查 | 🟡 表有数据但**闸门未开** —— 37 规则全 `pending` → 一律 `not_covered` |
+> | ⑤ 法规监测 | ⚪ 未开工(M4,4-6 周) |
+>
+> **当前唯一挡住业务上线的事**:37 条规则人工校核(1-2 小时)。
+> 完整报告:[`docs/project-status-2026-11-09.md`](docs/project-status-2026-11-09.md) / `.html`
+
 ## 🟢 生产环境(2026-10-26 上线)
 
 | 组件 | 地址 |
@@ -11,10 +24,12 @@
 | API | https://siliao-api.guoguoping.workers.dev |
 | API 代理 | https://siliao-web.pages.dev/api/* (Pages Functions) |
 
-D1 已灌满 196 文档 / 529 章 / 3145 条文。
+D1 已灌满 196 文档 / 529 章 / 3145 条文;C1 合规表 37 规则 / 387 物质目录已灌(规则待人工校核)。
 **bge 语义层已上线**(`https://ns.hbnongfengyuan.cn`,Docker 容器 + nginx 反代),
 生产跑的是 FTS5 + bge hybrid。
 **LLM 已接入 MiniMax**(OpenAI 兼容端点,DeepSeek key 余额不足故切换)。
+当前模型 `MiniMax-M3.1-Flash` —— ⚠️ **reasoning 模型**:`reasoning_content` 与 `content`
+共用 `max_tokens` 配额,端到端延迟 37-63s(换模型前的基线是 11s)。
 **正文存 D1**(`articles.body`,1.2MB)—— 不依赖 R2,故**无需人工开通任何 Cloudflare 付费产品**。
 检索 = D1 FTS5 + bge-m3 公网 hybrid;问答 = MiniMax。
 **完整资源清单**(服务器/Cloudflare/GitHub secret/运维命令)见
@@ -28,7 +43,7 @@ D1 已灌满 196 文档 / 529 章 / 3145 条文。
 
 - Web App(响应式),Cloudflare Pages 免费托管
 - 检索引擎:D1 FTS5(trigram) **phrase 优先 + bigram RRF + 标题加权** ⊕ bge-m3 语义层
-- LLM:MiniMax-Text-01(provider 无关,兼容 DeepSeek) · Embedding:bge-m3(公网自建)
+- LLM:MiniMax-M3.1-Flash(reasoning 模型,provider 无关) · Embedding:bge-m3(公网自建)
 - RAG 问答流式输出,带引用校验(LLM 编造引用自动标红)
 
 ## 目录结构
