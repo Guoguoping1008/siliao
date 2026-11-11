@@ -40,6 +40,15 @@ import {
   D1ComplianceRepository,
   type ComplianceRepository,
 } from "../infrastructure/persistence/d1/compliance.repository.impl";
+import {
+  D1MonitoringRepository,
+  type MonitoringRepository,
+} from "../infrastructure/persistence/d1/monitoring.repository.impl";
+import {
+  BuildImpactReportUseCase,
+  CollectReleasesUseCase,
+} from "../application/monitoring/monitoring.usecase";
+import { fetchReleases } from "./acl/moa-source.acl";
 
 /** Worker 运行时环境。 */
 export interface Env {
@@ -60,6 +69,8 @@ export interface Env {
   DEEPSEEK_API_KEY?: string;
   /** bge 语义层地址(可空 = 不启用语义路) */
   BGE_SERVER_URL?: string;
+  /** ⑤ 监测是否启用(可空 = 启用)。关掉后 /api/monitoring/* 返回 404。 */
+  MONITORING_ENABLED?: string;
 }
 
 /** 组装好的应用依赖。 */
@@ -71,6 +82,10 @@ export interface AppDependencies {
   conversation: ConversationService;
   compliance: ComplianceRepository;
   complianceCheck: ComplianceCheckService;
+  // ── ⑤ 法规监测 ──
+  monitoringRepo: MonitoringRepository;
+  monitoringCollect: CollectReleasesUseCase;
+  monitoringImpact: BuildImpactReportUseCase;
 }
 
 /**
@@ -140,6 +155,26 @@ export function createApp(env: Env): AppDependencies {
     },
   });
 
+  // ── ⑤ 法规监测 ──
+  // ⚠️ 领域事件目前只记录不消费 —— ① 知识库的写入路径还没开
+  //    (ADR-004 说写入走事件)。先记事件,等 ① 的 ingestRelease 就绪后接上。
+  const monitoringRepo = new D1MonitoringRepository(db);
+  const monitoringCollect = new CollectReleasesUseCase(
+    monitoringRepo,
+    {
+      async fetchReleases(pages: number, maxItems: number) {
+        return fetchReleases(pages, maxItems);
+      },
+    },
+    async (event) => {
+      console.log(
+        `[event] ${event.name} @ ${event.occurredAt} ` +
+          JSON.stringify(event.payload).slice(0, 300)
+      );
+    }
+  );
+  const monitoringImpact = new BuildImpactReportUseCase(monitoringRepo);
+
   return {
     regulations,
     graph,
@@ -148,5 +183,8 @@ export function createApp(env: Env): AppDependencies {
     conversation,
     compliance,
     complianceCheck,
+    monitoringRepo,
+    monitoringCollect,
+    monitoringImpact,
   };
 }

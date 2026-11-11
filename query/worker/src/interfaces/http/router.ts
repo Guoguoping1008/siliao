@@ -16,6 +16,13 @@
  *   POST   /api/qa/conversation             多轮问答
  *   DELETE /api/qa/conversation             清空会话
  *   POST   /api/compliance/usage            用量合规判定
+ *   GET    /api/monitoring/releases         ⑤ 已抓到的法规发布
+ *   GET    /api/monitoring/impact           ⑤ 影响面报告
+ *   GET    /api/monitoring/runs             ⑤ 抓取运行记录
+ *   POST   /api/monitoring/collect          ⑤ 手动触发抓取
+ *   GET    /api/monitoring/subscriptions    ⑤ 订阅列表
+ *   POST   /api/monitoring/subscriptions    ⑤ 新增订阅
+ *   DELETE /api/monitoring/subscriptions    ⑤ 删订阅
  *
  * ## ⚠️ 路由顺序
  *
@@ -39,6 +46,15 @@ import {
   handleClearConversation,
 } from "./routes/inquiry.routes";
 import { handleComplianceUsage } from "./routes/compliance.routes";
+import {
+  handleListReleases,
+  handleImpactReport,
+  handleListRuns,
+  handleCollect,
+  handleListSubscriptions,
+  handleCreateSubscription,
+  handleDeleteSubscription,
+} from "./routes/monitoring.routes";
 import { createApp, type Env } from "../composition-root";
 
 /**
@@ -130,6 +146,31 @@ export async function route(req: Request, env: Env): Promise<Response> {
     // ── ② 合规规则 ──
     if (path === "/api/compliance/usage" && method === "POST") {
       return await handleComplianceUsage(app, req);
+    }
+
+    // ── ⑤ 法规监测 ──
+    // ⚠️ 顺序:subscriptions 的静态路径必须在 `/api/monitoring/:something` 之类
+    //    之前,否则会被当成动态段吃掉。
+    if (path === "/api/monitoring/releases" && method === "GET") {
+      return await handleListReleases(app, req);
+    }
+    if (path === "/api/monitoring/impact" && method === "GET") {
+      return await handleImpactReport(app, req);
+    }
+    if (path === "/api/monitoring/runs" && method === "GET") {
+      return await handleListRuns(app, req);
+    }
+    if (path === "/api/monitoring/collect" && method === "POST") {
+      return await handleCollect(app, req);
+    }
+    if (path === "/api/monitoring/subscriptions" && method === "GET") {
+      return await handleListSubscriptions(app, req);
+    }
+    if (path === "/api/monitoring/subscriptions" && method === "POST") {
+      return await handleCreateSubscription(app, req);
+    }
+    if (path === "/api/monitoring/subscriptions" && method === "DELETE") {
+      return await handleDeleteSubscription(app, req);
     }
 
     return json({ error: "not_found", path }, 404);
