@@ -91,33 +91,110 @@ export type ImpactAsset =
  *
  * ⚠️ 这张表需要人工维护 —— ADR-006 的还债触发器:
  *    关键词表命中率 < 50%(抽查 20 条公告)→ 扩表。
+ *
+ * ## ⚠️ 2026-11-11 实测修正(30 条真实公告,误报率 75% → 见下)
+ *
+ * 第一版用「标签」「修订」「增补」这类**泛词**,结果 8 条可判定里 6 条是误报:
+ *   - 第1080/1069/1062/1059 号是**兽药**注册公告,正文里的「标签」是
+ *     **兽药说明书标签**,与 ③ 的 **饲料标签**(GB 10648)无关
+ *   - 第1075/1061 号是**渔业**与**兽药研究原则**,「修订」指的是
+ *     许可证样式与研究技术指导原则,与饲料物质目录无关
+ *
+ * 修正方向:
+ *   ① 泛词降级为**辅助词** —— 只有在同一条公告里同时出现领域词时才算命中
+ *   ② 领域词用**制度全名**(《饲料添加剂安全使用规范》《饲料原料目录》
+ *      《饲料添加剂品种目录》),这是本项目语料里的真实表述,精度高
+ *   ③ 加**领域排除词** —— 出现「兽药」「渔业」「农药」「农机」等
+ *      明确不属于本项目领域的内容时,直接排除该公告
  */
 const KEYWORD_RULES: Array<{ keyword: string; asset: ImpactAsset }> = [
+  // ---- 领域强特征词(制度全名,精度高) ----
   { keyword: "饲料添加剂安全使用规范", asset: "limit_rules" },
-  { keyword: "最高限量", asset: "limit_rules" },
-  { keyword: "限量", asset: "limit_rules" },
-  { keyword: "推荐添加量", asset: "limit_rules" },
-  { keyword: "使用量", asset: "limit_rules" },
-
   { keyword: "饲料添加剂品种目录", asset: "substance_catalog" },
   { keyword: "饲料原料目录", asset: "substance_catalog" },
-  { keyword: "增补", asset: "substance_catalog" },
-  { keyword: "修订", asset: "substance_catalog" },
+  { keyword: "饲料和饲料添加剂管理条例", asset: "limit_rules" },
+  { keyword: "新饲料和新饲料添加剂管理办法", asset: "substance_catalog" },
+  { keyword: "进口饲料和饲料添加剂登记管理办法", asset: "substance_catalog" },
+  { keyword: "饲料标签", asset: "label_rules" },
+  { keyword: "饲料生产许可", asset: "label_rules" },
+  // 2026-06-04 第1027号:新制定《发酵饲料管理规定》—— 实测漏报后补入
+  { keyword: "发酵饲料管理规定", asset: "substance_catalog" },
+  { keyword: "发酵饲料", asset: "substance_catalog" },
 
-  { keyword: "禁止使用", asset: "prohibition_rules" },
-  { keyword: "不得使用", asset: "prohibition_rules" },
+  // ---- 领域辅助词(必须与领域词共现才算命中) ----
+  { keyword: "限量", asset: "limit_rules" },
+  { keyword: "最高限量", asset: "limit_rules" },
+  { keyword: "推荐添加量", asset: "limit_rules" },
+  { keyword: "使用量", asset: "limit_rules" },
+  { keyword: "增补", asset: "substance_catalog" },
+  { keyword: "品种目录", asset: "substance_catalog" },
+  { keyword: "原料目录", asset: "substance_catalog" },
   { keyword: "禁止在饲料", asset: "prohibition_rules" },
   { keyword: "不得在饲料", asset: "prohibition_rules" },
-  { keyword: "禁用的", asset: "prohibition_rules" },
-
-  { keyword: "标签", asset: "label_rules" },
+  { keyword: "禁止用于饲料", asset: "prohibition_rules" },
+  { keyword: "不得用于饲料", asset: "prohibition_rules" },
+  { keyword: "在饲料和饲料添加剂中", asset: "limit_rules" },
   { keyword: "GB 10648", asset: "label_rules" },
   { keyword: "GB10648", asset: "label_rules" },
-
   { keyword: "适用范围", asset: "species_scope" },
   { keyword: "扩大适用", asset: "species_scope" },
-  { keyword: "适用范围扩大", asset: "species_scope" },
 ];
+
+/**
+ * 领域上下文词 —— 辅助词只有与这些词共现时才算命中。
+ *
+ * ⚠️ 「饲料」两个字在这两个词里出现频率很高(「饲料添加剂」),
+ *    所以匹配的是**完整制度名**而不是裸「饲料」。
+ */
+const DOMAIN_CONTEXT_WORDS = [
+  "饲料添加剂",
+  "饲料原料",
+  "饲料产品",
+  "饲料标签",
+  "饲料和饲料添加剂",
+  "新饲料",
+  "饲料生产",
+  "配合饲料",
+  "全混合日粮",
+  "预混料",
+  "浓缩料",
+  "宠物饲料",
+];
+
+/**
+ * 领域排除词 —— 命中则**整条公告排除**。
+ *
+ * ⚠️ 注意:不能只排除「兽药」,因为兽药公告里也可能提到饲料
+ *    (如「在饲料中添加兽药」的提示)。所以排除词要求**同时**
+ *    不出现任何领域上下文词 —— 也就是说,纯兽药公告被排除,
+ *    但「兽药 + 饲料」的混合公告仍会被保留(那才真需要看)。
+ */
+const DOMAIN_EXCLUSION_WORDS = ["兽药", "渔业", "农药", "农机", "植保", "种业"];
+
+/**
+ * 强特征词集合 —— 命中即独立成立,不需要领域上下文共现。
+ *
+ * 全是**制度全名**或**专有术语**,在别的领域公告里不会出现:
+ * 「饲料添加剂安全使用规范」「饲料添加剂品种目录」「饲料原料目录」
+ * 「饲料和饲料添加剂管理条例」…
+ */
+const STRONG_KEYWORDS = new Set<string>([
+  "饲料添加剂安全使用规范",
+  "饲料添加剂品种目录",
+  "饲料原料目录",
+  "饲料和饲料添加剂管理条例",
+  "新饲料和新饲料添加剂管理办法",
+  "进口饲料和饲料添加剂登记管理办法",
+  "饲料标签",
+  "饲料生产许可",
+  "发酵饲料管理规定",
+  // 下面这些表述**自带领域限定**,命中即独立成立:
+  "禁止在饲料",
+  "不得在饲料",
+  "禁止用于饲料",
+  "不得用于饲料",
+  "在饲料和饲料添加剂中",
+]);
 
 /**
  * 推断影响面。
@@ -130,20 +207,39 @@ export function inferImpactScope(release: Release): ImpactScope {
   const matchedKeywords: string[] = [];
   const affectedAssets = new Set<ImpactAsset>();
 
+  // ---- ① 领域上下文判定 ----
+  const hasDomainContext = DOMAIN_CONTEXT_WORDS.some((w) => haystack.includes(w));
+  const hasExclusion = DOMAIN_EXCLUSION_WORDS.some((w) => haystack.includes(w));
+
+  // ⚠️ 纯「其他领域」公告(兽药/渔业/农药…)且完全没有饲料上下文 → 整条排除。
+  //    「兽药 + 饲料」混合公告**不排除** —— 那才真需要人看。
+  if (hasExclusion && !hasDomainContext) {
+    return {
+      impacted: false,
+      matchedKeywords: [],
+      affectedAssets: [],
+      determinable: false,
+    };
+  }
+
+  // ---- ② 关键词匹配 ----
+  // 强特征词(制度全名)独立命中;辅助词必须与领域上下文词共现。
   for (const rule of KEYWORD_RULES) {
-    if (haystack.includes(rule.keyword)) {
-      matchedKeywords.push(rule.keyword);
-      affectedAssets.add(rule.asset);
-    }
+    if (!haystack.includes(rule.keyword)) continue;
+    const isStrong = STRONG_KEYWORDS.has(rule.keyword);
+    if (!isStrong && !hasDomainContext) continue;
+    matchedKeywords.push(rule.keyword);
+    affectedAssets.add(rule.asset);
   }
 
   // ⚠️ 判定「影响面可判定」的条件:
   //    ① 抓到了正文(没正文 → 看不到「限量改了」这种关键信息,不能算可判定)
-  //    ② 命中了至少一个受控关键词
-  //    两个条件缺一不可 —— 否则一律 `determinable=false`,不推送。
+  //    ② 命中了至少一个关键词
+  //    ③ 有领域上下文(否则可能是别的领域撞词)
+  //    三个条件缺一不可 —— 否则一律 `determinable=false`,不推送。
   const hasBody = release.body.trim().length >= 40;
   const impacted = matchedKeywords.length > 0;
-  const determinable = hasBody && impacted;
+  const determinable = hasBody && impacted && hasDomainContext;
 
   return {
     impacted,

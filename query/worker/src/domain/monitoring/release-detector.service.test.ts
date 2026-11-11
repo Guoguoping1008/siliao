@@ -236,6 +236,125 @@ describe("⑤ 领域层 · 影响面推断(ADR-004 不变量)", () => {
   });
 });
 
+describe("⑤ 领域层 · 误报防护(2026-11-11 实测 75% 误报率后修正)", () => {
+  /**
+   * 第一版关键词表用「标签」「修订」这类泛词,实测 30 条真实公告:
+   * 8 条可判定里 6 条是误报(75%),远超 ADR-006 的 30% 触发器。
+   * 修正后:同批 30 条 → 2 条可判定,2 条全真(误报率 0%)。
+   *
+   * 下面锁死这个修正 —— **不能退回泛词**。
+   */
+
+  it("⚠️ 兽药注册公告里的「标签」不算饲料标签影响", () => {
+    // 真实公告:第1080号(2026-11-09),正文 462 字,讲兽药注册证书变更
+    const rel: Release = {
+      releaseKey: "第1080号",
+      title: "中华人民共和国农业农村部公告 第1080号",
+      url: "https://www.agri.cn/zx/hxgg/202611/t20261109_8882458.htm",
+      publishedAt: "2026-11-09",
+      body:
+        "（2014）新兽药证字25号 质量标准、工艺规程、说明书和内包装标签中【作用与用途】及相关内容变更为" +
+        "“用于预防猪口蹄疫O型缅甸98（Mya-98）谱系和Cathay拓扑型旧猪毒谱系”口蹄疫O型灭活疫苗",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).not.toContain("label_rules");
+    expect(scope.determinable).toBe(false);
+  });
+
+  it("⚠️ 渔业公告里的「修订」不算物质目录影响", () => {
+    // 真实公告:第1075号(2026-11-04),讲远洋渔业捕捞许可证样式修订
+    const rel: Release = {
+      releaseKey: "第1075号",
+      title: "中华人民共和国农业农村部公告 第1075号",
+      url: "https://www.agri.cn/zx/hxgg/202611/t20261104_8881466.htm",
+      publishedAt: "2026-11-04",
+      body:
+        "为进一步规范公海渔业捕捞许可管理,根据《远洋渔业管理规定》(农业农村部令2020年第2号公布," +
+        "农业农村部令2025年第3号修订)等相关规定,农业农村部修订了中华人民共和国渔业捕捞许可证(公海)样式。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).not.toContain("substance_catalog");
+    expect(scope.determinable).toBe(false);
+  });
+
+  it("⚠️ 兽药研究技术指导原则的「修订」不算物质目录影响", () => {
+    // 真实公告:第1061号,讲 28 个兽药研究技术指导原则
+    const rel: Release = {
+      releaseKey: "第1061号",
+      title: "中华人民共和国农业农村部公告 第1061号",
+      url: "https://www.agri.cn/zx/hxgg/202610/t20261030_8880383.htm",
+      publishedAt: "2026-10-30",
+      body:
+        "为进一步加强新兽药研究技术指导工作,根据《兽药管理条例》等有关规定,我部组织制定、修订了" +
+        "《兽药安全药理学研究技术指导原则》等28个兽药研究技术指导原则,现予发布。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).not.toContain("substance_catalog");
+    expect(scope.determinable).toBe(false);
+  });
+
+  it("✅ 真变更仍能命中:饲料原料目录修订 + 标签过渡期", () => {
+    // 真实公告:第1067号(2026-09-28)
+    const rel: Release = {
+      releaseKey: "第1067号",
+      title: "中华人民共和国农业农村部公告 第1067号",
+      url: "https://www.agri.cn/zx/hxgg/202610/t20261029_8879897.htm",
+      publishedAt: "2026-09-28",
+      body:
+        "农业农村部公告第1028号对《饲料原料目录》作出修订,部分原料品种和类别名称发生变化。" +
+        "依据饲料标签有关规定,饲料产品标签中原料组成标示的饲料原料名称和类别应当与《饲料原料目录》一致。" +
+        "现决定就饲料新旧标签转换设置过渡期,至2027年5月31日。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).toContain("substance_catalog");
+    expect(scope.affectedAssets).toContain("label_rules");
+    expect(scope.determinable).toBe(true);
+  });
+
+  it("✅ 真变更仍能命中:进口饲料登记 + 增补物质 + 适用范围", () => {
+    // 真实公告:第1081号(2026-10-30)
+    const rel: Release = {
+      releaseKey: "第1081号",
+      title: "中华人民共和国农业农村部公告 第1081号",
+      url: "https://www.agri.cn/zx/hxgg/202610/t20261030_8880383.htm",
+      publishedAt: "2026-10-30",
+      body:
+        "根据《进口饲料和饲料添加剂登记管理办法》有关规定,批准160家公司生产的340种饲料和饲料添加剂产品" +
+        "在我国首次申请登记。其中增补3-硝基氧基丙-1-醇进入《饲料添加剂品种目录》,适用范围为泌乳奶牛。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).toContain("substance_catalog");
+    expect(scope.affectedAssets).toContain("species_scope");
+    expect(scope.determinable).toBe(true);
+  });
+
+  it("✅ 制度全名独立成立(不需要额外领域上下文)", () => {
+    const rel: Release = {
+      releaseKey: "第1027号",
+      title: "中华人民共和国农业农村部公告 第1027号",
+      url: "https://www.agri.cn/zx/hxgg/202606/t20260611_8843636.htm",
+      publishedAt: "2026-06-04",
+      body: "为加强发酵饲料质量安全管理,依据《饲料和饲料添加剂管理条例》及其配套规章有关要求,我部制定了《发酵饲料管理规定》。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.affectedAssets).toContain("substance_catalog");
+    expect(scope.determinable).toBe(true);
+  });
+
+  it("✅ 兽药+饲料混合公告不被排除(那才真需要人看)", () => {
+    const rel: Release = {
+      releaseKey: "第M号",
+      title: "关于在饲料中添加兽药的提示",
+      url: "https://www.agri.cn/zx/hxgg/202611/t20261109_5.htm",
+      publishedAt: "2026-11-09",
+      body: "在饲料中添加兽药时应严格遵守《饲料添加剂安全使用规范》的限量要求,禁止在饲料中使用某些兽药。",
+    };
+    const scope = inferImpactScope(rel);
+    expect(scope.determinable).toBe(true);
+    expect(scope.affectedAssets).toContain("limit_rules");
+  });
+});
+
 describe("⑤ 领域层 · 主键", () => {
   it("优先用公告号", () => {
     const rel: Release = {
