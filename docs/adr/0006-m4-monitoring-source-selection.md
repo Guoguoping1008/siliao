@@ -242,10 +242,65 @@ infrastructure/persistence/d1/
 
 ## 预期产出
 
-1. `regulation_releases` / `subscriptions` / `monitoring_runs` 三表
-2. `GET /api/monitoring/releases` · `GET /api/monitoring/impact` 两个端点
-3. **影响面报告**页:某次公告影响了哪些物质/品类,带原文引用
-4. 领域事件 `RegulationReleaseDetected` 打通 ⑤ → ①(ADR-004 的 M4 交付物)
+1. `regulation_releases` / `subscriptions` / `monitoring_runs` 三表 ✅ **已建(生产)**
+2. `GET /api/monitoring/releases` · `/impact` · `/runs` · `POST /collect` · 订阅 CRUD ✅ **已上线**
+3. **影响面报告**:按资产分组,带原文引用 ✅ **已上线**
+4. 领域事件 `RegulationReleaseDetected` 打通 ⑤ → ① ⚠️ **已发出,但消费者未接**
+   —— ① 的写入路径(`ingestRelease`)还没开,这是 M4 剩余的一块
+5. Cron 定时抓取 ✅ **已上线**(每天 3 次,UTC 0/6/12 时)
+
+---
+
+## 交付记录(2026-11-11)
+
+### 四个 commit
+
+| commit | 内容 |
+|---|---|
+| `a5443fc` | 领域层 + ACL + 真实样本单测(40 条) |
+| `7511c4b` | 关键词表误报率 75% → 0%,召回 3/3 |
+| `bf6ea26` | D1 仓储 + 应用层 + 7 个端点 |
+| `db6d420` | Cron 定时抓取 |
+
+### 生产实测
+
+```
+POST /api/monitoring/collect → found=5 new=5 bodiesOk=5 fail=0 impacted=1
+  第1081号 → substance_catalog + species_scope
+GET  /api/monitoring/releases → 5 条
+GET  /api/monitoring/impact   → totalImpacted=1, unknownCount=4
+GET  /api/monitoring/runs     → run_20261111060244 ok
+```
+
+生产 D1:`articles 3145`(未动) / `regulation_releases 5` / `monitoring_runs 2`
+
+### 门禁
+
+| 项 | 值 |
+|---|---|
+| worker 单测 | **309/309**(原 254 + 55) |
+| worker typecheck | 干净 |
+| 架构测试 | 19/19(新增 `domain/monitoring/` 已被自动覆盖) |
+| 检索 eval | 未变(recall@10 76.0% / MRR 0.647) |
+
+### 本次抓到的真 bug
+
+**页脚导航链接被当成公告** —— 「关于我们」「网站声明」「联系我们」的 URL 形如
+`/dbxx/202311/t20231108_8053689.htm`,**同样匹配日期路径模式**。
+纯日期模式会把它们抓进公告列表。
+
+修法:额外要求 URL 落在**公告栏目段**内(`/zx/hxgg/`)—— 栏目段比 class/id
+稳定得多,改版时几乎不动。已加回归测试锁死。
+
+### 剩余缺口(诚实列)
+
+| 缺口 | 原因 |
+|---|---|
+| `RegulationReleaseDetected` **无消费者** | ① 知识库的写入路径(`ingestRelease`)未开 —— 新法规版本入库仍未实现 |
+| **无推送通道** | 订阅表建了,但只落库不发通知(要接邮件/Webhook/企业微信) |
+| **变更检测只到「公告级」** | 同一份公告被修订(revised)能检出,但**条文级 diff** 未做 —— 当前粒度是「这份公告变了」,不是「哪一条变了」 |
+| **关键词表需人工维护** | 新制度名不在表里就会漏(实测已漏过 1 次:《发酵饲料管理规定》) |
+| **无爬虫健康告警** | 失败会写 `monitoring_runs` + console.error,但**没有外部监控在盯** console.error |
 
 ---
 

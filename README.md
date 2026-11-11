@@ -11,7 +11,7 @@
 > | ③ 知识问答 | 🟢 生产可用 · **但延迟 37-63s**(reasoning 模型所致) |
 > | ④ 知识图谱 | 🟢 生产可用 · 481 实体 / 1951 关联 / 117 别名 |
 > | ② 用量合规速查 | 🟡 表有数据但**闸门未开** —— 37 规则全 `pending` → 一律 `not_covered` |
-> | ⑤ 法规监测 | ⚪ 未开工(M4,4-6 周) |
+> | ⑤ 法规监测 | 🟢 **已上线** · 每天 3 次自动抓取 · 误报率 0% / 召回 3/3 |
 >
 > **当前唯一挡住业务上线的事**:37 条规则人工校核(1-2 小时)。
 > 完整报告:[`docs/project-status-2026-11-09.md`](docs/project-status-2026-11-09.md) / `.html`
@@ -158,3 +158,5 @@ npm run dev
 - bge 语义召回:`evals/bge_m3_cache.json` 需为新语料重算(`build/export/embed_articles.py`),
   生产 Worker 通过 `BGE_SERVER_URL` 访问外部 bge 服务(见 `build/proxy/`)
 - GraphRAG 真跑:需 DeepSeek API Key
+- ⑤ 法规监测:已上线,每天 3 次自动抓取农业农村部公告(`/api/monitoring/*`),
+  详见 [`docs/adr/0006-m4-monitoring-source-selection.md`](docs/adr/0006-m4-monitoring-source-selection.md)

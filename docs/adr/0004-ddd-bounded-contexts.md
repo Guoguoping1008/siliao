@@ -433,6 +433,11 @@ HTTP 调用形态(`await fetch(...)` / `fetch("http://...")` / `return fetch(...
 
 ⑤ 监测(爬虫 + 差异检测)落地时,才建 `monitoring/` 上下文与事件机制。**不提前造**。
 
+> ✅ **2026-11-11:M4 已落地**(ADR-006)。`monitoring/` 上下文已建:
+> 领域层(纯函数判定)· ACL(政府网站防腐层)· D1 三表 · 7 个端点 · Cron 定时抓取。
+> 事件 `RegulationReleaseDetected` **已发出但无消费者** —— ① 的写入路径
+> (`ingestRelease`)未开,这是 M4 剩余的一块。
+
 ---
 
 ## 取舍
