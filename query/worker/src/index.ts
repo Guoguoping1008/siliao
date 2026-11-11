@@ -31,10 +31,26 @@
  */
 
 import { route } from "./interfaces/http/router";
+import { runScheduledMonitoring } from "./interfaces/http/scheduled";
 import type { Env } from "./interfaces/composition-root";
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     return route(req, env);
+  },
+
+  /**
+   * Cron 定时任务 —— ⑤ 法规监测的自动抓取。
+   *
+   * ⚠️ **失败必须告警而非静默** —— `runScheduledMonitoring` 内部会把失败
+   *    写进 `monitoring_runs` 并 console.error。这里不吞异常:让 Workers 的
+   *    错误日志捕获到,便于外部监控按 error 级告警。
+   */
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(runScheduledMonitoring(controller, env));
   },
 };
