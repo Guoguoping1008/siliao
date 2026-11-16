@@ -48,8 +48,11 @@ def build_db() -> sqlite3.Connection:
     con = sqlite3.connect(":memory:")
     con.executescript(SCHEMA.read_text(encoding="utf-8"))
     con.executescript(SEED.read_text(encoding="utf-8"))
-    if SEED_PAGES_M3.exists() and SEED_PAGES_M3.stat().st_size > 0:
-        con.executescript(SEED_PAGES_M3.read_text(encoding="utf-8"))
+    # ⚠️ **不要**加载 seed_pages_m3.sql。
+    #    它是 2023 版旧语料(feed-law-collection-2023-full)的灌库脚本,已作废。
+    #    生产 D1 与生产 bge 语料里都没有它(实测 legacy = 0)。
+    #    加载它会凭空多出 515 条幽灵条文 —— 这些条文在 D1 里不存在,
+    #    语义层召回它们会返回**空正文**,比召回不到更糟。
     return con
 
 
@@ -172,9 +175,16 @@ def main() -> int:
         print(f"[resume] loaded {len(done)} existing embeddings from {OUT}", flush=True)
 
     # Load articles
+    #
+    # ⚠️ 读 **articles** 表,不是 articles_fts。
+    #    articles_fts 少了 186 条(封面 000封面 + 目录 001目录 被刻意排除,
+    #    它们不是可检索内容)。但生产 bge cache 是 **3145 条 = 全部 articles**
+    #    (实测:生产 cache 含封面 5 条、目录 181 条),所以必须跟生产对齐,
+    #    否则 bge 语料和 D1 对不上 —— 语义层召回一个 D1 里没有的 article_id,
+    #    Worker hydrate 时拿不到正文,返回空条目(比召回不到更糟)。
     con = build_db()
     rows = con.execute(
-        "SELECT article_id, doc_id, text FROM articles_fts"
+        "SELECT article_id, doc_id, body FROM articles ORDER BY article_id"
     ).fetchall()
     print(f"[scan] {len(rows)} articles from sqlite", flush=True)
 

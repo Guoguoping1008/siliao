@@ -51,9 +51,22 @@ def extract_articles() -> list[tuple[str, str, str]]:
     con = sqlite3.connect(":memory:")
     con.executescript(SCHEMA.read_text(encoding="utf-8"))
     con.executescript(SEED.read_text(encoding="utf-8"))
-    if SEED_PAGES_M3.exists() and SEED_PAGES_M3.stat().st_size > 0:
-        con.executescript(SEED_PAGES_M3.read_text(encoding="utf-8"))
-    rows = con.execute("SELECT article_id, doc_id, text FROM articles_fts").fetchall()
+    # ⚠️ **不要**加载 seed_pages_m3.sql。
+    #    它是 2023 版旧语料(feed-law-collection-2023-full)的灌库脚本,
+    #    已经作废 —— 生产 D1 和生产 bge 语料里都没有它
+    #    (实测:D1 legacy articles = 0,bge cache legacy docs = 0)。
+    #    加载它会凭空多出 515 条幽灵条文(3493 vs 真实的 3164),
+    #    灌回生产就是**污染**(这些条文在 D1 里根本不存在,检索会返回空).
+    #
+    # ⚠️ 读 **articles** 表,不是 articles_fts。
+    #    articles_fts 少 186 条(封面 000封面 + 目录 001目录 被刻意排除)。
+    #    但 articles_cache.json 是 bge_server 的 **excerpt 来源**
+    #    (bge_server.py:147 `_corpus_text = {aid: meta[1] ...}`),
+    #    必须覆盖 bge_m3_cache.json 里的每一条,否则语义层召回返回空 excerpt。
+    #    生产 cache 3145 条 = 全部 articles(含封面 5 + 目录 181)—— 照此对齐。
+    rows = con.execute(
+        "SELECT article_id, doc_id, body FROM articles ORDER BY article_id"
+    ).fetchall()
     return [(r[0], r[1], r[2]) for r in rows]
 
 
