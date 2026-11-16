@@ -2,9 +2,86 @@
 
 - **报告日期**: 2026-11-15
 - **测量方式**: 生产环境实测 + 本地门禁实跑 + D1 远程直查(非文档复述)
-- **代码基线**: `deploy/c-b-hybrid` @ `b22d118`(= `origin/deploy/c-b-hybrid`,工作区干净)
-- **生产地址**: 前端 https://siliao-web.pages.dev · API https://siliao-api.guoguoping.workers.dev
-- **语料**: `minimax/` 1021 页 → 196 文档 / 529 章 / 3145 条文
+**代码基线**: `deploy/c-b-hybrid` @ `6ff2bf0`(GB 10648 语料已导入生产)
+**生产地址**: 前端 https://siliao-web.pages.dev · API https://siliao-api.guoguoping.workers.dev
+**语料**: `minimax/` 1021 页 → 196 文档 / 529 章 / 3145 条文
+
+---
+
+## 〇、GB 10648—2013 导入(2026-11-16)
+
+### 做了什么
+
+用 `GB 10648-2013 饲料标签.pdf` 覆盖了语料树里 `04标准及标准目录/01_饲料标签/` 的 10 个文件,
+并把增量同步到生产 D1 + 生产 bge 语料。
+
+**这个 PDF 的文本层是坏的** —— 字体是 Identity-H CID 但没带可用的 ToUnicode CMap,
+`page.get_text()` 抽出来是 `犐犆犛６５．１２０` 这种乱码,但**渲染出来完全正常**。
+所以只能走 OCR(新增 `build/ocr_pdf.py` + `build/assemble_gb10648.py`)。
+
+### 修掉的 6 处原文错误(逐条与 PDF 页面目视核对)
+
+| # | 位置 | 旧(错) | 新(PDF 正确) |
+|---|---|---|---|
+| 1 | 3.14 术语名 | 许可证证明文件 | **许可**证明文件 |
+| 2 | 3.18 定义 | 预混合物 | 预混合**物质** |
+| 3 | 5.1 卫生要求 | 「符合饲料卫生标准」 | 「**本产品**符合饲料卫生标准」 |
+| 4 | 5.2.4 | 预混合饲料 | **复合**预混合饲料 |
+| 5 | 修改单第 2 条 | 本品含有 / 醒目字体 | **本产品**含有 / 醒目**标**字体 |
+| 6 | 5.2.4 末句 | 并标明饲喂对象和饲喂方法 | 并标明饲喂对象。可在通用名称前(或后)标示膨化、颗粒… |
+
+### 修掉的 2 处结构性问题(会改变检索行为)
+
+1. **标题被拆成两行** —— OCR 按版式输出 `### 3.1` + `#### 饲料标签 feed label`。
+   ingest 按「一行一标题」切,拆开后条文标题变成裸编号「3.1」,搜「饲料标签」找不到这一条。
+2. **章内小节被标成 H2** —— `5.4/5.5/5.6` 应是 H3(条),OCR 给了 H2(章)。
+   ingest 把 H2 当 chapter、H3 当 article,于是「使用说明」**从 articles 表消失**。
+
+### 生产实测
+
+| 项 | 导入前 | 导入后 |
+|---|---|---|
+| D1 articles | 3145 | **3164** |
+| D1 articles_fts | 2959 | **2978** |
+| D1 chapters | 529 | **531** |
+| bge 语料 corpus_size | 3145 | **3164** |
+| **GB10648 在 FTS 里的条数** | **0** | **50** |
+
+> ⚠️ **此前整份 GB 10648 从未被全文检索到** —— 生产 `articles` 表里有 50 条,
+> 但 `articles_fts` 里是 **0 条**。搜「饲料标签标示的基本内容」现在 20 命中里 16 条是它。
+
+- 检索 eval:recall@10 **76.0%** / MRR **0.647** —— 与基线严丝合缝
+- 12 条失败用例与导入前**逐条完全一致**(`diff` 无差异)
+- 引用准确率 100% · worker 单测 309/309
+- D1 同步幂等:再跑 `--check` 差异全 0
+
+### 同步时踩到的三个坑(都会静默出错)
+
+1. **FK 顺序**:`articles.chapter_id → chapters`、`articles.doc_id → documents`。
+   先灌 articles 报 `SQLITE_CONSTRAINT_FOREIGNKEY`。必须 documents → chapters → articles。
+2. **article_id 会被复用** —— 最阴的一个:
+   旧 `p001` = 修改单全文 → 新 `p001` = 封面;旧 `a030` = 5.11 → 新 `a030` = 5.4.1。
+   FTS 差集如果只比「存在与否」,这两条永远「存在」→ 永远检测不到变更 →
+   生产 FTS 里留着旧文(「醒目字体」「本品含有」这些错字)。
+   改成比**内容**才发现 31 条要重灌。
+3. **生产 articles/chapters 表比本地 schema.sql 多一列**(生产 chapters 有 `body TEXT`)。
+   列集合必须按 `PRAGMA table_info` 取。
+
+### 同步口径修正(2 处,原来都是错的)
+
+1. **不要加载 `seed_pages_m3.sql`** —— 那是 2023 版旧语料,已作废(生产 legacy = 0)。
+   加载它会凭空多出 515 条幽灵条文(3493 vs 真实 3164),语义层召回它们返回**空正文**。
+2. **读 `articles` 表,不是 `articles_fts`** —— `articles_fts` 少 186 条
+   (封面 + 目录被刻意排除)。但生产 bge cache 是 3145 = 全部 articles,
+   且 `articles_cache.json` 是 bge_server 的 excerpt 来源,必须全覆盖。
+
+### 新增脚本
+
+| 脚本 | 作用 |
+|---|---|
+| `build/ocr_pdf.py` | PDF → 逐页渲染 → MiniMax VLM OCR → Markdown(逐页落盘 + 断点续跑 + 剥 `<think>`) |
+| `build/assemble_gb10648.py` | 按章节边界切片写回语料树(含标题合并 + 层级修正) |
+| `build/export/sync_d1_corpus.py` | 按精确差集同步生产 D1(INSERT/UPDATE,FK 安全顺序,幂等) |
 
 ---
 
@@ -306,6 +383,23 @@ query/worker/src/
 9. **`/api/qa` 的 body 字段是 `q`**(别名 `question` / `ask`),且 `stream` 可选。
    **写错字段名会静默返回 400 `missing_query`**,不会报错提示。
 10. **`/api/compliance/usage` 必须 `value` 数字 + `unit` 必填** —— 缺一个都是 400。
+11. **GB 10648 的 PDF 文本层是坏的** —— Identity-H CID 但没有 ToUnicode CMap,
+    `get_text()` 抽出来是乱码,**渲染却完全正常**。遇到这种 PDF 只能 OCR,
+    别在「提取文本」上浪费时间。
+12. **`MiniMax-Text-01` 已被 provider 下线**(404),`mm_ocr.py` / `mm_table_vlm.py`
+    里的默认模型会静默失败后回退到 `MiniMax-M3`。
+13. **reasoning 模型会吐 `<think>` 思考块** —— 不剥掉会污染语料(而且这段话会进 D1 被检索到)。
+14. **`ingest_minimax.py` 把 `minimax/` 下任何非「`<4位数字>.md`」的目录当成一份新文档**
+    —— OCR 的工作目录放在 `minimax/` 里会被吃成一个新文档(documents 196 → 197)。
+    工作产物要放语料树**外面**。
+15. **article_id 会被复用** —— 语料重切后,同一个 id 可能对应完全不同的正文。
+    做增量同步时,FTS 差集必须比**内容**,不能只比「存在与否」。
+16. **Windows 终端发中文 JSON 给 curl 会变乱码** —— 实测中文问句到 Worker 手里
+    16/22 个字符变成 U+FFFD,导致检索完全跑偏、LLM 答「未找到相关规定」。
+    验证接口要用 Python `urllib`(显式 `.encode('utf-8')` + 浏览器 User-Agent,
+    否则 403)。**这会伪装成「检索坏了」,极易误判。**
+17. **wrangler OAuth token TTL 只有 1 小时** —— 过期后 D1 写入报 401。
+    用 `python build/export/refresh_cf_token.py` 刷新(过期也能用)。
 
 ---
 
