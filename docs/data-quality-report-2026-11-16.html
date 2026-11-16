@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>饲料法规 RAG · 数据质量报告 2026-11-16</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --fg:#1a1d21; --fg2:#4a5158; --fg3:#79828c;
+  --bd:#e3e6ea; --bd2:#eef0f3;
+  --ok:#0f7b4f; --ok-bg:#e6f4ed;
+  --warn:#a86400; --warn-bg:#fdf3e0;
+  --idle:#5b6470; --idle-bg:#eef0f3;
+  --bad:#b3261e; --bad-bg:#fdecea;
+  --accent:#1f5f9e; --accent-bg:#e8f0f8;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14171a; --card:#1c2024; --fg:#e6e9ec; --fg2:#b0b8c0; --fg3:#7d8791;
+    --bd:#2c3238; --bd2:#252a30;
+    --ok:#5fd39a; --ok-bg:#12301f;
+    --warn:#e5b567; --warn-bg:#33270e;
+    --idle:#9aa4ae; --idle-bg:#252a30;
+    --bad:#f28b82; --bad-bg:#3a1c19;
+    --accent:#7ab8f0; --accent-bg:#152938;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:0; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.7; -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
+header{
+  background:var(--card);border:1px solid var(--bd);border-radius:12px;
+  padding:20px;margin-bottom:18px;
+}
+h1{font-size:21px;margin:0 0 10px;line-height:1.35}
+.sub{color:var(--fg3);font-size:12.5px;line-height:1.9}
+.sub b{color:var(--fg2);font-weight:600}
+h2{
+  font-size:17px;margin:30px 0 12px;padding-bottom:8px;
+  border-bottom:2px solid var(--bd);scroll-margin-top:12px;
+}
+h3{font-size:15px;margin:20px 0 8px;color:var(--fg)}
+p{margin:9px 0}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:16px}
+.card-t{font-size:12px;color:var(--fg3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd2);vertical-align:top}
+th{color:var(--fg3);font-weight:600;font-size:12px;letter-spacing:.03em;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td code,th code{font-family:var(--mono);font-size:12px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--fg2);border:1px solid var(--bd2)}
+pre{
+  background:var(--bg);border:1px solid var(--bd);border-radius:8px;
+  padding:12px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+  line-height:1.6;color:var(--fg2);margin:10px 0;
+}
+.tag{
+  display:inline-block;padding:1px 8px;border-radius:20px;font-size:11.5px;
+  font-weight:600;white-space:nowrap;line-height:1.7;
+}
+.t-ok{background:var(--ok-bg);color:var(--ok)}
+.t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-idle{background:var(--idle-bg);color:var(--idle)}
+.t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-acc{background:var(--accent-bg);color:var(--accent)}
+.lead{
+  background:var(--accent-bg);border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;padding:12px 14px;margin:12px 0;color:var(--fg);
+}
+.note{
+  background:var(--warn-bg);border-left:3px solid var(--warn);
+  border-radius:0 8px 8px 0;padding:12px 14px;margin:12px 0;color:var(--fg);
+}
+.ok-box{
+  background:var(--ok-bg);border-left:3px solid var(--ok);
+  border-radius:0 8px 8px 0;padding:12px 14px;margin:12px 0;color:var(--fg);
+}
+ul,ol{padding-left:22px;margin:9px 0}
+li{margin:5px 0}
+.toc{
+  background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 18px;
+  display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;
+}
+.toc a{
+  font-size:12.5px;color:var(--fg2);text-decoration:none;padding:4px 10px;
+  border:1px solid var(--bd);border-radius:20px;background:var(--bg);
+}
+.toc a:hover{border-color:var(--accent);color:var(--accent)}
+footer{color:var(--fg3);font-size:12px;text-align:center;padding:24px 10px;line-height:1.9}
+.flow{
+  background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px;
+  font-family:var(--mono);font-size:12px;line-height:1.85;white-space:pre;overflow-x:auto;
+}
+a{color:var(--accent)}
+@media (max-width:640px){
+  body{font-size:14.5px}
+  .wrap{padding:14px 12px 44px}
+  section{padding:14px}
+  h1{font-size:18.5px}
+  h2{font-size:16px}
+  table{font-size:12.5px}
+  th,td{padding:7px 6px}
+  th{font-size:11px}
+  pre{font-size:11.5px;padding:10px}
+  .flow{font-size:10.5px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>饲料法规 RAG · 数据质量报告</h1>
+  <div class="sub">
+    <b>报告日期</b> 2026-11-16　·　<b>测量方式</b> 生产 D1 直查 + 生产接口实调 + 本地语料全量比对（非文档复述）<br>
+    <b>体检对象</b> <code>siliao-db</code>（生产 D1）· 语料源头 <code>minimax/</code> 1021 页<br>
+    <b>体检脚本</b> <code>build/export/quality_report.py</code>（25 项检查，可重复执行）<br>
+    <b>代码基线</b> <code>deploy/c-b-hybrid @ 69a525d</code>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#s1">结论速览</a>
+  <a href="#s2">语料规模</a>
+  <a href="#s3">阻塞项</a>
+  <a href="#s4">三个警告</a>
+  <a href="#s5">通过的 17 项</a>
+  <a href="#s6">指标基线</a>
+  <a href="#s7">建议</a>
+  <a href="#s8">复现方式</a>
+  <a href="#s9">查不出来的</a>
+</nav>
+
+<section id="s1">
+  <div class="card-t">一 · 结论速览</div>
+  <div class="lead">
+    <b>语料整体健康。</b> 17 项通过 / 3 项警告 / 1 项业务阻塞 / 0 项数据损坏。
+  </div>
+  <div class="tw"><table>
+    <tr><th>维度</th><th>结论</th><th>依据</th></tr>
+    <tr><td>结构完整性</td><td><span class="tag t-ok">完好</span></td><td>外键零悬挂、层级完整、标题无退化、排序无冲突</td></tr>
+    <tr><td>索引一致性</td><td><span class="tag t-ok">完好</span></td><td>FTS 与 articles 标题全对齐；bge 语料 3164 = D1 3164，双向零缺口</td></tr>
+    <tr><td>数据纯净度</td><td><span class="tag t-ok">完好</span></td><td>无旧语料残留、无乱码、无 article_id 复用残留</td></tr>
+    <tr><td>检索链路</td><td><span class="tag t-ok">健康</span></td><td>4/4 条查询全部命中 20 条，<code>degraded=false</code></td></tr>
+    <tr><td>溯源能力</td><td><span class="tag t-ok">完好</span></td><td>37 条规则 + 387 条物质目录全部可回溯到实际条文</td></tr>
+    <tr><td><b>文本纯净度</b></td><td><span class="tag t-warn">有残留</span></td><td><b>1572 处 HTML 实体未反转义</b>（<code>&amp;lt;</code> / <code>&amp;gt;</code>）</td></tr>
+    <tr><td><b>双语覆盖</b></td><td><span class="tag t-warn">有缺口</span></td><td><b>313/387 物质缺英文名</b> → 英文名查不到实体</td></tr>
+    <tr><td><b>内容冗余</b></td><td><span class="tag t-warn">有重复</span></td><td><b>15 条条文与同文档其他条文正文完全相同</b></td></tr>
+    <tr><td><b>② 合规速查</b></td><td><span class="tag t-bad">业务阻塞</span></td><td>规则 37 + 目录 387 <b>双闸门全关</b> → 恒返回 <code>not_covered</code></td></tr>
+  </table></div>
+  <div class="ok-box">
+    <b>一句话</b>：这批数据<b>结构上没有问题</b> —— 没有悬挂引用、没有乱码、没有索引漂移、没有旧数据残留。
+    剩下的问题分两类：<b>① 文本层的小瑕疵</b>（HTML 实体未反转义、重复条文、缺英文名），
+    <b>② 一个业务闸门</b>（合规速查需人工校核）。<b>没有一条数据是「坏」的到需要重做。</b>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="card-t">二 · 语料规模</div>
+  <div class="tw"><table>
+    <tr><th>表</th><th>条数</th><th>说明</th></tr>
+    <tr><td><code>articles</code></td><td><b>3164</b></td><td>检索单元（条文级），含封面/目录 186 条</td></tr>
+    <tr><td><code>articles_fts</code></td><td><b>2978</b></td><td>全文索引（刻意排除封面/目录 186 条）</td></tr>
+    <tr><td><code>chapters</code></td><td><b>531</b></td><td>章节（含 4 个 GB 标准内部章）</td></tr>
+    <tr><td><code>documents</code></td><td><b>196</b></td><td>文档</td></tr>
+    <tr><td><code>entities</code></td><td>481</td><td>387 物质 + 94 概念</td></tr>
+    <tr><td><code>entity_articles</code></td><td>1951</td><td>实体↔条文关联</td></tr>
+    <tr><td><code>entity_aliases</code></td><td>117</td><td>别名（一对一，无歧义）</td></tr>
+    <tr><td><code>substance_catalog</code></td><td>387</td><td>物质目录</td></tr>
+    <tr><td><code>compliance_rules</code></td><td>37</td><td>合规规则</td></tr>
+  </table></div>
+  <p><b>正文总量</b>：1,274,713 字符（平均 403 字/条）</p>
+
+  <h3>来源域分布</h3>
+  <div class="tw"><table>
+    <tr><th>域</th><th>条文数</th><th>占比</th></tr>
+    <tr><td>02制度文件</td><td>1659</td><td>52.4%</td></tr>
+    <tr><td>03相关法律法规文件</td><td>1156</td><td>36.5%</td></tr>
+    <tr><td>04标准及标准目录</td><td>111</td><td>3.5%</td></tr>
+    <tr><td>01法规</td><td>52</td><td>1.6%</td></tr>
+    <tr><td>001目录</td><td>181</td><td>5.7%</td></tr>
+    <tr><td>000封面</td><td>5</td><td>0.2%</td></tr>
+  </table></div>
+
+  <h3>正文长度分档</h3>
+  <div class="tw"><table>
+    <tr><th>档位</th><th>条数</th><th>占比</th><th>含义</th></tr>
+    <tr><td>&lt; 30 字</td><td>117</td><td>3.7%</td><td>基本只有标题</td></tr>
+    <tr><td>30–100</td><td>1275</td><td>40.3%</td><td>单条款</td></tr>
+    <tr><td>100–500</td><td>1260</td><td>39.8%</td><td>一段一条</td></tr>
+    <tr><td>500–1500</td><td>201</td><td>6.4%</td><td>多段</td></tr>
+    <tr><td>&gt; 1500</td><td>311</td><td>9.8%</td><td>长条文（表格/附录为主）</td></tr>
+  </table></div>
+  <div class="lead">
+    长度分布<b>双峰</b>（40% 在 100 字以下、10% 超过 1500 字）说明切分粒度是
+    「条款级」而非「固定字数」—— 这是对的：法规条文本就有长短，固定切分会切断语义。
+  </div>
+</section>
+
+<section id="s3">
+  <div class="card-t">三 · 🔴 阻塞项</div>
+  <h3>合规速查双闸门未开</h3>
+  <pre>compliance_rules    : 37 条 | pending 37  | reviewed 0
+substance_catalog   : 387 条 | pending 387 | reviewed 0</pre>
+  <p>生产实测（参数齐全）：</p>
+  <pre>POST /api/compliance/usage
+{"substance":"维生素C","species":"猪","value":200,"unit":"mg/kg"}
+→ {"status":"not_covered","matchedSubstance":null,
+   "coverageGap":{"reason":"规则库未覆盖该物质/动物组合, 需人工确认",
+                  "relatedArticles":[...《条例》第二十五条...]}}</pre>
+  <p>value=150 / 200 / 500 三档返回<b>完全一致</b> —— 闸门在匹配之前就拦住了。</p>
+  <div class="note">
+    <b>这不是数据缺陷，是安全闸门按设计工作</b>（未审核规则不参与判定）。
+    但业务效果等价于「功能不可用」，且<b>必须两道闸门都开</b>才生效。
+  </div>
+  <div class="tw"><table>
+    <tr><th>只开规则</th><th>只开目录</th><th>都开</th></tr>
+    <tr><td>❌ 仍 <code>not_covered</code></td><td>❌ 仍 <code>not_covered</code></td><td>✅ 13/13 命中判定</td></tr>
+  </table></div>
+  <p>依据：<code>build/export/apply_review_checklist.py</code> 开头的实测记录（2026-11-03）。
+  <code>review_checklist.csv</code> 37 行的 <code>decision</code> 列 <b>100% 为空</b> —— 一条都没校核过。</p>
+</section>
+
+<section id="s4">
+  <div class="card-t">四 · 🟡 三个警告</div>
+
+  <h3>4.1 HTML 实体未反转义（1572 处 / 16 条条文）</h3>
+  <p>OCR 把 <code>&lt;</code> 转义成 <code>&amp;lt;</code> 后<b>没有反转义</b>就写进了正文：</p>
+  <pre>原文应是:  1 ）一级母离子 m/z&lt;200 时，其绝对偏差应&lt;1 mDa
+库里是:    1 ）一级母离子 m/z&amp;lt;200 时，其绝对偏差应&amp;lt;1 mDa
+
+原文应是:  辅酶Q10渣&lt;sup&gt;4e&lt;/sup&gt;
+库里是:    辅酶Q10渣&amp;lt;sup&amp;gt;4e&amp;lt;/sup&amp;gt;</pre>
+  <div class="tw"><table>
+    <tr><th>实体</th><th>出现次数</th></tr>
+    <tr><td><code>&amp;lt;</code></td><td>1522</td></tr>
+    <tr><td><code>&amp;gt;</code></td><td>50</td></tr>
+  </table></div>
+  <p><b>影响</b>：</p>
+  <ol>
+    <li>用户看到的正文带原始标记，不是「&lt;」</li>
+    <li><b>带符号的查询匹配不上</b> —— 搜 <code>m/z&lt;200</code> 命中不了正文里的 <code>m/z&amp;lt;200</code></li>
+    <li>上标标签彻底不可读（<code>&lt;sup&gt;4e&lt;/sup&gt;</code> 本意是「4e」的上标）</li>
+  </ol>
+  <p><b>涉及文档</b>：《饲料原料目录》《饲料添加剂品种目录》《饲料中风险物质的筛查与确认导则》等。</p>
+  <div class="note">
+    <b>修复成本</b>：低 —— 一次批量反转义（<code>html.unescape</code>），但要<b>同步重灌 FTS</b>
+    （FTS 的 text 是正文派生的，不重灌会留下两套不一致的正文）。
+  </div>
+
+  <h3>4.2 物质目录缺英文名（313 / 387 条 = 81%）</h3>
+  <pre>no_en: 313 / 387     no_src: 0 / 387</pre>
+  <p>《饲料添加剂品种目录》<b>本身是双语的</b>，缺 <code>name_en</code> 是抽取环节的缺口，不是源数据没有。</p>
+  <p><b>实测影响</b>（生产实体接口）：</p>
+  <div class="tw"><table>
+    <tr><th>查询</th><th>结果</th></tr>
+    <tr><td><code>/api/entity/烟酰胺</code></td><td>✅ 命中，2 条关联条文</td></tr>
+    <tr><td><code>/api/entity/Nicotinamide</code></td><td>❌ <b>entity_not_found</b></td></tr>
+  </table></div>
+  <p>即<b>英文名检索不到实体</b>。双语检索目前只对那 74 条有英文名的物质有效。</p>
+
+  <h3>4.3 正文完全重复（15 条 / 6 组）</h3>
+  <p>同一文档内，正文<b>逐字节相同</b>的条文：</p>
+  <div class="tw"><table>
+    <tr><th>重复数</th><th>文档</th><th>长度</th><th>内容</th></tr>
+    <tr><td>×3</td><td>饲料添加剂安全使用规范</td><td>2986 字</td><td><code>0.6 ～0.7 mg/kg</code> 表格段</td></tr>
+    <tr><td>×3</td><td>「瘦肉精」专项整治通知</td><td>2996 字</td><td>养殖场表格</td></tr>
+    <tr><td>×3</td><td>转基因生物安全评价指南</td><td>2976 字</td><td>改良试验数据</td></tr>
+    <tr><td>×2</td><td>宠物饲料管理公告</td><td>55 字</td><td>（五）主要机构负责人证书</td></tr>
+    <tr><td>×2</td><td>宠物饲料管理公告</td><td>46 字</td><td>（四）企业组织机构图</td></tr>
+  </table></div>
+  <p><b>成因</b>：扫描件同一表格跨页被重复 OCR / 切分时被切成了多条。
+  长正文（~3000 字，正好是切分上限）重复 3 次 = <b>同一表格的 3 个分片内容雷同</b>。</p>
+  <p><b>影响</b>：检索会返回多条一模一样的命中，挤占 top-k 名额，降低结果多样性。
+  <b>不算错误</b>（内容本身是对的），但属于可以清理的冗余。</p>
+</section>
+
+<section id="s5">
+  <div class="card-t">五 · 🟢 通过的 17 项</div>
+  <div class="tw"><table>
+    <tr><th>检查项</th><th>结果</th></tr>
+    <tr><td><b>外键完整性</b></td><td>articles→chapters / articles→documents / entity_articles→articles / →entities <b>零悬挂</b></td></tr>
+    <tr><td><b>索引一致性</b></td><td>FTS 标题与 articles 标题<b>全部对齐</b>（正文改了 FTS 跟着改了）</td></tr>
+    <tr><td><b>FTS 覆盖</b></td><td>186 条未进 FTS，<b>全部来自封面/目录</b>（刻意排除，非可检索内容）</td></tr>
+    <tr><td><b>无旧语料残留</b></td><td><code>feed-law-collection-2023-full</code> 条文数 = 0</td></tr>
+    <tr><td><b>无 article_id 复用残留</b></td><td>生产 FTS 标题与语料全部一致，无同 id 不同文</td></tr>
+    <tr><td><b>无乱码</b></td><td>无 U+FFFD 连续段、无 CMap 乱码</td></tr>
+    <tr><td><b>标题无退化</b></td><td>无「只剩编号」的标题（不是 <code>3.1</code> 这种裸编号）</td></tr>
+    <tr><td><b>层级完整</b></td><td>每个可检索文档都有章，每个可检索章都有条文</td></tr>
+    <tr><td><b>排序无冲突</b></td><td>章节内 <code>sort_order</code> 唯一，ORDER BY 渲染顺序正确</td></tr>
+    <tr><td><b>图谱引用完整</b></td><td>entity_articles / entity_aliases 引用全部可落地</td></tr>
+    <tr><td><b>目录物质全覆盖</b></td><td>387 条 <code>sub_*</code> 物质实体 orphans = 0</td></tr>
+    <tr><td><b>别名无歧义</b></td><td>无一对多别名 —— 查别名能确定唯一实体</td></tr>
+    <tr><td><b>规则可溯源</b></td><td>37 条规则 <code>source_article_id</code> 全部落到实际条文</td></tr>
+    <tr><td><b>物质目录可溯源</b></td><td>387 条全部有 <code>source_article_id</code></td></tr>
+    <tr><td><b>bge 语料对齐</b></td><td>bge 3164 = D1 3164，双向零缺口；excerpt 源全覆盖</td></tr>
+    <tr><td><b>检索链路健康</b></td><td>4/4 查询全部命中 20 条，<code>degraded=false</code></td></tr>
+    <tr><td><b>可检索正文非空</b></td><td>封面/目录的 1 条空正文是扫描件本就空白，不进 FTS 无害</td></tr>
+  </table></div>
+
+  <h3>两个「看起来像问题但其实不是」的</h3>
+  <p><b>① 33 个孤儿实体</b> —— 分布 <code>ACTION 7 / SUBSTANCE 5 / 空 5 / PARTY 4 / CERTIFICATE 3 / PENALTY 2 / LAW 2 / DOCUMENT 2 / 其他 4</code>。
+  ADR-004 明确决策：「④ 图谱保持空壳直到有真实用例」，实体↔实体关系<b>刻意不排期</b>。
+  其中 5 个标成 <code>SUBSTANCE</code> 的是 GraphRAG 抽取的概念（「产品」「产品质量」）<b>类型标错</b>，但不影响检索。</p>
+  <p><b>② 章节内 <code>sort_order</code> 有跳号</b> —— <code>sort_order</code> 是<b>全局</b>编号（跨章节递增），
+  同一文档多个章节共享编号空间，单章节内天然有跳号。
+  实测「十四五」规划文档 3 个章节都有跳号，但 <code>ORDER BY sort_order</code> 渲染出来<b>顺序完全正确</b>。
+  判据应该是「排序后不重复」而不是「连续无跳号」—— 后者会把这个正常现象误报成缺陷。</p>
+</section>
+
+<section id="s6">
+  <div class="card-t">六 · 指标基线（检索质量）</div>
+  <div class="tw"><table>
+    <tr><th>指标</th><th>值</th><th>来源</th></tr>
+    <tr><td>检索 recall@10</td><td><b>76.0%</b></td><td><code>evals/eval_minimax.py</code></td></tr>
+    <tr><td>检索 recall@20</td><td>68.0%</td><td>同上</td></tr>
+    <tr><td>检索 MRR</td><td><b>0.647</b></td><td>同上</td></tr>
+    <tr><td>├ 业务 query（20）</td><td>recall@10 80.0% / MRR 0.717</td><td>同上</td></tr>
+    <tr><td>├ 语料派生（30）</td><td>recall@10 73.3% / MRR 0.600</td><td>同上</td></tr>
+    <tr><td>└ negative 严格精度</td><td>100%（0/4 真命中）</td><td>同上</td></tr>
+    <tr><td>引用准确率</td><td><b>100%</b>（阈值 95%）</td><td><code>evals/eval_citation_accuracy.py</code></td></tr>
+    <tr><td>失败用例</td><td>12 条，与 GB10648 导入前<b>逐条一致</b></td><td><code>diff</code> 无差异</td></tr>
+    <tr><td>worker 单测</td><td>309/309</td><td>vitest</td></tr>
+  </table></div>
+</section>
+
+<section id="s7">
+  <div class="card-t">七 · 建议（按性价比排序）</div>
+  <div class="tw"><table>
+    <tr><th>#</th><th>项</th><th>成本</th><th>收益</th><th>备注</th></tr>
+    <tr><td><b>1</b></td><td><b>HTML 实体批量反转义</b></td><td>2-3 小时</td><td>1572 处文本修正 + 带符号查询可命中</td><td><b>必须同步重灌 FTS</b>，否则两套正文不一致</td></tr>
+    <tr><td><b>2</b></td><td><b>补 313 条物质的英文名</b></td><td>1-2 天</td><td>英文名检索可用（双语覆盖 19% → 100%）</td><td>《品种目录》原文有英文名，可从源语料回补</td></tr>
+    <tr><td><b>3</b></td><td><b>清理 15 条重复条文</b></td><td>1-2 小时</td><td>top-k 多样性提升</td><td>需确认不是「同一表格在两处合法出现」</td></tr>
+    <tr><td><b>4</b></td><td><b>开合规速查双闸门</b></td><td>人工 2-3 小时</td><td>② 正式上线</td><td>37 规则 + 387 目录；<b>只开一道无效</b></td></tr>
+  </table></div>
+  <div class="lead">
+    <b>我建议的顺序</b>：先做 <b>1</b>（纯工程、无人工依赖、2-3 小时），同时把 <b>4</b> 的校核清单发给业务方。
+    第 1 项必须<b>连 FTS 一起重灌</b> —— 这是我在 GB10648 导入时踩过的坑：
+    <code>articles</code> 改了正文而 FTS 没跟上，搜到的还是旧文。
+    用 <code>build/export/sync_d1_corpus.py</code> 就行 —— 它现在会<b>按内容比对</b>（不是只比存在性），
+    改了正文会自动识别出需要重灌 FTS 的条目。
+  </div>
+</section>
+
+<section id="s8">
+  <div class="card-t">八 · 复现方式</div>
+  <pre># 全量体检（只读）
+python build/export/quality_report.py --check
+
+# 带 JSON 输出
+python build/export/quality_report.py --check --json quality.json</pre>
+  <p><b>体检脚本的 25 项检查</b>分四类：</p>
+  <ul>
+    <li><b>结构</b>：外键、层级、排序、标题、FTS 覆盖、FTS 与 articles 一致性</li>
+    <li><b>纯净</b>：旧语料残留、乱码、HTML 实体、重复正文、article_id 复用</li>
+    <li><b>业务</b>：合规闸门、规则溯源、物质目录完整性、别名歧义、图谱孤儿</li>
+    <li><b>链路</b>：bge 语料对齐、生产检索实调（含降级检测）</li>
+  </ul>
+  <div class="note">
+    ⚠️ 脚本对 D1 读超时与生产接口超时都做了重试 ——
+    <b>网络抖动报成「数据坏了」是最容易误导人的错误</b>（本次就遇到 2 次）。
+  </div>
+</section>
+
+<section id="s9">
+  <div class="card-t">九 · 诚实标注：这次体检查不出来的东西</div>
+  <div class="tw"><table>
+    <tr><th>盲区</th><th>为什么查不出</th><th>怎么补</th></tr>
+    <tr><td><b>原文准确性</b></td><td>只能判断结构/字符/编码，<b>判断不了「这段话是否忠于原文」</b></td><td>GB10648 那 6 处错误是<b>逐页目视比对 PDF</b> 才发现的</td></tr>
+    <tr><td><b>切分粒度是否合理</b></td><td>「一条 = 一个语义单元」无法用规则判</td><td>需人工抽样审阅，或用 LLM 评判</td></tr>
+    <tr><td><b>检索结果的相关性</b></td><td>只测了「有没有命中」，没测「排得对不对」</td><td>需更完整的标注集（当前 50 条 eval 用例）</td></tr>
+    <tr><td><b>LLM 回答的忠实度</b></td><td>引用准确率 eval 用的是<b>基线缓存离线复算</b>，没打真实 API</td><td>需 <code>eval_qa_faithfulness.py</code> 接真实接口跑全量</td></tr>
+    <tr><td><b>表格语义</b></td><td>241 条含表格的条文，表格里的行列关系<b>没有结构化验证</b></td><td>需逐表核对（本项目已有 <code>scanned-table-ocr-md</code> 流程）</td></tr>
+    <tr><td><b>时效性</b></td><td>语料是 2026 版汇编，<b>不知道哪些条款已被新公告修订</b></td><td>靠 ⑤ 监测（已上线），但改动入库路径 <code>ingestRelease</code> 还没开</td></tr>
+  </table></div>
+</section>
+
+<footer>
+  饲料法规 RAG · 数据质量报告 · 2026-11-16<br>
+  测量方式：生产 D1 直查 + 生产接口实调 + 本地语料全量比对（非文档复述）<br>
+  体检脚本 build/export/quality_report.py · 代码基线 deploy/c-b-hybrid @ 69a525d
+</footer>
+
+</div>
+</body>
+</html>
