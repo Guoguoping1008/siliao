@@ -102,6 +102,12 @@ data/index/minimax/chapters/
 # bge embedding 缓存 (重算: python build/export/embed_articles.py)
 evals/bge_m3_cache_old.json.bak
 
+# GB 10648—2013 PDF 导入的中间产物
+# (源 PDF 保留在仓库根目录; 渲染图 + OCR 缓存可由 build/ocr_pdf.py 重新生成)
+build/_gb10648_source/
+
+# 源 PDF: 679 KB,是有据可查的权威来源,留档
+
 # RAG 灌库 SQL (重生成)
 build/export/seed_pages_m3.sql
 
